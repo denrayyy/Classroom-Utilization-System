@@ -7,7 +7,7 @@ const reportSchema = mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["teacher", "admin", "utilization", "weekly", "monthly", "semester"],
+    enum: ["teacher", "admin", "utilization", "daily", "weekly", "monthly", "semester"],
     required: true
   },
   generatedBy: {
@@ -54,7 +54,10 @@ const reportSchema = mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  comment: {
+    type: String
+  }
 }, {
   timestamps: true
 });

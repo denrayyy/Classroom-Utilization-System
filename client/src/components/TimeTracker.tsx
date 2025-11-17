@@ -9,51 +9,11 @@ interface TimeTrackerProps {
 
 const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
   const [showTimeIn, setShowTimeIn] = useState(false);
-  const [timeOutSuccess, setTimeOutSuccess] = useState(false);
-  const [timeOutTime, setTimeOutTime] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
   const handleTimeIn = () => {
     setShowTimeIn(true);
-  };
-
-  const handleTimeOut = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/timein/timeout', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const timeOutDate = new Date(data.timeInRecord.timeOut);
-        const formattedTime = timeOutDate.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        setTimeOutTime(formattedTime);
-        setTimeOutSuccess(true);
-      } else {
-        setError(data.message || 'Time-out failed');
-      }
-    } catch (error) {
-      console.error('Time-out error:', error);
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleBack = () => {
@@ -103,20 +63,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
     );
   }
 
-  if (timeOutSuccess) {
-    return (
-      <div className="time-page">
-        <div className="time-content">
-          <div className="timeout-success">
-            <div className="success-icon-large">⏰</div>
-            <h2>Timed out at {timeOutTime}</h2>
-            <button className="btn-logout" onClick={handleLogoutClick}>Logout</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="time-page">
       <div className="time-content">
@@ -126,8 +72,6 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
             <span>Time In</span>
           </button>
         </div>
-
-        {error && <div className="error-message">{error}</div>}
 
         <button className="btn-logout" onClick={handleLogoutClick}>Logout</button>
 

@@ -10,7 +10,8 @@ import { OAuth2Client } from "google-auth-library";
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+// Use same client ID as frontend (hardcoded fallback matches frontend)
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '83745494475-om5dg3d440dhnh500ncrbpbkar7ev4s5.apps.googleusercontent.com';
 
 // Helper: Verify Google reCAPTCHA v2/v3 token server-side
 async function verifyRecaptchaToken(token, remoteip) {
@@ -37,13 +38,19 @@ async function verifyRecaptchaToken(token, remoteip) {
 
 // Helper: Nodemailer transport for SMTP (forgot password)
 function getMailTransport() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+  // Use provided email credentials or fallback to environment variables
+  const user = process.env.EMAIL_USER || "2301101329@student.buksu.edu.ph";
+  const pass = process.env.EMAIL_PASS || "tmzp dgnf egeh ummf";
   if (!user || !pass) return null;
   return nodemailer.createTransport({
     service: "gmail",
     auth: { user, pass }
   });
+}
+
+// Helper: Generate 6-digit verification code
+function generateVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // @route   POST /api/auth/register
@@ -197,37 +204,106 @@ router.post("/login", [
 });
 
 // @route   POST /api/auth/google
-// @desc    Google OAuth login (user). Client sends Google ID token; server verifies and issues JWT.
+// @desc    Google OAuth login (user). Client sends Google authorization code or ID token; server verifies and issues JWT.
 // @access  Public
-router.post("/google", [
-  body("idToken").notEmpty().withMessage("Google idToken is required")
-], async (req, res) => {
+router.post("/google", async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+    
+    if (!GOOGLE_CLIENT_SECRET) {
+      console.error("GOOGLE_CLIENT_SECRET not configured in environment variables");
+      return res.status(500).json({ 
+        message: "Google OAuth is not properly configured. Please contact the administrator." 
+      });
     }
 
-    if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ message: "GOOGLE_CLIENT_ID not configured" });
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+    const { code, idToken } = req.body;
+
+    let payload;
+    let email;
+    let sub;
+
+    // Handle authorization code flow
+    if (code) {
+      // Get redirect URI from request body or use default
+      // The client sends the redirect URI it used for the OAuth flow
+      // This must match exactly what was used in the authorization request
+      const redirectUri = req.body.redirectUri || process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000';
+      
+      try {
+        const { tokens } = await client.getToken({ code, redirect_uri: redirectUri });
+        if (!tokens.id_token) {
+          console.error("Failed to get ID token from Google OAuth");
+          return res.status(400).json({ message: "Failed to authenticate with Google. Please try again." });
+        }
+        const ticket = await client.verifyIdToken({ idToken: tokens.id_token, audience: GOOGLE_CLIENT_ID });
+        payload = ticket.getPayload();
+        email = payload?.email;
+        sub = payload?.sub;
+      } catch (tokenError) {
+        console.error("Google token exchange error:", tokenError);
+        console.error("Error details:", {
+          message: tokenError.message,
+          code: tokenError.code,
+          redirectUri: redirectUri
+        });
+        
+        // Check for specific error types and provide helpful messages
+        const errorMessage = tokenError.message || '';
+        if (errorMessage.includes('redirect_uri_mismatch')) {
+          return res.status(400).json({ 
+            message: `Google OAuth configuration error: The redirect URI "${redirectUri}" does not match what's configured in Google Cloud Console. Please ensure "${redirectUri}" is added to Authorized redirect URIs.` 
+          });
+        }
+        if (errorMessage.includes('invalid_grant')) {
+          return res.status(400).json({ 
+            message: "Google authentication code expired or invalid. Please try logging in again." 
+          });
+        }
+        if (errorMessage.includes('invalid_client')) {
+          return res.status(500).json({ 
+            message: "Google OAuth client configuration error. Please check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are correct." 
+          });
+        }
+        return res.status(400).json({ 
+          message: `Failed to authenticate with Google: ${errorMessage || 'Please try again.'}` 
+        });
+      }
+    } 
+    // Handle direct ID token flow (backward compatibility)
+    else if (idToken) {
+      try {
+        const ticket = await client.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+        payload = ticket.getPayload();
+        email = payload?.email;
+        sub = payload?.sub;
+      } catch (verifyError) {
+        console.error("Google ID token verification error:", verifyError);
+        return res.status(400).json({ 
+          message: "Invalid Google authentication token. Please try again." 
+        });
+      }
+    } else {
+      return res.status(400).json({ message: "Either code or idToken is required" });
     }
-
-    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-    const { idToken } = req.body;
-
-    const ticket = await client.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
-    const payload = ticket.getPayload();
-    const email = payload?.email;
-    const sub = payload?.sub; // Google user ID
 
     if (!email) {
       return res.status(400).json({ message: "Google token missing email" });
     }
 
-    // Allow sign-in for existing users by email (no auto-register to preserve employeeId rules)
+    // Only allow sign-in for existing users by email (no auto-register)
+    // User must be registered in the database first
     let user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "Account not found. Please contact admin to enable Google login." });
+      return res.status(403).json({ 
+        message: "This email is not registered. Please contact your administrator to create an account or use email/password login if you have an account." 
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(400).json({ message: "Account is deactivated" });
     }
 
     // Optionally store googleId if not set
@@ -235,6 +311,10 @@ router.post("/google", [
       user.googleId = sub;
       await user.save();
     }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
 
     const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
     return res.json({
@@ -255,12 +335,20 @@ router.post("/google", [
     });
   } catch (error) {
     console.error("Google OAuth login error:", error);
-    res.status(500).json({ message: "Server error during Google login" });
+    // Provide more specific error messages
+    if (error.message && error.message.includes('invalid_grant')) {
+      return res.status(400).json({ 
+        message: "Google authentication expired. Please try logging in again." 
+      });
+    }
+    res.status(500).json({ 
+      message: error.response?.data?.error_description || error.message || "Server error during Google login. Please try again." 
+    });
   }
 });
 
 // @route   POST /api/auth/forgot
-// @desc    Send password reset email with token (SMTP)
+// @desc    Send password reset verification code via email (SMTP)
 // @access  Public
 router.post("/forgot", [ body("email").isEmail().withMessage("Valid email is required") ], async (req, res) => {
   try {
@@ -273,13 +361,13 @@ router.post("/forgot", [ body("email").isEmail().withMessage("Valid email is req
     const user = await User.findOne({ email });
     if (!user) {
       // Avoid user enumeration: respond success regardless
-      return res.json({ message: "If the email exists, a reset link has been sent." });
+      return res.json({ message: "If the email exists, a verification code has been sent." });
     }
 
-    // Generate token
-    const token = crypto.randomBytes(32).toString("hex");
-    user.passwordResetToken = token;
-    user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 30); // 30 minutes
+    // Generate 6-digit verification code
+    const verificationCode = generateVerificationCode();
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = new Date(Date.now() + 1000 * 60 * 15); // 15 minutes
     await user.save();
 
     const transporter = getMailTransport();
@@ -287,30 +375,87 @@ router.post("/forgot", [ body("email").isEmail().withMessage("Valid email is req
       return res.status(500).json({ message: "SMTP not configured" });
     }
 
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const resetUrl = `${appUrl}/reset-password?token=${token}`;
-
+    const emailUser = process.env.EMAIL_USER || "2301101329@student.buksu.edu.ph";
+    
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: emailUser,
       to: email,
-      subject: "Password Reset Instructions",
-      html: `<p>You requested a password reset.</p>
-             <p>Click the link below to set a new password (valid for 30 minutes):</p>
-             <p><a href="${resetUrl}">${resetUrl}</a></p>`
+      subject: "Password Reset Verification Code",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0b5161;">Password Reset Request</h2>
+          <p>You requested to reset your password for your ClaUSys account.</p>
+          <p>Your verification code is:</p>
+          <div style="background-color: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+            <h1 style="color: #0b5161; margin: 0; font-size: 32px; letter-spacing: 5px;">${verificationCode}</h1>
+          </div>
+          <p>This code will expire in 15 minutes.</p>
+          <p>If you did not request this password reset, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #666; font-size: 12px;">This is an automated message from ClaUSys - Classroom Utilization System</p>
+        </div>
+      `
     });
 
-    return res.json({ message: "If the email exists, a reset link has been sent." });
+    return res.json({ message: "If the email exists, a verification code has been sent." });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ message: "Server error during forgot password" });
   }
 });
 
+// @route   POST /api/auth/verify-code
+// @desc    Verify the password reset code
+// @access  Public
+router.post("/verify-code", [
+  body("email").isEmail().withMessage("Valid email is required"),
+  body("code").notEmpty().withMessage("Verification code is required")
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, code } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or verification code" });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    if (!user.verificationCodeExpires || user.verificationCodeExpires < new Date()) {
+      return res.status(400).json({ message: "Verification code has expired" });
+    }
+
+    // Code is valid - generate a temporary token for password reset
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 10); // 10 minutes
+    // Clear verification code after successful verification
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save();
+
+    return res.json({ 
+      message: "Verification code is valid",
+      resetToken: resetToken
+    });
+  } catch (error) {
+    console.error("Verify code error:", error);
+    res.status(500).json({ message: "Server error during code verification" });
+  }
+});
+
 // @route   POST /api/auth/reset
-// @desc    Reset password using token
+// @desc    Reset password using reset token (after code verification)
 // @access  Public
 router.post("/reset", [
-  body("token").notEmpty().withMessage("Reset token is required"),
+  body("resetToken").notEmpty().withMessage("Reset token is required"),
   body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters")
 ], async (req, res) => {
   try {
@@ -319,9 +464,9 @@ router.post("/reset", [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { token, password } = req.body;
+    const { resetToken, password } = req.body;
     const user = await User.findOne({
-      passwordResetToken: token,
+      passwordResetToken: resetToken,
       passwordResetExpires: { $gt: new Date() }
     });
 

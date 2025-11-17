@@ -31,8 +31,9 @@ const userSchema = mongoose.Schema({
   },
   employeeId: {
     type: String,
-    required: true,
-    unique: true
+    required: false,
+    unique: true,
+    sparse: true // Allows multiple null/undefined values while maintaining uniqueness for non-null values
   },
   department: {
     type: String,
@@ -59,9 +60,20 @@ const userSchema = mongoose.Schema({
   passwordResetExpires: {
     type: Date
   },
+  // Verification code for password reset
+  verificationCode: {
+    type: String
+  },
+  verificationCodeExpires: {
+    type: Date
+  },
   // Optional Google account linkage (for OAuth sign-in)
   googleId: {
     type: String
+  },
+  version: {
+    type: Number,
+    default: 1
   }
 }, {
   timestamps: true

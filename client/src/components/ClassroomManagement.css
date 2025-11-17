@@ -691,6 +691,20 @@
   animation: slideUp 0.3s ease;
 }
 
+.modal-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 16px;
+  margin-top: 0;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;

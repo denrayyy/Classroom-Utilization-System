@@ -7,10 +7,14 @@ import './App.css';
 import Login from './components/Login';
 import AdminLogin from './components/AdminLogin';
 import Landing from './components/Landing';
+import ForgotPassword from './components/ForgotPassword';
+import VerifyCode from './components/VerifyCode';
+import ResetPassword from './components/ResetPassword';
 // removed Register and Dashboard (not used)
 import TimeTracker from './components/TimeTracker';
 import ClassroomManagement from './components/ClassroomManagement';
 import UserManagement from './components/UserManagement';
+import InstructorManagement from './components/InstructorManagement';
 import ScheduleManagement from './components/ScheduleManagement';
 import ClassroomUsage from './components/ClassroomUsage';
 import Monitoring from './components/Monitoring';
@@ -93,6 +97,9 @@ const App: React.FC = () => {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/admin-login" element={<AdminLogin onLogin={handleLogin} />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-code" element={<VerifyCode />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
@@ -112,6 +119,7 @@ const App: React.FC = () => {
                 <Route path="/reports" element={<Reports user={user} />} />
                 <Route path="/users" element={<UserManagement user={user} defaultTab="users" />} />
                 <Route path="/classrooms" element={<UserManagement user={user} defaultTab="classrooms" />} />
+                <Route path="/instructors" element={<InstructorManagement user={user} />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AdminLayout>

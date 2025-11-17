@@ -12,11 +12,21 @@ import usageRoutes from "./routes/usage.js";
 import reportRoutes from "./routes/reports.js";
 import timeInRoutes from "./routes/timein.js";
 import userRoutes from "./routes/users.js";
+import instructorRoutes from "./routes/instructors.js";
 import apiRoutes from "./server/routes/api.js";
 import seedAdminIfMissing from "./utils/seedAdmin.js";
+import { initializeDailyArchive } from "./utils/dailyArchive.js";
 
 // Load environment variables
 dotenv.config();
+
+// Verify Google OAuth configuration is loaded
+if (process.env.GOOGLE_CLIENT_ID) {
+  const maskedId = process.env.GOOGLE_CLIENT_ID.substring(0, 20) + '...';
+  console.log('✓ Google OAuth Client ID loaded:', maskedId);
+} else {
+  console.log('✗ GOOGLE_CLIENT_ID not configured in .env file');
+}
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -40,10 +50,20 @@ app.use('/uploads', express.static(path.join(__dirname, "uploads")));
 app.use(express.static(path.join(__dirname, "client/build")));
 
 // Connect to MongoDB
-connectDB();
-
-// Ensure admin exists (runs once on startup)
-seedAdminIfMissing().catch((e) => console.error("Admin seed error:", e));
+connectDB().then(() => {
+  // Ensure admin exists (runs once on startup)
+  seedAdminIfMissing().catch((e) => console.error("Admin seed error:", e));
+  
+  // Initialize daily archive cron job after DB connection
+  try {
+    initializeDailyArchive();
+  } catch (error) {
+    console.error("Error initializing daily archive cron job:", error);
+    // Don't crash the server if cron job fails to initialize
+  }
+}).catch((e) => {
+  console.error("Database connection error:", e);
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -54,6 +74,7 @@ app.use("/api/usage", usageRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/timein", timeInRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/instructors", instructorRoutes);
 // Example public endpoints (attendance log and classroom status)
 app.use("/api", apiRoutes);
 
@@ -71,6 +92,7 @@ app.get("/api", (req, res) => {
       reports: "/api/reports",
       timein: "/api/timein",
       users: "/api/users",
+      instructors: "/api/instructors",
     },
   });
 });

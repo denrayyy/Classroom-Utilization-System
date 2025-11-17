@@ -25,6 +25,7 @@ interface RegisteredUser {
   isActive: boolean;
   lastLogin?: string;
   createdAt: string;
+  version: number;
 }
 
 interface Schedule {
@@ -46,6 +47,7 @@ interface Classroom {
   schedules?: Schedule[];
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 interface UserManagementProps {
@@ -65,7 +67,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [viewingClassroom, setViewingClassroom] = useState<Classroom | null>(null);
   const [isEditingSchedules, setIsEditingSchedules] = useState(false);
   const [showDeleteClassroomConfirm, setShowDeleteClassroomConfirm] = useState(false);
-  const [classroomToDelete, setClassroomToDelete] = useState<string | null>(null);
+  const [classroomToDelete, setClassroomToDelete] = useState<{ id: string; version: number } | null>(null);
   const [scheduleFormData, setScheduleFormData] = useState({
     day: 'Monday',
     time: '',
@@ -75,9 +77,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   });
   const [classroomFormData, setClassroomFormData] = useState({
     name: '',
-    capacity: '',
     location: '',
-    equipment: '',
     description: '',
     isAvailable: true
   });
@@ -88,17 +88,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  const [userToArchive, setUserToArchive] = useState<{ id: string; name: string } | null>(null);
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [userToResetPassword, setUserToResetPassword] = useState<{ id: string; name: string } | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+  const [userToArchive, setUserToArchive] = useState<{ id: string; name: string; version: number } | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [userToRestore, setUserToRestore] = useState<{ id: string; name: string; version: number } | null>(null);
   const [userFormData, setUserFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    employeeId: '',
     department: '',
     phone: '',
     role: 'student' as 'student' | 'admin' | 'teacher',
@@ -109,6 +105,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [mvccWarning, setMvccWarning] = useState(false);
+  const [mvccWarningMessage, setMvccWarningMessage] = useState('This data changed while you were editing.');
 
   // Update activeTab when defaultTab prop changes
   useEffect(() => {
@@ -122,14 +120,35 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError('');
+      
+      // Ensure token is available and set in axios defaults
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      
+      // Ensure axios defaults are set
+      if (!axios.defaults.headers.common['Authorization']) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+
       if (activeTab === 'classrooms') {
         const response = await axios.get('/api/classrooms');
         setClassrooms(response.data);
         
         // Fetch active time-ins (records without timeOut)
-        const timeInResponse = await axios.get('/api/timein');
-        const activeRecords = timeInResponse.data.filter((record: any) => !record.timeOut);
-        setActiveTimeIns(activeRecords);
+        try {
+          const timeInResponse = await axios.get('/api/timein');
+          const activeRecords = timeInResponse.data.filter((record: any) => !record.timeOut);
+          setActiveTimeIns(activeRecords);
+        } catch (timeInError) {
+          // Time-in fetch is optional, don't fail the whole page
+          console.warn('Could not fetch active time-ins:', timeInError);
+          setActiveTimeIns([]);
+        }
       } else {
         const response = await axios.get('/api/users');
         // Filter based on active/archived status and exclude admins
@@ -139,12 +158,26 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         });
         setUsers(filteredUsers);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
-      setError('Failed to fetch data');
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setError('Authentication failed. Please log in again.');
+      } else if (error.response?.data?.message) {
+        setError(error.response.data.message);
+      } else if (error.message) {
+        setError(error.message);
+      } else {
+        setError('Failed to fetch data. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMvccConflict = (overrideMessage?: string) => {
+    setMvccWarningMessage(overrideMessage || 'This data changed while you were editing.');
+    setMvccWarning(true);
+    fetchData();
   };
 
   // Helper function to check if classroom is in use
@@ -159,13 +192,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
 
     try {
       const classroomData = {
-        ...classroomFormData,
-        capacity: parseInt(classroomFormData.capacity),
-        equipment: classroomFormData.equipment.split(',').map(item => item.trim()).filter(item => item)
+        ...classroomFormData
       };
 
       if (editingClassroom) {
-        await axios.put(`/api/classrooms/${editingClassroom._id}`, classroomData);
+        await axios.put(`/api/classrooms/${editingClassroom._id}`, {
+          ...classroomData,
+          version: editingClassroom.version
+        });
       } else {
         await axios.post('/api/classrooms', classroomData);
       }
@@ -174,15 +208,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       setEditingClassroom(null);
       setClassroomFormData({
         name: '',
-        capacity: '',
         location: '',
-        equipment: '',
         description: '',
         isAvailable: true
       });
       fetchData();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save classroom');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.msg);
+      } else {
+        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
+      }
     }
   };
 
@@ -190,17 +226,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     setEditingClassroom(classroom);
     setClassroomFormData({
       name: classroom.name,
-      capacity: classroom.capacity.toString(),
       location: classroom.location,
-      equipment: classroom.equipment.join(', '),
       description: classroom.description || '',
       isAvailable: classroom.isAvailable
     });
     setShowClassroomForm(true);
   };
 
-  const handleDeleteClassroomClick = (id: string) => {
-    setClassroomToDelete(id);
+  const handleDeleteClassroomClick = (classroom: Classroom) => {
+    setClassroomToDelete({ id: classroom._id, version: classroom.version });
     setShowDeleteClassroomConfirm(true);
   };
 
@@ -208,15 +242,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!classroomToDelete) return;
     
     try {
-      await axios.delete(`/api/classrooms/${classroomToDelete}`);
+      await axios.delete(`/api/classrooms/${classroomToDelete.id}`, {
+        data: { version: classroomToDelete.version }
+      });
       setSuccess('Classroom deleted successfully');
-      setShowDeleteClassroomConfirm(false);
-      setClassroomToDelete(null);
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to delete classroom');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.msg);
+      } else {
+        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
+      }
       setTimeout(() => setError(''), 3000);
+    } finally {
+      setShowDeleteClassroomConfirm(false);
+      setClassroomToDelete(null);
     }
   };
 
@@ -230,9 +271,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     setEditingClassroom(null);
     setClassroomFormData({
       name: '',
-      capacity: '',
       location: '',
-      equipment: '',
       description: '',
       isAvailable: true
     });
@@ -261,15 +300,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!viewingClassroom) return;
 
     try {
-      await axios.put(`/api/classrooms/${viewingClassroom._id}`, {
-        schedules: viewingClassroom.schedules
+      const response = await axios.put(`/api/classrooms/${viewingClassroom._id}`, {
+        schedules: viewingClassroom.schedules,
+        version: viewingClassroom.version
       });
       setSuccess('Schedules updated successfully!');
       setIsEditingSchedules(false);
+      setViewingClassroom(response.data);
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to update schedules');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.msg);
+      } else {
+        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to update schedules');
+      }
     }
   };
 
@@ -319,7 +364,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         firstName: userFormData.firstName,
         lastName: userFormData.lastName,
         email: userFormData.email,
-        employeeId: userFormData.employeeId,
         department: userFormData.department,
         phone: userFormData.phone,
         role: userFormData.role,
@@ -334,7 +378,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         firstName: '',
         lastName: '',
         email: '',
-        employeeId: '',
         department: '',
         phone: '',
         role: 'student',
@@ -358,7 +401,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       firstName: '',
       lastName: '',
       email: '',
-      employeeId: '',
       department: '',
       phone: '',
       role: 'student',
@@ -374,20 +416,24 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (updatedData && updatedData !== userToEdit.department) {
       try {
         await axios.put(`/api/users/${userToEdit._id}`, {
-          ...userToEdit,
-          department: updatedData
+          department: updatedData,
+          version: userToEdit.version
         });
         setSuccess('User updated successfully!');
         fetchData();
         setTimeout(() => setSuccess(''), 3000);
       } catch (error: any) {
-        setError(error.response?.data?.message || 'Failed to update user');
+        if (error.response?.status === 409) {
+          handleMvccConflict(error.response?.data?.message);
+        } else {
+          setError(error.response?.data?.message || 'Failed to update user');
+        }
       }
     }
   };
 
-  const handleArchiveUser = (id: string, userName: string) => {
-    setUserToArchive({ id, name: userName });
+  const handleArchiveUser = (userItem: RegisteredUser) => {
+    setUserToArchive({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}`, version: userItem.version });
     setShowArchiveConfirm(true);
   };
 
@@ -395,12 +441,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!userToArchive) return;
 
     try {
-      await axios.put(`/api/users/${userToArchive.id}`, { isActive: false });
+      await axios.put(`/api/users/${userToArchive.id}`, { isActive: false, version: userToArchive.version });
       setSuccess('User archived successfully!');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to archive user');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.message);
+      } else {
+        setError(error.response?.data?.message || 'Failed to archive user');
+      }
     } finally {
       setShowArchiveConfirm(false);
       setUserToArchive(null);
@@ -412,61 +462,44 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     setUserToArchive(null);
   };
 
-  const handleResetPassword = (id: string, userName: string) => {
-    setUserToResetPassword({ id, name: userName });
-    setNewPassword('');
-    setShowPassword(false);
-    setPasswordResetSuccess(false);
-    setShowResetPassword(true);
+  const handleRestoreUser = (userItem: RegisteredUser) => {
+    setUserToRestore({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}`, version: userItem.version });
+    setShowRestoreConfirm(true);
   };
 
-  const handleConfirmResetPassword = async () => {
-    if (!userToResetPassword || !newPassword || newPassword.length < 5) {
-      setError('Password must be at least 5 characters long');
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
+  const handleRestoreConfirm = async () => {
+    if (!userToRestore) return;
 
     try {
-      await axios.put(`/api/users/${userToResetPassword.id}/reset-password`, { newPassword });
-      setPasswordResetSuccess(true);
-      setSuccess(`Password for ${userToResetPassword.name} has been reset successfully`);
-      setTimeout(() => setSuccess(''), 5000);
+      await axios.put(`/api/users/${userToRestore.id}`, { isActive: true, version: userToRestore.version });
+      setSuccess('User restored successfully!');
+      fetchData();
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to reset password');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const handleCloseResetPassword = () => {
-    setShowResetPassword(false);
-    setUserToResetPassword(null);
-    setNewPassword('');
-    setShowPassword(false);
-    setPasswordResetSuccess(false);
-  };
-
-  const handleUnarchiveUser = async (id: string, userName: string) => {
-    if (window.confirm(`Are you sure you want to unarchive ${userName}?`)) {
-      try {
-        await axios.put(`/api/users/${id}`, { isActive: true });
-        setSuccess('User unarchived successfully!');
-        fetchData();
-        setTimeout(() => setSuccess(''), 3000);
-      } catch (error: any) {
-        setError(error.response?.data?.message || 'Failed to unarchive user');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.message);
+      } else {
+        setError(error.response?.data?.message || 'Failed to restore user');
       }
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setShowRestoreConfirm(false);
+      setUserToRestore(null);
     }
+  };
+
+  const handleRestoreCancel = () => {
+    setShowRestoreConfirm(false);
+    setUserToRestore(null);
   };
 
   // Filter users based on search query
   const filteredUsers = users.filter(userItem => {
     const fullName = `${userItem.firstName} ${userItem.lastName}`.toLowerCase();
     const email = userItem.email.toLowerCase();
-    const employeeId = userItem.employeeId.toLowerCase();
     const query = searchQuery.toLowerCase();
     
-    return fullName.includes(query) || email.includes(query) || employeeId.includes(query);
+    return fullName.includes(query) || email.includes(query);
   });
 
   if (loading) {
@@ -517,27 +550,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="email">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={userFormData.email}
-                    onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="employeeId">Employee ID</label>
-                  <input
-                    type="text"
-                    id="employeeId"
-                    value={userFormData.employeeId}
-                    onChange={(e) => setUserFormData({...userFormData, employeeId: e.target.value})}
-                    required
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  value={userFormData.email}
+                  onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                  required
+                />
               </div>
 
               <div className="form-row">
@@ -636,7 +657,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                    <input
                      type="text"
                      className="search-input"
-                     placeholder="Search by name, email, or employee ID..."
+                     placeholder="Search by name or email..."
                      value={searchQuery}
                      onChange={(e) => setSearchQuery(e.target.value)}
                    />
@@ -663,7 +684,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                     <tr>
                       <th>Name</th>
                       <th>Email</th>
-                      <th>Employee ID</th>
                       <th>Department</th>
                       <th>Role</th>
                       <th>Status</th>
@@ -676,7 +696,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                        <tr key={userItem._id}>
                          <td>{userItem.firstName} {userItem.lastName}</td>
                          <td>{userItem.email}</td>
-                         <td>{userItem.employeeId}</td>
                          <td>{userItem.department}</td>
                          <td>
                            <span className={`role-badge role-${userItem.role}`}>
@@ -694,15 +713,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                              : 'Never'}
                          </td>
                          <td className="action-buttons">
-                           {showArchived ? (
-                             <button
-                               className="btn btn-success btn-sm"
-                               onClick={() => handleUnarchiveUser(userItem._id, `${userItem.firstName} ${userItem.lastName}`)}
-                               title="Unarchive user"
-                             >
-                               Unarchive
-                             </button>
-                           ) : (
+                          {showArchived ? (
+                            <button
+                              className="btn btn-success btn-sm"
+                              onClick={() => handleRestoreUser(userItem)}
+                              title="Restore user"
+                            >
+                              Restore
+                            </button>
+                          ) : (
                             <>
                               <button
                                 className="btn btn-outline btn-sm"
@@ -712,22 +731,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                                 Edit
                               </button>
                               {userItem._id !== user.id && (
-                                <>
-                                  <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => handleResetPassword(userItem._id, `${userItem.firstName} ${userItem.lastName}`)}
-                                    title="Reset password"
-                                  >
-                                    Reset Password
-                                  </button>
-                                  <button
-                                    className="btn btn-warning btn-sm"
-                                    onClick={() => handleArchiveUser(userItem._id, `${userItem.firstName} ${userItem.lastName}`)}
-                                    title="Archive user"
-                                  >
-                                    Archive
-                                  </button>
-                                </>
+                                <button
+                                  className="btn btn-warning btn-sm"
+                                  onClick={() => handleArchiveUser(userItem)}
+                                  title="Archive user"
+                                >
+                                  Archive
+                                </button>
                               )}
                             </>
                            )}
@@ -755,51 +765,38 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
           <div className="card">
             <div className="card-header">
               <h2>Classrooms</h2>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setEditingClassroom(null);
-                  setClassroomFormData({
-                    name: '',
-                    capacity: '',
-                    location: '',
-                    equipment: '',
-                    description: '',
-                    isAvailable: true
-                  });
-                  setShowClassroomForm(true);
-                }}
-              >
-                Add Classroom
-              </button>
+              {!showClassroomForm && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setEditingClassroom(null);
+                    setClassroomFormData({
+                      name: '',
+                      location: '',
+                      description: '',
+                      isAvailable: true
+                    });
+                    setShowClassroomForm(true);
+                  }}
+                >
+                  Add Classroom
+                </button>
+              )}
             </div>
 
           {showClassroomForm && (
             <form onSubmit={handleClassroomSubmit} className="classroom-form">
               <h3>{editingClassroom ? 'Edit Classroom' : 'Add New Classroom'}</h3>
               
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="name">Classroom Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={classroomFormData.name}
-                    onChange={(e) => setClassroomFormData({...classroomFormData, name: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="capacity">Capacity</label>
-                  <input
-                    type="number"
-                    id="capacity"
-                    value={classroomFormData.capacity}
-                    onChange={(e) => setClassroomFormData({...classroomFormData, capacity: e.target.value})}
-                    required
-                    min="1"
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="name">Classroom Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  value={classroomFormData.name}
+                  onChange={(e) => setClassroomFormData({...classroomFormData, name: e.target.value})}
+                  required
+                />
               </div>
 
               <div className="form-group">
@@ -810,17 +807,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                   value={classroomFormData.location}
                   onChange={(e) => setClassroomFormData({...classroomFormData, location: e.target.value})}
                   required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="equipment">Equipment (comma-separated)</label>
-                <input
-                  type="text"
-                  id="equipment"
-                  value={classroomFormData.equipment}
-                  onChange={(e) => setClassroomFormData({...classroomFormData, equipment: e.target.value})}
-                  placeholder="e.g., Projector, Whiteboard, Computer"
                 />
               </div>
 
@@ -879,16 +865,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                         <span className="detail-label">Location:</span>
                         <span className="detail-value">{classroom.location}</span>
                       </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Capacity:</span>
-                        <span className="detail-value">{classroom.capacity} students</span>
-                      </div>
-                      {classroom.equipment.length > 0 && (
-                        <div className="detail-item">
-                          <span className="detail-label">Equipment:</span>
-                          <span className="detail-value">{classroom.equipment.join(', ')}</span>
-                        </div>
-                      )}
                       {classroom.description && (
                         <div className="detail-item">
                           <span className="detail-label">Description:</span>
@@ -912,7 +888,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                       </button>
                       <button
                         className="btn btn-danger"
-                        onClick={() => handleDeleteClassroomClick(classroom._id)}
+                        onClick={() => handleDeleteClassroomClick(classroom)}
                       >
                         Delete
                       </button>
@@ -1064,6 +1040,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         </div>
       )}
 
+      {/* MVCC Conflict Modal */}
+      {mvccWarning && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <h3>Data Updated</h3>
+            <p>{mvccWarningMessage || 'This data changed while you were editing.'}</p>
+            <div className="modal-buttons">
+              <button className="btn-confirm" onClick={() => setMvccWarning(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Archive Confirmation Modal */}
       {showArchiveConfirm && userToArchive && (
         <div className="modal-overlay">
@@ -1079,74 +1070,24 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         </div>
       )}
 
-      {/* Reset Password Modal */}
-      {showResetPassword && userToResetPassword && (
+      {/* Restore User Confirmation Modal */}
+      {showRestoreConfirm && userToRestore && (
         <div className="modal-overlay">
-          <div className="reset-password-modal">
-            <h3 className="reset-password-title">Reset Password for <strong>{userToResetPassword.name}</strong></h3>
-            
-            {!passwordResetSuccess ? (
-              <>
-                <div className="password-input-group">
-                  <label className="password-label">Enter New Password:</label>
-                  <div className="input-with-toggle">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      className="password-input"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password (min. 5 characters)"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="toggle-password-btn"
-                      onClick={() => setShowPassword(!showPassword)}
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? '👁️' : '👁️‍🗨️'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="reset-password-buttons">
-                  <button 
-                    className="btn-confirm-reset" 
-                    onClick={handleConfirmResetPassword}
-                    disabled={!newPassword || newPassword.length < 5}
-                  >
-                    Reset Password
-                  </button>
-                  <button className="btn-cancel-reset" onClick={handleCloseResetPassword}>Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="success-message-box">
-                  <div className="success-icon">✅</div>
-                  <p className="success-text">Password has been reset successfully!</p>
-                  <div className="final-password-display">
-                    <p className="password-label">New Password:</p>
-                    <div className="password-box">
-                      <code>{newPassword}</code>
-                      <button
-                        className="btn-copy-password"
-                        onClick={() => {
-                          navigator.clipboard.writeText(newPassword);
-                          setSuccess('Password copied to clipboard!');
-                          setTimeout(() => setSuccess(''), 2000);
-                        }}
-                        title="Copy password"
-                      >
-                        📋 Copy
-                      </button>
-                    </div>
-                  </div>
-                  <p className="reminder-text">⚠️ Make sure to save this password and share it with the user!</p>
-                </div>
-                <button className="btn-done-reset" onClick={handleCloseResetPassword}>Done</button>
-              </>
-            )}
+          <div className="archive-confirm-modal">
+            <div className="modal-icon">♻️</div>
+            <h3 className="modal-title">Restore User</h3>
+            <p className="archive-confirm-text">
+              Are you sure you want to restore <strong>{userToRestore.name}</strong>? 
+              They will be moved back to the active users list and will be able to log in again.
+            </p>
+            <div className="archive-confirm-buttons">
+              <button className="btn-confirm-yes" onClick={handleRestoreConfirm}>
+                Yes, Restore
+              </button>
+              <button className="btn-confirm-no" onClick={handleRestoreCancel}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

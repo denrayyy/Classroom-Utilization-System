@@ -11,7 +11,9 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "npm run build --prefix client",
     "build:server": "npm run build && npm start",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client",
+    "fix-google-oauth": "node scripts/fixGoogleOAuth.js",
+    "seed-instructors": "node scripts/seedInstructors.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -23,7 +25,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.10"
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.10",
+    "pdfkit": "^0.17.2"
   },
   "devDependencies": {
     "concurrently": "^8.2.0",

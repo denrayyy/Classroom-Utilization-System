@@ -24,39 +24,39 @@ interface ActivityRecord {
   timeOut?: string;
   date: string;
   isArchived?: boolean;
+  evidence?: {
+    filename?: string;
+    originalName?: string;
+  };
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
-  const [archivedActivities, setArchivedActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showArchived, setShowArchived] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [searchName, setSearchName] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDate, setFilterDate] = useState('');
-  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchRecentActivities();
-  }, []);
+  const [evidenceModal, setEvidenceModal] = useState<{ open: boolean; url: string; filename: string }>({ open: false, url: '', filename: '' });
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
 
   const fetchRecentActivities = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/timein', {
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      const response = await axios.get(`/api/timein?date=${todayStr}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Separate archived and non-archived records
-      const nonArchived = response.data.filter((record: ActivityRecord) => !record.isArchived);
-      const archived = response.data.filter((record: ActivityRecord) => record.isArchived);
+      // Filter to show only today's records that are not archived
+      const todayRecords = response.data.filter((record: ActivityRecord) => {
+        const recordDate = new Date(record.date).toISOString().split('T')[0];
+        return recordDate === todayStr && !record.isArchived;
+      });
       
-      setActivities(nonArchived);
-      setArchivedActivities(archived);
+      setActivities(todayRecords);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching activities:', error);
@@ -64,78 +64,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     }
   };
 
-  const handleArchiveClick = (id: string) => {
-    setSelectedRecordId(id);
-    setShowArchiveConfirm(true);
-  };
-
-  const handleArchiveConfirm = async () => {
-    if (!selectedRecordId) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/timein/${selectedRecordId}/archive`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess('Record archived successfully');
-      setShowArchiveConfirm(false);
-      setSelectedRecordId(null);
+  useEffect(() => {
+    fetchRecentActivities();
+    // Refresh every minute to show real-time updates
+    const interval = setInterval(() => {
       fetchRecentActivities();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to archive record');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
+    }, 60000); // Refresh every 60 seconds
 
-  const handleArchiveCancel = () => {
-    setShowArchiveConfirm(false);
-    setSelectedRecordId(null);
-  };
-
-  const handleUnarchive = async (id: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/timein/${id}/unarchive`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess('Record unarchived successfully');
-      fetchRecentActivities();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to unarchive record');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const handleDeleteClick = (id: string) => {
-    setSelectedRecordId(id);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedRecordId) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/timein/${selectedRecordId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuccess('Record deleted successfully');
-      setShowDeleteConfirm(false);
-      setSelectedRecordId(null);
-      fetchRecentActivities();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to delete record');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteConfirm(false);
-    setSelectedRecordId(null);
-  };
+    return () => clearInterval(interval);
+  }, []);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -145,32 +82,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     };
   };
 
-  const getStatus = (record: ActivityRecord) => {
-    return record.timeOut ? 'Time Out' : 'Active';
-  };
-
   const filterActivities = (activitiesList: ActivityRecord[]) => {
     return activitiesList.filter((activity) => {
-      // Filter by name
+      // Filter by name only (date filtering removed - only showing today)
       if (searchName) {
         const fullName = `${activity.student?.firstName} ${activity.student?.lastName}`.toLowerCase();
         if (!fullName.includes(searchName.toLowerCase())) {
-          return false;
-        }
-      }
-
-      // Filter by status
-      if (filterStatus !== 'all') {
-        const isActive = !activity.timeOut;
-        if (filterStatus === 'active' && !isActive) return false;
-        if (filterStatus === 'timed-out' && isActive) return false;
-      }
-
-      // Filter by date
-      if (filterDate) {
-        const activityDate = new Date(activity.timeIn).toLocaleDateString('en-US');
-        const selectedDate = new Date(filterDate).toLocaleDateString('en-US');
-        if (activityDate !== selectedDate) {
           return false;
         }
       }
@@ -179,33 +96,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     });
   };
 
+  const handleViewEvidence = async (filename: string) => {
+    if (!filename) return;
+    try {
+      setEvidenceLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/timein/evidence/${filename}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(response.data);
+      setEvidenceModal({ open: true, url, filename });
+      setEvidenceLoading(false);
+    } catch (err) {
+      console.error('Error viewing evidence:', err);
+      setError('Unable to load evidence image.');
+      setTimeout(() => setError(''), 3000);
+      setEvidenceLoading(false);
+    }
+  };
+
+  const closeEvidenceModal = () => {
+    if (evidenceModal.url) {
+      window.URL.revokeObjectURL(evidenceModal.url);
+    }
+    setEvidenceModal({ open: false, url: '', filename: '' });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (evidenceModal.url) {
+        window.URL.revokeObjectURL(evidenceModal.url);
+      }
+    };
+  }, [evidenceModal.url]);
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-content">
         <div className="welcome-section">
-          <h2>Recent Activities</h2>
-          <p>Monitor recent classroom usage and time-in/out records</p>
+          <h2>Today's Activities</h2>
+          <p>Real-time daily classroom usage and time-in/out records - Updated every 24 hours</p>
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
+            Date: {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
         
         {success && <div className="success-message">{success}</div>}
         {error && <div className="error-message">{error}</div>}
         
         <div className="activities-section">
-          <div className="activities-header">
-            <button 
-              className={`btn-toggle ${!showArchived ? 'active' : ''}`}
-              onClick={() => setShowArchived(false)}
-            >
-              Recent Activities
-            </button>
-            <button 
-              className={`btn-toggle ${showArchived ? 'active' : ''}`}
-              onClick={() => setShowArchived(true)}
-            >
-              Archived ({archivedActivities.length})
-            </button>
-          </div>
-
           <div className="filters-section">
             <div className="filter-group">
               <label>Search by Name:</label>
@@ -217,36 +158,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                 className="filter-input"
               />
             </div>
-            <div className="filter-group">
-              <label>Filter by Status:</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="filter-select"
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="timed-out">Time Out</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <label>Filter by Date:</label>
-              <input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="filter-input"
-              />
-            </div>
             <button 
               className="btn-clear-filters"
               onClick={() => {
                 setSearchName('');
-                setFilterStatus('all');
-                setFilterDate('');
               }}
             >
-              Clear Filters
+              Clear Filter
             </button>
           </div>
 
@@ -254,12 +172,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
             <p>Loading activities...</p>
           ) : (() => {
             const filteredActivities = filterActivities(
-              (showArchived ? archivedActivities : activities).filter(
+              activities.filter(
                 (activity) => activity.student && activity.classroom
               )
             );
             return filteredActivities.length === 0 ? (
-              <p>No {showArchived ? 'archived' : 'recent'} activities found.</p>
+              <p>No activities found for today.</p>
             ) : (
               <div className="activities-table-container">
                 <table className="activities-table">
@@ -270,14 +188,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                       <th>Account Name</th>
                       <th>Instructor</th>
                       <th>ComLab</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredActivities.map((activity) => {
                       const { date, time } = formatDateTime(activity.timeIn);
-                      const isActive = !activity.timeOut;
                       return (
                         <tr key={activity._id}>
                           <td>{date}</td>
@@ -285,32 +201,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                           <td>{activity.student?.firstName} {activity.student?.lastName}</td>
                           <td>{activity.instructorName || 'N/A'}</td>
                           <td>{activity.classroom?.name}</td>
-                          <td className={isActive ? 'status-active' : 'status-timed-out'}>
-                            {getStatus(activity)}
-                          </td>
                           <td>
-                            {!showArchived ? (
-                              <button 
-                                className="btn-archive"
-                                onClick={() => handleArchiveClick(activity._id)}
+                            {activity.evidence?.filename ? (
+                              <button
+                                className="btn-link"
+                                onClick={() => handleViewEvidence(activity.evidence!.filename!)}
+                                disabled={evidenceLoading}
                               >
-                                Archive
+                                {evidenceLoading ? 'Loading...' : 'View Evidence'}
                               </button>
                             ) : (
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button 
-                                  className="btn-unarchive"
-                                  onClick={() => handleUnarchive(activity._id)}
-                                >
-                                  Unarchive
-                                </button>
-                                <button 
-                                  className="btn-delete"
-                                  onClick={() => handleDeleteClick(activity._id)}
-                                >
-                                  Delete
-                                </button>
-                              </div>
+                              <span style={{ color: '#6c757d' }}>No evidence</span>
                             )}
                           </td>
                         </tr>
@@ -324,37 +225,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         </div>
       </div>
 
-      {/* Archive Confirmation Modal */}
-      {showArchiveConfirm && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h3>Archive Record</h3>
-            <p>Are you sure you want to archive this record?</p>
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={handleArchiveCancel}>
-                Cancel
-              </button>
-              <button className="btn-confirm" onClick={handleArchiveConfirm}>
-                Archive
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h3>Delete Record</h3>
-            <p>Are you sure you want to permanently delete this archived record? This action cannot be undone.</p>
-            <div className="modal-buttons">
-              <button className="btn-cancel" onClick={handleDeleteCancel}>
-                Cancel
-              </button>
-              <button className="btn-confirm" onClick={handleDeleteConfirm}>
-                Delete
-              </button>
+      {evidenceModal.open && (
+        <div className="modal-overlay" onClick={closeEvidenceModal}>
+          <div className="modal-content evidence-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeEvidenceModal}>
+              &times;
+            </button>
+            <h2>Evidence Preview</h2>
+            <div className="evidence-preview">
+              <img src={evidenceModal.url} alt="Evidence" />
             </div>
           </div>
         </div>

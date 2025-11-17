@@ -2,10 +2,12 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import PDFDocument from "pdfkit";
 import TimeIn from "../models/TimeIn.js";
 import Classroom from "../models/Classroom.js";
 import { body, validationResult } from "express-validator";
-import { authenticateToken, requireTeacher } from "../middleware/auth.js";
+import { authenticateToken, requireTeacher, requireAdmin } from "../middleware/auth.js";
+import { getCurrentTime } from "../utils/worldTimeAPI.js";
 
 const router = express.Router();
 
@@ -118,6 +120,9 @@ router.post("/", authenticateToken, requireTeacher, upload.single('evidence'), h
       return res.status(404).json({ message: "Classroom not found" });
     }
 
+    // Get accurate time from World Time API (with fallback to server time)
+    const currentTime = await getCurrentTime();
+    
     // Create time-in record with automatic timestamp and user data
     // Students can time-in multiple times per day for different classes
     const timeInRecord = new TimeIn({
@@ -131,8 +136,8 @@ router.post("/", authenticateToken, requireTeacher, upload.single('evidence'), h
         size: req.file.size, // File size in bytes
         path: req.file.path // Server file path for retrieval
       },
-      timeIn: new Date(), // Current timestamp when time-in is submitted
-      date: new Date(), // Current date for daily tracking
+      timeIn: currentTime, // Accurate timestamp from World Time API
+      date: currentTime, // Current date for daily tracking (from World Time API)
       remarks // Optional student remarks
     });
 
@@ -192,8 +197,11 @@ router.put("/timeout", authenticateToken, requireTeacher, async (req, res) => {
       });
     }
 
+    // Get accurate time from World Time API (with fallback to server time)
+    const currentTime = await getCurrentTime();
+    
     // Update with time-out
-    timeInRecord.timeOut = new Date();
+    timeInRecord.timeOut = currentTime;
     await timeInRecord.save();
     
     await timeInRecord.populate("student", "firstName lastName email employeeId department");
@@ -253,8 +261,10 @@ router.get("/", authenticateToken, async (req, res) => {
     // Date filtering
     if (date) {
       const targetDate = new Date(date);
-      const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
       query.date = { $gte: startOfDay, $lte: endOfDay };
     }
 
@@ -383,6 +393,85 @@ router.get("/evidence/:filename", authenticateToken, (req, res) => {
     });
   } catch (error) {
     console.error("Get evidence error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @route   GET /api/timein/pdf
+ * @desc    Generate a PDF of time-in transactions for a specific date
+ * @access  Private (Admin)
+ */
+router.get("/export/pdf", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ message: "date (YYYY-MM-DD) is required" });
+    }
+
+    const targetDate = new Date(date);
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const records = await TimeIn.find({
+      date: { $gte: startOfDay, $lte: endOfDay }
+    })
+      .populate("student", "firstName lastName email employeeId department")
+      .populate("classroom", "name location capacity")
+      .sort({ timeIn: 1 });
+
+    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    const formattedDate = new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="timein-${date}.pdf"`);
+
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(18).text("Time-in Transactions", { align: "center" }).moveDown(0.3);
+    doc.fontSize(12).text(`Date: ${formattedDate}`, { align: "center" }).moveDown(1);
+
+    // Table header
+    doc.font("Helvetica-Bold").fontSize(11);
+    const col = (x) => 40 + x;
+
+    doc.text("Time", col(0));
+    doc.text("Student", col(80));
+    doc.text("Instructor", col(240));
+    doc.text("Classroom", col(360));
+    doc.moveDown(0.5);
+
+    doc.font("Helvetica").fontSize(10);
+
+    if (records.length === 0) {
+      doc.text("No transactions recorded for this date.");
+    } else {
+      records.forEach((r) => {
+        const timeStr = r.timeIn ? new Date(r.timeIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "—";
+        const studentName = r.student ? `${r.student.firstName} ${r.student.lastName}` : "—";
+        const instructor = r.instructorName || "—";
+        const classroom = r.classroom ? r.classroom.name : "—";
+
+        const y = doc.y;
+        doc.text(timeStr, col(0), y, { width: 70 });
+        doc.text(studentName, col(80), y, { width: 150 });
+        doc.text(instructor, col(240), y, { width: 110 });
+        doc.text(classroom, col(360), y, { width: 160 });
+        doc.moveDown(0.2);
+        doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#e0e0e0").stroke().strokeColor("#000");
+      });
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error("Generate time-in PDF error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -13,8 +13,14 @@ interface Classroom {
   capacity: number;
 }
 
+interface Instructor {
+  _id: string;
+  name: string;
+}
+
 const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [selectedClassroom, setSelectedClassroom] = useState('');
   const [evidence, setEvidence] = useState<File | null>(null);
   const [instructorName, setInstructorName] = useState('');
@@ -23,10 +29,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [timeInData, setTimeInData] = useState<any>(null);
-  const [timeOutSuccess, setTimeOutSuccess] = useState(false);
-  const [timeOutTime, setTimeOutTime] = useState('');
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showLogoutSuccess, setShowLogoutSuccess] = useState(false);
 
   // Get current date and time
   const currentDate = new Date();
@@ -43,7 +45,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
   useEffect(() => {
     fetchClassrooms();
-    checkActiveTimeIn();
+    fetchInstructors();
   }, []);
 
   const fetchClassrooms = async () => {
@@ -64,27 +66,15 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  const checkActiveTimeIn = async () => {
+  const fetchInstructors = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/timein', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await fetch('/api/instructors');
       if (response.ok) {
         const data = await response.json();
-        // Find active time-in (one without timeOut)
-        const activeTimeIn = data.find((record: any) => !record.timeOut);
-        
-        if (activeTimeIn) {
-          setTimeInData(activeTimeIn);
-          setSuccess(true);
-        }
+        setInstructors(data);
       }
     } catch (error) {
-      console.error('Error checking active time-in:', error);
+      console.error('Error fetching instructors:', error);
     }
   };
 
@@ -106,61 +96,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  const handleTimeOut = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/timein/timeout', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const timeOutDate = new Date(data.timeInRecord.timeOut);
-        const formattedTime = timeOutDate.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-        setTimeOutTime(formattedTime);
-        setTimeOutSuccess(true);
-        setSuccess(false); // Clear the success state
-      } else {
-        setError(data.message || 'Time-out failed');
-      }
-    } catch (error) {
-      console.error('Time-out error:', error);
-      setError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const handleLogoutConfirm = () => {
-    setShowLogoutConfirm(false);
-    setShowLogoutSuccess(true);
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const handleLoginAgain = () => {
-    // Clear token and redirect to landing page
-    localStorage.removeItem('token');
-    window.location.href = '/';
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,6 +141,11 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         // Reset file input
         const fileInput = document.getElementById('evidence') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+        
+        // Redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          onBack();
+        }, 2000);
       } else {
         setError(data.message || 'Time-in failed');
       }
@@ -221,61 +161,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  // Show logout success screen
-  if (showLogoutSuccess) {
-    return (
-      <div className="logout-page">
-        <div className="logout-container">
-          <div className="logout-content">
-            <div className="logout-logo">
-              <svg viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M24 56h16" stroke="#11303b" strokeWidth="4" strokeLinecap="round"/>
-                <path d="M32 8c-9.389 0-17 7.611-17 17 0 6.06 3.087 11.382 7.78 14.5 1.689 1.114 2.22 2.654 2.22 4.5v2h16v-2c0-1.846.531-3.386 2.22-4.5C45.913 36.382 49 31.06 49 25c0-9.389-7.611-17-17-17Z" stroke="#11303b" strokeWidth="3"/>
-                <path d="M26 42h12" stroke="#11303b" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <h1 className="logout-title">ClaUSys</h1>
-            <p className="logout-subtitle">Classroom Utilization System</p>
-            <p className="logout-message">Successfully Logged Out!</p>
-            <button className="btn-login-again" onClick={handleLoginAgain}>
-              Login Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show time-out success screen
-  if (timeOutSuccess) {
-    return (
-      <div className="status-page">
-        <div className="status-box">
-          <div className="status-content">
-            <div className="status-icon">⏰</div>
-            <h2 className="status-title">Timed out at {timeOutTime}</h2>
-            <p className="status-message">Your time-out has been recorded successfully.</p>
-            <button className="btn-logout-blue" onClick={handleLogoutClick}>
-              Logout
-            </button>
-          </div>
-        </div>
-        {showLogoutConfirm && (
-          <div className="modal-overlay">
-            <div className="logout-confirm-modal">
-              <p className="logout-confirm-text">Are you sure you want to <strong>log-out</strong>?</p>
-              <div className="logout-confirm-buttons">
-                <button className="btn-confirm-yes" onClick={handleLogoutConfirm}>Yes</button>
-                <button className="btn-confirm-no" onClick={handleLogoutCancel}>No</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Show time-in success screen with Time Out button
+  // Show time-in success screen - will redirect to dashboard after 2 seconds
   if (success) {
     // Get the time-in time from the record if available, otherwise use current time
     let displayTime = formattedTime;
@@ -293,16 +179,11 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         <div className="status-box">
           <div className="status-content">
             <div className="status-icon-check">✓</div>
-            <h2 className="status-title">Timed in at {displayTime}</h2>
+            <h2 className="status-title">Successfully Timed In at {displayTime}</h2>
             <p className="status-message">Your time-in has been recorded with evidence.</p>
-            <button 
-              className="btn-timeout-red" 
-              onClick={handleTimeOut}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : 'Time Out'}
-            </button>
-            {error && <div className="error-message" style={{marginTop: '20px'}}>{error}</div>}
+            <p className="status-message" style={{fontSize: '14px', marginTop: '10px', fontStyle: 'italic'}}>
+              Redirecting to dashboard...
+            </p>
           </div>
         </div>
       </div>
@@ -405,14 +286,19 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
               <div className="field-group">
                 <label>Instructor Name:</label>
-                <input
-                  type="text"
+                <select
                   value={instructorName}
                   onChange={(e) => setInstructorName(e.target.value)}
-                  placeholder="Enter instructor's name"
                   required
                   className="form-field"
-                />
+                >
+                  <option value="">Select Instructor</option>
+                  {instructors.map((instructor) => (
+                    <option key={instructor._id} value={instructor.name}>
+                      {instructor.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="field-group">

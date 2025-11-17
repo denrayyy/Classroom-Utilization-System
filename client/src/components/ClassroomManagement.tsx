@@ -22,6 +22,7 @@ interface Classroom {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 interface ClassroomManagementProps {
@@ -35,13 +36,13 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    capacity: '',
     location: '',
-    equipment: '',
     description: '',
     isAvailable: true
   });
   const [error, setError] = useState('');
+  const [mvccWarning, setMvccWarning] = useState(false);
+  const [mvccWarningMessage, setMvccWarningMessage] = useState('This data changed while you were editing.');
 
   useEffect(() => {
     fetchClassrooms();
@@ -60,19 +61,26 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     }
   };
 
+  const handleMvccConflict = (message?: string) => {
+    setMvccWarningMessage(message || 'This data changed while you were editing.');
+    setMvccWarning(true);
+    fetchClassrooms();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     try {
       const classroomData = {
-        ...formData,
-        capacity: parseInt(formData.capacity),
-        equipment: formData.equipment.split(',').map(item => item.trim()).filter(item => item)
+        ...formData
       };
 
       if (editingClassroom) {
-        await axios.put(`/api/classrooms/${editingClassroom._id}`, classroomData);
+        await axios.put(`/api/classrooms/${editingClassroom._id}`, {
+          ...classroomData,
+          version: editingClassroom.version
+        });
       } else {
         await axios.post('/api/classrooms', classroomData);
       }
@@ -81,15 +89,17 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setEditingClassroom(null);
       setFormData({
         name: '',
-        capacity: '',
         location: '',
-        equipment: '',
         description: '',
         isAvailable: true
       });
       fetchClassrooms();
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to save classroom');
+      if (error.response?.status === 409) {
+        handleMvccConflict(error.response?.data?.msg);
+      } else {
+        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
+      }
     }
   };
 
@@ -97,22 +107,26 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     setEditingClassroom(classroom);
     setFormData({
       name: classroom.name,
-      capacity: classroom.capacity.toString(),
       location: classroom.location,
-      equipment: classroom.equipment.join(', '),
       description: classroom.description || '',
       isAvailable: classroom.isAvailable
     });
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (classroom: Classroom) => {
     if (window.confirm('Are you sure you want to delete this classroom?')) {
       try {
-        await axios.delete(`/api/classrooms/${id}`);
+        await axios.delete(`/api/classrooms/${classroom._id}`, {
+          data: { version: classroom.version }
+        });
         fetchClassrooms();
       } catch (error: any) {
-        setError(error.response?.data?.message || 'Failed to delete classroom');
+        if (error.response?.status === 409) {
+          handleMvccConflict(error.response?.data?.msg);
+        } else {
+          setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
+        }
       }
     }
   };
@@ -122,9 +136,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     setEditingClassroom(null);
     setFormData({
       name: '',
-      capacity: '',
       location: '',
-      equipment: '',
       description: '',
       isAvailable: true
     });
@@ -152,34 +164,38 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       <div className="card">
         <div className="card-header">
           <h2>Classrooms</h2>
+          {!showForm && (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setEditingClassroom(null);
+                setFormData({
+                  name: '',
+                  location: '',
+                  description: '',
+                  isAvailable: true
+                });
+                setShowForm(true);
+              }}
+            >
+              Add Classroom
+            </button>
+          )}
         </div>
 
         {showForm && (
           <form onSubmit={handleSubmit} className="classroom-form">
             <h3>{editingClassroom ? 'Edit Classroom' : 'Add New Classroom'}</h3>
             
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="name">Classroom Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="capacity">Capacity</label>
-                <input
-                  type="number"
-                  id="capacity"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({...formData, capacity: e.target.value})}
-                  required
-                  min="1"
-                />
-              </div>
+            <div className="form-group">
+              <label htmlFor="name">Classroom Name</label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
             </div>
 
             <div className="form-group">
@@ -190,17 +206,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
                 required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="equipment">Equipment (comma-separated)</label>
-              <input
-                type="text"
-                id="equipment"
-                value={formData.equipment}
-                onChange={(e) => setFormData({...formData, equipment: e.target.value})}
-                placeholder="e.g., Projector, Whiteboard, Computer"
               />
             </div>
 
@@ -236,6 +241,19 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
           </form>
         )}
       </div>
+      {mvccWarning && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <h3>Data Updated</h3>
+            <p>{mvccWarningMessage || 'This data changed while you were editing.'}</p>
+            <div className="modal-buttons">
+              <button className="btn-confirm" onClick={() => setMvccWarning(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

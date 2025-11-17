@@ -9,7 +9,7 @@ const router = express.Router();
 // @access  Public
 router.get("/", async (req, res) => {
   try {
-    const classrooms = await Classroom.find();
+    const classrooms = await Classroom.find().lean();
     res.json(classrooms);
   } catch (error) {
     console.error(error.message);
@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
 // @access  Public
 router.get("/:id", async (req, res) => {
   try {
-    const classroom = await Classroom.findById(req.params.id);
+    const classroom = await Classroom.findById(req.params.id).lean();
     if (!classroom) {
       return res.status(404).json({ msg: "Classroom not found" });
     }
@@ -41,7 +41,6 @@ router.get("/:id", async (req, res) => {
 // @access  Public
 router.post("/", [
   body("name").notEmpty().withMessage("Name is required"),
-  body("capacity").isNumeric().withMessage("Capacity must be a number"),
   body("location").notEmpty().withMessage("Location is required")
 ], async (req, res) => {
   try {
@@ -76,19 +75,65 @@ router.post("/", [
 // @access  Public
 router.put("/:id", async (req, res) => {
   try {
-    const { name, capacity, location, equipment, description, isAvailable } = req.body;
+    const {
+      name,
+      capacity,
+      location,
+      equipment,
+      description,
+      isAvailable,
+      schedules
+    } = req.body;
 
-    const classroom = await Classroom.findByIdAndUpdate(
-      req.params.id,
-      { name, capacity, location, equipment, description, isAvailable },
-      { new: true }
-    );
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (capacity !== undefined) updateFields.capacity = capacity;
+    if (location !== undefined) updateFields.location = location;
+    if (equipment !== undefined) updateFields.equipment = equipment;
+    if (description !== undefined) updateFields.description = description;
+    if (isAvailable !== undefined) updateFields.isAvailable = isAvailable;
+    if (schedules !== undefined) updateFields.schedules = schedules;
 
-    if (!classroom) {
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ msg: "No fields provided to update" });
+    }
+
+    const existing = await Classroom.findById(req.params.id).select("version");
+
+    if (!existing) {
       return res.status(404).json({ msg: "Classroom not found" });
     }
 
-    res.json(classroom);
+    const hasVersion = typeof existing.version === "number";
+    const currentVersion = hasVersion ? existing.version : 1;
+
+    const filter = hasVersion
+      ? { _id: req.params.id, version: currentVersion }
+      : {
+          _id: req.params.id,
+          $or: [{ version: { $exists: false } }, { version: null }]
+        };
+
+    const updateOps = {
+      $set: {
+        ...updateFields,
+        ...(hasVersion ? {} : { version: currentVersion })
+      },
+      $inc: { version: 1 }
+    };
+
+    const updatedClassroom = await Classroom.findOneAndUpdate(filter, updateOps, {
+      new: true,
+      runValidators: true
+    }).lean();
+
+    if (!updatedClassroom) {
+      return res.status(409).json({
+        msg: "MVCC Conflict: This record has been updated by another admin."
+      });
+    }
+
+    res.json(updatedClassroom);
   } catch (error) {
     console.error(error.message);
     res.status(500).send("Server Error");
@@ -100,10 +145,30 @@ router.put("/:id", async (req, res) => {
 // @access  Public
 router.delete("/:id", async (req, res) => {
   try {
-    const classroom = await Classroom.findByIdAndDelete(req.params.id);
-    if (!classroom) {
+    const existing = await Classroom.findById(req.params.id).select("version");
+
+    if (!existing) {
       return res.status(404).json({ msg: "Classroom not found" });
     }
+
+    const hasVersion = typeof existing.version === "number";
+    const currentVersion = hasVersion ? existing.version : 1;
+
+    const filter = hasVersion
+      ? { _id: req.params.id, version: currentVersion }
+      : {
+          _id: req.params.id,
+          $or: [{ version: { $exists: false } }, { version: null }]
+        };
+
+    const deletedClassroom = await Classroom.findOneAndDelete(filter).lean();
+
+    if (!deletedClassroom) {
+      return res.status(409).json({
+        msg: "MVCC Conflict: This record has been updated by another admin."
+      });
+    }
+
     res.json({ msg: "Classroom deleted successfully" });
   } catch (error) {
     console.error(error.message);

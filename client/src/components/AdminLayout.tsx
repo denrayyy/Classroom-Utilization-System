@@ -21,6 +21,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
     { path: '/reports', label: 'Reports', icon: '📈' },
     { path: '/users', label: 'Manage Users', icon: '👥' },
     { path: '/classrooms', label: 'Manage Classroom', icon: '🏫' },
+    { path: '/instructors', label: 'Manage Instructors', icon: '👨‍🏫' },
   ];
 
   const handleLogoutClick = () => {
@@ -52,6 +53,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
     if (currentPath === '/reports') return 'Reports';
     if (currentPath === '/users') return 'Manage Users';
     if (currentPath === '/classrooms') return 'Manage Classroom';
+    if (currentPath === '/instructors') return 'Manage Instructors';
     return 'Dashboard';
   };
 

@@ -365,3 +365,49 @@
   background: #f57c00;
 }
 
+.btn-link {
+  background: none;
+  border: none;
+  color: #007bff;
+  padding: 0;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-link:disabled {
+  color: #6c757d;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #333;
+}
+
+.evidence-modal {
+  max-width: 700px;
+  width: 95%;
+  position: relative;
+}
+
+.evidence-preview {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.evidence-preview img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
