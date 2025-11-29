@@ -24,23 +24,21 @@ const userSchema = mongoose.Schema({
     required: true,
     minlength: 5
   },
+  employeeId: {
+    type: String,
+    sparse: true
+  },
+  phone: {
+    type: String
+  },
   role: {
     type: String,
     enum: ["student", "admin", "teacher"], // "teacher" kept for backward compatibility during migration
     default: "student"
   },
-  employeeId: {
-    type: String,
-    required: false,
-    unique: true,
-    sparse: true // Allows multiple null/undefined values while maintaining uniqueness for non-null values
-  },
   department: {
     type: String,
     default: "General"
-  },
-  phone: {
-    type: String
   },
   profilePhoto: {
     type: String
@@ -51,8 +49,7 @@ const userSchema = mongoose.Schema({
   },
   lastLogin: {
     type: Date
-  }
-  ,
+  },
   // Password reset support
   passwordResetToken: {
     type: String
@@ -70,10 +67,6 @@ const userSchema = mongoose.Schema({
   // Optional Google account linkage (for OAuth sign-in)
   googleId: {
     type: String
-  },
-  version: {
-    type: Number,
-    default: 1
   }
 }, {
   timestamps: true
@@ -108,6 +101,8 @@ userSchema.virtual("fullName").get(function() {
 userSchema.set("toJSON", {
   virtuals: true
 });
+
+// Drop and recreate indexes to ensure sparse unique constraint on employeeId
 
 const User = mongoose.model("User", userSchema);
 

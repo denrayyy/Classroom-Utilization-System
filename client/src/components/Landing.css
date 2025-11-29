@@ -1,8 +1,107 @@
-.landing-page { min-height: 100vh; background:#0f2a38; display:flex; align-items:center; justify-content:center; }
-.landing-center { text-align:center; }
-.landing-title { color:#0ec0d4; font-weight:800; font-size:72px; letter-spacing:1px; margin-top:-20px; margin-bottom:20px; }
-.landing-actions { display:flex; flex-direction:column; gap:12px; align-items:center; }
-.landing-btn { display:inline-block; min-width:240px; background:#e9ecef; color:#184354; font-weight:700; padding:10px 20px; border-radius:8px; text-decoration:none; box-shadow:0 10px 18px rgba(0,0,0,0.2); }
-.landing-btn:hover { filter:brightness(0.97); }
+.landing-page { 
+  min-height: 100vh; 
+  background: #0f2a38; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  padding: 20px;
+}
+
+.landing-center { 
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.landing-title { 
+  color: #0ec0d4; 
+  font-weight: 800; 
+  font-size: 72px; 
+  letter-spacing: 1px; 
+  margin-top: -20px; 
+  margin-bottom: 20px;
+}
+
+.landing-actions { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 12px; 
+  align-items: center;
+}
+
+.landing-btn { 
+  display: inline-block; 
+  min-width: 240px; 
+  background: #e9ecef; 
+  color: #184354; 
+  font-weight: 700; 
+  padding: 10px 20px; 
+  border-radius: 8px; 
+  text-decoration: none; 
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 240px;
+  box-sizing: border-box;
+}
+
+.landing-btn:hover { 
+  filter: brightness(0.97);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Design for Landing Page */
+@media (max-width: 768px) {
+  .landing-page {
+    padding: 15px;
+  }
+
+  .landing-title {
+    font-size: 52px;
+    margin-top: -15px;
+    margin-bottom: 15px;
+    letter-spacing: 0.5px;
+  }
+
+  .landing-btn {
+    min-width: 200px;
+    padding: 12px 24px;
+    font-size: 15px;
+  }
+
+  .landing-actions {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page {
+    padding: 10px;
+  }
+
+  .landing-center {
+    width: 100%;
+  }
+
+  .landing-title {
+    font-size: 36px;
+    margin-top: -10px;
+    margin-bottom: 20px;
+    letter-spacing: 0.3px;
+  }
+
+  .landing-btn {
+    min-width: 100%;
+    padding: 14px 20px;
+    font-size: 14px;
+  }
+
+  .landing-actions {
+    gap: 10px;
+    width: 100%;
+  }
+}
+
 
 

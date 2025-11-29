@@ -1,24 +1,21 @@
 # .gitignore
-# Purpose: Prevent sensitive files, build artifacts, logs, and system/IDE noise from being committed.
-# Why: Keeps the repository clean, reduces merge conflicts, and protects secrets.
+# Purpose: Prevent sensitive files, build artifacts, logs, system/IDE noise, and dependencies from being committed.
+# Why: Keeps the repository clean, reduces size, prevents merge conflicts, and protects secrets.
 
-# --- Dependencies ---
+# --- Dependencies (DO NOT COMMIT - reinstall with npm install) ---
 node_modules/
+client/node_modules/
+package-lock.json
+client/package-lock.json
 
 # --- Environment variables (NEVER commit real secrets) ---
 .env
-
-# --- Logs ---
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+.env.txt
 
 # --- Build outputs / caches ---
 dist/
 build/
+client/build/
 .cache/
 .parcel-cache/
 .next/
@@ -28,10 +25,25 @@ coverage/
 storybook-static/
 cache/
 out/
+client/.cache
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- User uploaded files (store locally, not in repo) ---
+uploads/
+uploads/evidence/
+uploads/profiles/
 
 # --- Temporary files ---
 tmp/
 temp/
+query
 
 # --- OS files ---
 .DS_Store
@@ -43,11 +55,15 @@ Thumbs.db
 *.swp
 *.swo
 *.iml
+.project
+.classpath
 
 # --- Misc ---
 *.local
 *.env.*.local
-coverage/
 test-results/
+.env.development.local
+.env.test.local
+.env.production.local
 
 

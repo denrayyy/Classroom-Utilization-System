@@ -5,6 +5,7 @@ import ClassroomUsage from "../models/ClassroomUsage.js";
 import Schedule from "../models/Schedule.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
+import TimeIn from "../models/TimeIn.js";
 import { body, validationResult } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 
@@ -66,6 +67,38 @@ router.get("/", authenticateToken, async (req, res) => {
     res.json(reports);
   } catch (error) {
     console.error("Get reports error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/reports/timein/all
+// @desc    Get all time-in transactions (default all, or filtered by date)
+// @access  Private (Admin)
+router.get("/timein/all", authenticateToken, async (req, res) => {
+  try {
+    const { date } = req.query;
+    let query = {};
+
+    // If date is provided, filter by that date only
+    if (date) {
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      query.date = { $gte: startOfDay, $lte: endOfDay };
+    }
+    // If no date is provided, fetch all transactions from database
+
+    const timeInTransactions = await TimeIn.find(query)
+      .populate("student", "firstName lastName email employeeId department")
+      .populate("classroom", "name location capacity")
+      .populate("verifiedBy", "firstName lastName")
+      .sort({ date: -1, timeIn: -1 }); // Sort latest to oldest
+
+    res.json(timeInTransactions);
+  } catch (error) {
+    console.error("Get time-in transactions error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

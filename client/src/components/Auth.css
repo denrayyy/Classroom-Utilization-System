@@ -65,6 +65,7 @@
   gap: 20px;
   margin-bottom: 10px;
   justify-content: center; /* center horizontally */
+  flex-direction: column;
 }
 
 .brand-logo {
@@ -83,7 +84,7 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  flex: 1;
+  align-items: center;
 }
 
 .brand-text .brand-title {
@@ -92,6 +93,7 @@
   color: #0b5161;
   white-space: nowrap;
   overflow: visible;
+  text-align: center;
 }
 
 .brand-strong { font-weight: 800; }
@@ -102,6 +104,7 @@
   letter-spacing: 0.2px;
   white-space: nowrap;
   overflow: visible;
+  text-align: center;
 }
 
 .login-heading {
@@ -395,4 +398,150 @@
 
 .btn-google svg {
   margin-right: 8px;
+}
+
+/* Responsive Design for Auth Pages */
+@media (max-width: 768px) {
+  .auth-container {
+    padding: 15px;
+  }
+
+  .auth-card,
+  .figma-login-card {
+    padding: 24px 20px;
+    max-width: 95%;
+    border-radius: 12px;
+  }
+
+  .auth-brand {
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .brand-logo {
+    width: 44px;
+    height: 44px;
+  }
+
+  .brand-text .brand-title {
+    font-size: 20px;
+  }
+
+  .login-heading {
+    font-size: 18px;
+    margin: 10px 0 14px;
+  }
+
+  .auth-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .auth-form input,
+  .auth-form select {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  .btn-primary,
+  .btn-google {
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .forgot-below {
+    font-size: 13px;
+  }
+
+  .forgot-link {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 10px;
+  }
+
+  .auth-card,
+  .figma-login-card {
+    padding: 20px 16px;
+    border-radius: 10px;
+  }
+
+  .auth-brand {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-text .brand-title {
+    font-size: 18px;
+    white-space: normal;
+  }
+
+  .brand-subtitle {
+    font-size: 10px;
+  }
+
+  .login-heading {
+    font-size: 16px;
+    margin: 8px 0 12px;
+  }
+
+  .auth-form .form-group {
+    margin-bottom: 16px;
+  }
+
+  .auth-form label {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .auth-form input,
+  .auth-form select {
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+
+  .btn-primary,
+  .btn-google {
+    padding: 12px;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  .login-options {
+    padding: 12px;
+    margin-top: 12px;
+    border-radius: 6px;
+  }
+
+  .login-options p {
+    font-size: 12px;
+  }
+
+  .divider {
+    margin: 16px 0;
+  }
+
+  .divider span {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .forgot-below {
+    font-size: 12px;
+    margin-top: 12px;
+  }
+
+  .forgot-link {
+    font-size: 12px;
+  }
 }

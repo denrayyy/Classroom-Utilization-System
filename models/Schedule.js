@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const scheduleSchema = mongoose.Schema({
-  student: {
+  teacher: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
@@ -16,12 +16,12 @@ const scheduleSchema = mongoose.Schema({
     required: true
   },
   courseCode: {
-    type: String,
-    required: true
+    type: String
   },
   dayOfWeek: {
-    type: String,
-    enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    type: Number,
+    min: 0,
+    max: 6,
     required: true
   },
   startTime: {
@@ -32,54 +32,22 @@ const scheduleSchema = mongoose.Schema({
     type: String,
     required: true
   },
-  semester: {
-    type: String,
-    required: true
-  },
-  academicYear: {
-    type: String,
-    required: true
-  },
   status: {
     type: String,
-    enum: ["pending", "approved", "rejected", "active", "completed"],
+    enum: ["pending", "approved", "active", "cancelled"],
     default: "pending"
   },
-  requestDate: {
-    type: Date,
-    default: Date.now
+  semester: {
+    type: String
   },
-  approvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  },
-  approvedDate: {
-    type: Date
+  academicYear: {
+    type: String
   },
   notes: {
     type: String
-  },
-  isRecurring: {
-    type: Boolean,
-    default: true
-  },
-  endDate: {
-    type: Date
   }
 }, {
   timestamps: true
-});
-
-// Validate that endTime is after startTime
-scheduleSchema.pre("save", function(next) {
-  const start = new Date(`2000-01-01T${this.startTime}`);
-  const end = new Date(`2000-01-01T${this.endTime}`);
-  
-  if (end <= start) {
-    next(new Error("End time must be after start time"));
-  } else {
-    next();
-  }
 });
 
 const Schedule = mongoose.model("Schedule", scheduleSchema);

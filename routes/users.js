@@ -91,8 +91,7 @@ router.put("/profile", authenticateToken, upload.single('profilePhoto'), async (
         employeeId: user.employeeId,
         department: user.department,
         phone: user.phone,
-        profilePhoto: user.profilePhoto,
-        version: user.version
+        profilePhoto: user.profilePhoto
       }
     });
   } catch (error) {
@@ -114,6 +113,53 @@ router.get("/", authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ message: "Server error while fetching users" });
+  }
+});
+
+// @route   POST /api/users
+// @desc    Create new user (admin only)
+// @access  Private/Admin
+router.post("/", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, department, role } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        message: "User with this email already exists" 
+      });
+    }
+
+    // Create new user
+    const user = new User({
+      firstName,
+      lastName,
+      email,
+      password: password || "DefaultPassword123", // Set a default password
+      department: department || "General",
+      role: role || "student",
+      isActive: true
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        isActive: user.isActive
+      }
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ message: "Server error while creating user" });
   }
 });
 
@@ -144,78 +190,52 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       firstName,
       lastName,
       email,
-      employeeId,
       department,
-      phone,
       role,
-      isActive,
-      version
+      isActive
     } = req.body;
-
-    if (typeof version !== "number") {
-      return res.status(400).json({ message: "version is required for MVCC validation" });
-    }
     
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Check if email or employeeId is being changed to one that already exists
+    // Check if email is being changed to one that already exists
     const isEmailChanging = email !== undefined && email !== user.email;
-    const isEmployeeIdChanging = employeeId !== undefined && employeeId !== user.employeeId;
     
-    if (isEmailChanging || isEmployeeIdChanging) {
-      const queryConditions = [];
-      if (isEmailChanging) queryConditions.push({ email });
-      if (isEmployeeIdChanging && employeeId) queryConditions.push({ employeeId });
-
+    if (isEmailChanging) {
       const existingUser = await User.findOne({
         _id: { $ne: req.params.id },
-        $or: queryConditions
+        email
       });
 
       if (existingUser) {
         return res.status(400).json({ 
-          message: "A user with this email" + (isEmployeeIdChanging ? " or employee ID" : "") + " already exists" 
+          message: "A user with this email already exists" 
         });
       }
     }
 
-    const updateFields = {};
-    if (firstName !== undefined) updateFields.firstName = firstName;
-    if (lastName !== undefined) updateFields.lastName = lastName;
-    if (email !== undefined) updateFields.email = email;
-    if (employeeId !== undefined) updateFields.employeeId = employeeId;
-    if (department !== undefined) updateFields.department = department;
-    if (phone !== undefined) updateFields.phone = phone;
-    if (role !== undefined) updateFields.role = role;
-    if (isActive !== undefined) updateFields.isActive = isActive;
+    // Update user fields
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (email !== undefined) user.email = email;
+    if (department !== undefined) user.department = department;
+    if (role !== undefined) user.role = role;
+    if (isActive !== undefined) user.isActive = isActive;
 
-    const result = await User.updateOne(
-      { _id: req.params.id, version },
-      { $set: updateFields, $inc: { version: 1 } }
-    );
-
-    if (result.modifiedCount === 0) {
-      return res.status(409).json({ message: "MVCC Conflict: This record has been updated by another admin." });
-    }
-
-    const updatedUser = await User.findById(req.params.id).select("-password");
+    await user.save();
 
     res.json({
       message: "User updated successfully",
       user: {
-        id: updatedUser._id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        employeeId: updatedUser.employeeId,
-        department: updatedUser.department,
-        phone: updatedUser.phone,
-        isActive: updatedUser.isActive,
-        version: updatedUser.version
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        isActive: user.isActive
       }
     });
   } catch (error) {
@@ -229,12 +249,6 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
 // @access  Private/Admin
 router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { version } = req.body;
-
-    if (typeof version !== "number") {
-      return res.status(400).json({ message: "version is required for MVCC validation" });
-    }
-
     const user = await User.findById(req.params.id);
     
     if (!user) {
@@ -246,75 +260,12 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: "You cannot delete your own account" });
     }
 
-    const result = await User.deleteOne({ _id: req.params.id, version });
-
-    if (result.deletedCount === 0) {
-      return res.status(409).json({ message: "MVCC Conflict: This record has been updated by another admin." });
-    }
+    await User.deleteOne({ _id: req.params.id });
     
     res.json({ message: "User deleted successfully" });
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(500).json({ message: "Server error while deleting user" });
-  }
-});
-
-// @route   POST /api/users
-// @desc    Create new user (admin only)
-// @access  Private/Admin
-router.post("/", authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { firstName, lastName, email, password, employeeId, department, phone, role } = req.body;
-
-    // Check if user already exists (only check employeeId if provided)
-    const queryConditions = [{ email }];
-    if (employeeId) {
-      queryConditions.push({ employeeId });
-    }
-    
-    const existingUser = await User.findOne({ 
-      $or: queryConditions
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ 
-        message: "User with this email" + (employeeId ? " or employee ID" : "") + " already exists" 
-      });
-    }
-
-    // Create new user
-    const user = new User({
-      firstName,
-      lastName,
-      email,
-      password: password || "DefaultPassword123", // Set a default password
-      employeeId,
-      department: department || "General",
-      phone,
-      role: role || "student",
-      isActive: true
-    });
-
-    await user.save();
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        employeeId: user.employeeId,
-        department: user.department,
-        phone: user.phone,
-        isActive: user.isActive,
-        version: user.version
-      }
-    });
-  } catch (error) {
-    console.error("Error creating user:", error);
-    res.status(500).json({ message: "Server error while creating user" });
   }
 });
 

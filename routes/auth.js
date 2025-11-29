@@ -61,7 +61,7 @@ router.post("/register", [
   body("lastName").notEmpty().withMessage("Last name is required"),
   body("email").isEmail().withMessage("Valid email is required"),
   body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
-  body("employeeId").notEmpty().withMessage("Employee ID is required")
+  body("employeeId").optional().notEmpty().withMessage("Employee ID cannot be empty if provided")
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -73,7 +73,7 @@ router.post("/register", [
 
     // Check if user already exists
     const existingUser = await User.findOne({ 
-      $or: [{ email }, { employeeId }] 
+      $or: [{ email }, ...(employeeId ? [{ employeeId }] : [])]
     });
 
     if (existingUser) {
@@ -88,7 +88,7 @@ router.post("/register", [
       lastName,
       email,
       password,
-      employeeId,
+      ...(employeeId && { employeeId }),
       department: "General", // Default department
       role: "student", // Force role to be student
       phone
@@ -551,4 +551,47 @@ router.put("/profile", authenticateToken, [
   }
 });
 
+// @route   POST /api/auth/change-password
+// @desc    Change password for authenticated user
+// @access  Private
+router.post("/change-password", authenticateToken, [
+  body("currentPassword").notEmpty().withMessage("Current password is required"),
+  body("newPassword").isLength({ min: 6 }).withMessage("New password must be at least 6 characters")
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Check if new password is same as current
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: "New password must be different from current password" });
+    }
+
+    // Update password
+    user.password = newPassword; // Will be hashed by pre-save hook
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({ message: "Server error during password change" });
+  }
+});
+
 export default router;
+

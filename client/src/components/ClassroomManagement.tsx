@@ -22,7 +22,6 @@ interface Classroom {
   description?: string;
   createdAt: string;
   updatedAt: string;
-  version: number;
 }
 
 interface ClassroomManagementProps {
@@ -41,8 +40,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     isAvailable: true
   });
   const [error, setError] = useState('');
-  const [mvccWarning, setMvccWarning] = useState(false);
-  const [mvccWarningMessage, setMvccWarningMessage] = useState('This data changed while you were editing.');
 
   useEffect(() => {
     fetchClassrooms();
@@ -61,12 +58,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     }
   };
 
-  const handleMvccConflict = (message?: string) => {
-    setMvccWarningMessage(message || 'This data changed while you were editing.');
-    setMvccWarning(true);
-    fetchClassrooms();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -77,10 +68,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       };
 
       if (editingClassroom) {
-        await axios.put(`/api/classrooms/${editingClassroom._id}`, {
-          ...classroomData,
-          version: editingClassroom.version
-        });
+        await axios.put(`/api/classrooms/${editingClassroom._id}`, classroomData);
       } else {
         await axios.post('/api/classrooms', classroomData);
       }
@@ -95,11 +83,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       });
       fetchClassrooms();
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.msg);
-      } else {
-        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
-      }
+      setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
     }
   };
 
@@ -117,16 +101,10 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   const handleDelete = async (classroom: Classroom) => {
     if (window.confirm('Are you sure you want to delete this classroom?')) {
       try {
-        await axios.delete(`/api/classrooms/${classroom._id}`, {
-          data: { version: classroom.version }
-        });
+        await axios.delete(`/api/classrooms/${classroom._id}`);
         fetchClassrooms();
       } catch (error: any) {
-        if (error.response?.status === 409) {
-          handleMvccConflict(error.response?.data?.msg);
-        } else {
-          setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
-        }
+        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
       }
     }
   };
@@ -241,19 +219,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
           </form>
         )}
       </div>
-      {mvccWarning && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h3>Data Updated</h3>
-            <p>{mvccWarningMessage || 'This data changed while you were editing.'}</p>
-            <div className="modal-buttons">
-              <button className="btn-confirm" onClick={() => setMvccWarning(false)}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

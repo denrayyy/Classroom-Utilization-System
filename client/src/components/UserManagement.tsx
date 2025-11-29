@@ -8,9 +8,7 @@ interface User {
   lastName: string;
   email: string;
   role: 'student' | 'admin' | 'teacher'; // 'teacher' kept for backward compatibility
-  employeeId: string;
   department: string;
-  phone?: string;
 }
 
 interface RegisteredUser {
@@ -19,13 +17,10 @@ interface RegisteredUser {
   lastName: string;
   email: string;
   role: 'student' | 'admin' | 'teacher'; // 'teacher' kept for backward compatibility
-  employeeId: string;
   department: string;
-  phone?: string;
   isActive: boolean;
   lastLogin?: string;
   createdAt: string;
-  version: number;
 }
 
 interface Schedule {
@@ -47,7 +42,6 @@ interface Classroom {
   schedules?: Schedule[];
   createdAt: string;
   updatedAt: string;
-  version: number;
 }
 
 interface UserManagementProps {
@@ -67,7 +61,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [viewingClassroom, setViewingClassroom] = useState<Classroom | null>(null);
   const [isEditingSchedules, setIsEditingSchedules] = useState(false);
   const [showDeleteClassroomConfirm, setShowDeleteClassroomConfirm] = useState(false);
-  const [classroomToDelete, setClassroomToDelete] = useState<{ id: string; version: number } | null>(null);
+  const [classroomToDelete, setClassroomToDelete] = useState<{ id: string } | null>(null);
   const [scheduleFormData, setScheduleFormData] = useState({
     day: 'Monday',
     time: '',
@@ -88,16 +82,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  const [userToArchive, setUserToArchive] = useState<{ id: string; name: string; version: number } | null>(null);
+  const [userToArchive, setUserToArchive] = useState<{ id: string; name: string } | null>(null);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
-  const [userToRestore, setUserToRestore] = useState<{ id: string; name: string; version: number } | null>(null);
+  const [userToRestore, setUserToRestore] = useState<{ id: string; name: string } | null>(null);
+  const [editingUser, setEditingUser] = useState<RegisteredUser | null>(null);
+  const [showEditUserForm, setShowEditUserForm] = useState(false);
   const [userFormData, setUserFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     department: '',
-    phone: '',
-    role: 'student' as 'student' | 'admin' | 'teacher',
     password: '',
     isActive: true
   });
@@ -105,8 +99,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [mvccWarning, setMvccWarning] = useState(false);
-  const [mvccWarningMessage, setMvccWarningMessage] = useState('This data changed while you were editing.');
 
   // Update activeTab when defaultTab prop changes
   useEffect(() => {
@@ -174,12 +166,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     }
   };
 
-  const handleMvccConflict = (overrideMessage?: string) => {
-    setMvccWarningMessage(overrideMessage || 'This data changed while you were editing.');
-    setMvccWarning(true);
-    fetchData();
-  };
-
   // Helper function to check if classroom is in use
   const isClassroomInUse = (classroomId: string) => {
     return activeTimeIns.some((record: any) => record.classroom && record.classroom._id === classroomId);
@@ -196,10 +182,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       };
 
       if (editingClassroom) {
-        await axios.put(`/api/classrooms/${editingClassroom._id}`, {
-          ...classroomData,
-          version: editingClassroom.version
-        });
+        await axios.put(`/api/classrooms/${editingClassroom._id}`, classroomData);
       } else {
         await axios.post('/api/classrooms', classroomData);
       }
@@ -214,11 +197,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       });
       fetchData();
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.msg);
-      } else {
-        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
-      }
+      setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to save classroom');
     }
   };
 
@@ -234,7 +213,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   };
 
   const handleDeleteClassroomClick = (classroom: Classroom) => {
-    setClassroomToDelete({ id: classroom._id, version: classroom.version });
+    setClassroomToDelete({ id: classroom._id });
     setShowDeleteClassroomConfirm(true);
   };
 
@@ -242,18 +221,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!classroomToDelete) return;
     
     try {
-      await axios.delete(`/api/classrooms/${classroomToDelete.id}`, {
-        data: { version: classroomToDelete.version }
-      });
+      await axios.delete(`/api/classrooms/${classroomToDelete.id}`);
       setSuccess('Classroom deleted successfully');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.msg);
-      } else {
-        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
-      }
+      setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to delete classroom');
       setTimeout(() => setError(''), 3000);
     } finally {
       setShowDeleteClassroomConfirm(false);
@@ -301,8 +274,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
 
     try {
       const response = await axios.put(`/api/classrooms/${viewingClassroom._id}`, {
-        schedules: viewingClassroom.schedules,
-        version: viewingClassroom.version
+        schedules: viewingClassroom.schedules
       });
       setSuccess('Schedules updated successfully!');
       setIsEditingSchedules(false);
@@ -310,11 +282,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.msg);
-      } else {
-        setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to update schedules');
-      }
+      setError(error.response?.data?.message || error.response?.data?.msg || 'Failed to update schedules');
     }
   };
 
@@ -365,8 +333,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         lastName: userFormData.lastName,
         email: userFormData.email,
         department: userFormData.department,
-        phone: userFormData.phone,
-        role: userFormData.role,
         isActive: userFormData.isActive,
         password: userFormData.password || 'DefaultPassword123'
       };
@@ -379,8 +345,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         lastName: '',
         email: '',
         department: '',
-        phone: '',
-        role: 'student',
         password: '',
         isActive: true
       });
@@ -402,38 +366,71 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
       lastName: '',
       email: '',
       department: '',
-      phone: '',
-      role: 'student',
       password: '',
       isActive: true
     });
     setError('');
   };
 
-  const handleEditUser = async (userToEdit: RegisteredUser) => {
-    const updatedData = prompt(`Edit user: ${userToEdit.firstName} ${userToEdit.lastName}\n\nEnter new department (current: ${userToEdit.department}):`, userToEdit.department);
-    
-    if (updatedData && updatedData !== userToEdit.department) {
-      try {
-        await axios.put(`/api/users/${userToEdit._id}`, {
-          department: updatedData,
-          version: userToEdit.version
-        });
-        setSuccess('User updated successfully!');
-        fetchData();
-        setTimeout(() => setSuccess(''), 3000);
-      } catch (error: any) {
-        if (error.response?.status === 409) {
-          handleMvccConflict(error.response?.data?.message);
-        } else {
-          setError(error.response?.data?.message || 'Failed to update user');
-        }
-      }
+  const handleEditUser = (userToEdit: RegisteredUser) => {
+    setEditingUser(userToEdit);
+    setUserFormData({
+      firstName: userToEdit.firstName,
+      lastName: userToEdit.lastName,
+      email: userToEdit.email,
+      department: userToEdit.department,
+      password: '',
+      isActive: userToEdit.isActive
+    });
+    setShowEditUserForm(true);
+  };
+
+  const handleSaveEditUser = async () => {
+    if (!editingUser || !userFormData.firstName || !userFormData.lastName || !userFormData.email) {
+      setError('First name, last name, and email are required');
+      return;
+    }
+
+    try {
+      await axios.put(`/api/users/${editingUser._id}`, {
+        firstName: userFormData.firstName,
+        lastName: userFormData.lastName,
+        email: userFormData.email,
+        department: userFormData.department
+      });
+      setSuccess('User updated successfully!');
+      setShowEditUserForm(false);
+      setEditingUser(null);
+      setUserFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        department: '',
+        password: '',
+        isActive: true
+      });
+      fetchData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to update user');
     }
   };
 
+  const handleCancelEditUser = () => {
+    setShowEditUserForm(false);
+    setEditingUser(null);
+    setUserFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      department: '',
+      password: '',
+      isActive: true
+    });
+  };
+
   const handleArchiveUser = (userItem: RegisteredUser) => {
-    setUserToArchive({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}`, version: userItem.version });
+    setUserToArchive({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}` });
     setShowArchiveConfirm(true);
   };
 
@@ -441,16 +438,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!userToArchive) return;
 
     try {
-      await axios.put(`/api/users/${userToArchive.id}`, { isActive: false, version: userToArchive.version });
+      await axios.put(`/api/users/${userToArchive.id}`, { isActive: false });
       setSuccess('User archived successfully!');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.message);
-      } else {
-        setError(error.response?.data?.message || 'Failed to archive user');
-      }
+      setError(error.response?.data?.message || 'Failed to archive user');
     } finally {
       setShowArchiveConfirm(false);
       setUserToArchive(null);
@@ -463,7 +456,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
   };
 
   const handleRestoreUser = (userItem: RegisteredUser) => {
-    setUserToRestore({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}`, version: userItem.version });
+    setUserToRestore({ id: userItem._id, name: `${userItem.firstName} ${userItem.lastName}` });
     setShowRestoreConfirm(true);
   };
 
@@ -471,16 +464,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
     if (!userToRestore) return;
 
     try {
-      await axios.put(`/api/users/${userToRestore.id}`, { isActive: true, version: userToRestore.version });
+      await axios.put(`/api/users/${userToRestore.id}`, { isActive: true });
       setSuccess('User restored successfully!');
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      if (error.response?.status === 409) {
-        handleMvccConflict(error.response?.data?.message);
-      } else {
-        setError(error.response?.data?.message || 'Failed to restore user');
-      }
+      setError(error.response?.data?.message || 'Failed to restore user');
       setTimeout(() => setError(''), 3000);
     } finally {
       setShowRestoreConfirm(false);
@@ -523,114 +512,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
           <div className="card">
           {success && <div className="success-message">{success}</div>}
           
-          {showUserForm ? (
-            <form onSubmit={handleUserSubmit} className="classroom-form user-creation-form">
-              <h3>Add New User</h3>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="firstName">First Name</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    value={userFormData.firstName}
-                    onChange={(e) => setUserFormData({...userFormData, firstName: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="lastName">Last Name</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    value={userFormData.lastName}
-                    onChange={(e) => setUserFormData({...userFormData, lastName: e.target.value})}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  value={userFormData.email}
-                  onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="department">Department</label>
-                  <input
-                    type="text"
-                    id="department"
-                    value={userFormData.department}
-                    onChange={(e) => setUserFormData({...userFormData, department: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="phone">Phone</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    value={userFormData.phone}
-                    onChange={(e) => setUserFormData({...userFormData, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="role">Role</label>
-                  <select
-                    id="role"
-                    value={userFormData.role}
-                    onChange={(e) => setUserFormData({...userFormData, role: e.target.value as 'student' | 'admin' | 'teacher'})}
-                    required
-                  >
-                    <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  type="password"
-                  id="password"
-                  value={userFormData.password}
-                  onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
-                  placeholder="Leave blank for default password"
-                />
-                <small>Default: DefaultPassword123</small>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={userFormData.isActive}
-                  onChange={(e) => setUserFormData({...userFormData, isActive: e.target.checked})}
-                />
-                Active Account
-              </label>
-            </div>
-
-            <div className="form-actions">
-              <button type="button" className="btn btn-secondary" onClick={handleCancelUser}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary btn-large">
-                Create User
-              </button>
-            </div>
-            </form>
-          ) : (
-             <div className="user-list-section">
+          <div className="user-list-section">
                <div className="section-header">
                  <h3 className="section-title">{showArchived ? 'Archived Users' : 'Manage Users'}</h3>
                  <div className="header-actions">
@@ -652,26 +534,24 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                </div>
 
                {/* Search Bar */}
-               {!showArchived && (
-                 <div className="search-bar-container">
-                   <input
-                     type="text"
-                     className="search-input"
-                     placeholder="Search by name or email..."
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                   />
-                   {searchQuery && (
-                     <button 
-                       className="clear-search-btn"
-                       onClick={() => setSearchQuery('')}
-                       title="Clear search"
-                     >
-                       ✕
-                     </button>
-                   )}
-                 </div>
-               )}
+               <div className="search-bar-container">
+                 <input
+                   type="text"
+                   className="search-input"
+                   placeholder="Search by name or email..."
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                 />
+                 {searchQuery && (
+                   <button 
+                     className="clear-search-btn"
+                     onClick={() => setSearchQuery('')}
+                     title="Clear search"
+                   >
+                     ✕
+                   </button>
+                 )}
+               </div>
              
              <div className="users-table">
                {filteredUsers.length === 0 ? (
@@ -749,8 +629,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
               )}
             </div>
             </div>
-          )}
-        </div>
+          </div>
         </>
       )}
 
@@ -855,9 +734,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                   <div key={classroom._id} className="classroom-card">
                     <div className="classroom-header">
                       <h3>{classroom.name}</h3>
-                      <span className={`status-badge ${inUse ? 'status-in-use' : (classroom.isAvailable ? 'status-approved' : 'status-rejected')}`}>
-                        {inUse ? 'In Use' : (classroom.isAvailable ? 'Available' : 'Unavailable')}
-                      </span>
                     </div>
                     
                     <div className="classroom-details">
@@ -1040,21 +916,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
         </div>
       )}
 
-      {/* MVCC Conflict Modal */}
-      {mvccWarning && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h3>Data Updated</h3>
-            <p>{mvccWarningMessage || 'This data changed while you were editing.'}</p>
-            <div className="modal-buttons">
-              <button className="btn-confirm" onClick={() => setMvccWarning(false)}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Archive Confirmation Modal */}
       {showArchiveConfirm && userToArchive && (
         <div className="modal-overlay">
@@ -1106,6 +967,252 @@ const UserManagement: React.FC<UserManagementProps> = ({ user, defaultTab = 'use
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Form Modal */}
+      {showUserForm && (
+        <div className="modal-overlay">
+          <div className="confirm-modal" style={{ maxWidth: '600px' }}>
+            <h3>Add New User</h3>
+            <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>First Name</label>
+                  <input
+                    type="text"
+                    value={userFormData.firstName}
+                    onChange={(e) => setUserFormData({...userFormData, firstName: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      boxSizing: 'border-box'
+                    }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Last Name</label>
+                  <input
+                    type="text"
+                    value={userFormData.lastName}
+                    onChange={(e) => setUserFormData({...userFormData, lastName: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      boxSizing: 'border-box'
+                    }}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Email</label>
+                <input
+                  type="email"
+                  value={userFormData.email}
+                  onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Department</label>
+                <input
+                  type="text"
+                  value={userFormData.department}
+                  onChange={(e) => setUserFormData({...userFormData, department: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Password</label>
+                <input
+                  type="password"
+                  value={userFormData.password}
+                  onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="Leave blank for default"
+                />
+              </div>
+
+              <small style={{ color: '#666' }}>Default Password: DefaultPassword123</small>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={userFormData.isActive}
+                  onChange={(e) => setUserFormData({...userFormData, isActive: e.target.checked})}
+                />
+                Active Account
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleCancelUser}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Create User
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Form Modal */}
+      {showEditUserForm && editingUser && (
+        <div className="modal-overlay">
+          <div className="confirm-modal" style={{ maxWidth: '500px' }}>
+            <h3>Edit User</h3>
+            <form style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>First Name</label>
+                <input
+                  type="text"
+                  value={userFormData.firstName}
+                  onChange={(e) => setUserFormData({...userFormData, firstName: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Last Name</label>
+                <input
+                  type="text"
+                  value={userFormData.lastName}
+                  onChange={(e) => setUserFormData({...userFormData, lastName: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Email</label>
+                <input
+                  type="email"
+                  value={userFormData.email}
+                  onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Department</label>
+                <input
+                  type="text"
+                  value={userFormData.department}
+                  onChange={(e) => setUserFormData({...userFormData, department: e.target.value})}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleCancelEditUser}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEditUser}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

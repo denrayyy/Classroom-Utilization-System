@@ -23,6 +23,8 @@ import AdminDashboard from './components/AdminDashboard';
 import AdminLayout from './components/AdminLayout';
 import Topbar from './components/Topbar';
 import Profile from './components/Profile';
+import ChangePasswordModal from './components/ChangePasswordModal';
+import AdminSettings from './components/AdminSettings';
 
 // Types
 interface User {
@@ -42,24 +44,39 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showAdminSettings, setShowAdminSettings] = useState(false);
 
   useEffect(() => {
-    // Clear any previous session on app load
-    // This ensures users always see the landing page when the app starts
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    // Check if user has a valid token in localStorage
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (token && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      } catch (error) {
+        console.error('Failed to restore user session:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
     setLoading(false);
   }, []);
 
   const handleLogin = (userData: User, token: string) => {
     setUser(userData);
     localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
   };
 
@@ -73,12 +90,14 @@ const App: React.FC = () => {
 
   const handleProfileUpdate = (updatedUser: any) => {
     // Merge the updated user data with existing user data to ensure _id is preserved
-    setUser((prevUser) => ({
-      ...prevUser,
+    const mergedUser = {
+      ...user,
       ...updatedUser,
-      _id: updatedUser._id || prevUser?._id,
-      id: updatedUser._id || updatedUser.id || prevUser?.id
-    } as User));
+      _id: updatedUser._id || user?._id,
+      id: updatedUser._id || updatedUser.id || user?.id
+    } as User;
+    setUser(mergedUser);
+    localStorage.setItem('user', JSON.stringify(mergedUser));
   };
 
   if (loading) {
@@ -110,21 +129,26 @@ const App: React.FC = () => {
     <Router>
       <div className="app">
         {user.role === 'admin' ? null : <Topbar fullName={`${user.firstName} ${user.lastName}`} onLogout={handleLogout} onProfileClick={handleProfileClick} profilePhoto={user.profilePhoto} />}
+        <ChangePasswordModal isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
         <main className="main-content">
           {user.role === 'admin' ? (
-            <AdminLayout fullName={`${user.firstName} ${user.lastName}`} onLogout={handleLogout} profilePhoto={user.profilePhoto}>
-              <Routes>
-                <Route path="/" element={<AdminDashboard fullName={`${user.firstName} ${user.lastName}`} onLogout={handleLogout} profilePhoto={user.profilePhoto} />} />
-                <Route path="/schedules" element={<ScheduleManagement user={user} />} />
-                <Route path="/reports" element={<Reports user={user} />} />
-                <Route path="/users" element={<UserManagement user={user} defaultTab="users" />} />
-                <Route path="/classrooms" element={<UserManagement user={user} defaultTab="classrooms" />} />
-                <Route path="/instructors" element={<InstructorManagement user={user} />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+            <AdminLayout fullName={`${user.firstName} ${user.lastName}`} onLogout={handleLogout} profilePhoto={user.profilePhoto} onSettingsClick={() => setShowAdminSettings(true)} onSettingsClose={() => setShowAdminSettings(false)} showAdminSettings={showAdminSettings} isSettingsActive={showAdminSettings}>
+              {showAdminSettings ? (
+                <AdminSettings user={user} onBack={() => setShowAdminSettings(false)} onUpdate={handleProfileUpdate} />
+              ) : (
+                <Routes>
+                  <Route path="/" element={<AdminDashboard fullName={`${user.firstName} ${user.lastName}`} onLogout={handleLogout} profilePhoto={user.profilePhoto} />} />
+                  <Route path="/schedules" element={<ScheduleManagement user={user} />} />
+                  <Route path="/reports" element={<Reports user={user} />} />
+                  <Route path="/users" element={<UserManagement user={user} defaultTab="users" />} />
+                  <Route path="/classrooms" element={<UserManagement user={user} defaultTab="classrooms" />} />
+                  <Route path="/instructors" element={<InstructorManagement user={user} />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              )}
             </AdminLayout>
           ) : showProfile ? (
-            <Profile user={user} onBack={handleProfileBack} onUpdate={handleProfileUpdate} />
+            <Profile user={user} onBack={handleProfileBack} onUpdate={handleProfileUpdate} onChangePassword={() => setShowChangePassword(true)} />
           ) : (
             <Routes>
               <Route path="/" element={<TimeTracker user={user} onLogout={handleLogout} />} />

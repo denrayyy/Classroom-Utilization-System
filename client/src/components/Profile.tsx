@@ -11,9 +11,10 @@ interface ProfileProps {
   };
   onBack: () => void;
   onUpdate: (updatedUser: any) => void;
+  onChangePassword?: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, onBack, onUpdate }) => {
+const Profile: React.FC<ProfileProps> = ({ user, onBack, onUpdate, onChangePassword }) => {
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [email, setEmail] = useState(user.email);
@@ -196,6 +197,14 @@ const Profile: React.FC<ProfileProps> = ({ user, onBack, onUpdate }) => {
                     required
                   />
                 </div>
+
+                <button 
+                  type="button" 
+                  className="change-password-btn"
+                  onClick={onChangePassword}
+                >
+                  Change Password
+                </button>
               </div>
             </div>
 

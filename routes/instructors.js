@@ -82,5 +82,61 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// @route   PUT /api/instructors/:id
+// @desc    Update instructor (archive/restore/unavailable status) (admin only)
+// @access  Private/Admin
+router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { archived, name, unavailable, unavailableReason } = req.body;
+    const updateData = {};
+
+    // Handle name update with duplicate check
+    if (name !== undefined) {
+      const existingInstructor = await Instructor.findOne({ 
+        _id: { $ne: req.params.id },
+        name: { $regex: new RegExp(`^${name}$`, 'i') }
+      });
+
+      if (existingInstructor) {
+        return res.status(400).json({ 
+          message: "Instructor with this name already exists" 
+        });
+      }
+      updateData.name = name.trim();
+    }
+
+    if (archived !== undefined) {
+      updateData.archived = archived;
+    }
+
+    if (unavailable !== undefined) {
+      updateData.unavailable = unavailable;
+      if (unavailable && unavailableReason) {
+        updateData.unavailableReason = unavailableReason.trim();
+      } else if (!unavailable) {
+        updateData.unavailableReason = null;
+      }
+    }
+
+    const instructor = await Instructor.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
+
+    if (!instructor) {
+      return res.status(404).json({ message: "Instructor not found" });
+    }
+
+    res.json({ 
+      message: `Instructor updated successfully`,
+      instructor
+    });
+  } catch (error) {
+    console.error("Error updating instructor:", error);
+    res.status(500).json({ message: "Server error while updating instructor" });
+  }
+});
+
 export default router;
 

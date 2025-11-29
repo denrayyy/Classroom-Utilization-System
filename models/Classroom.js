@@ -41,22 +41,10 @@ const classroomSchema = mongoose.Schema({
     instructor: {
       type: String
     }
-  }],
-  version: {
-    type: Number,
-    default: 1,
-    min: 1
-  }
+  }]
 }, {
   timestamps: true,
   versionKey: false
-});
-
-classroomSchema.pre("save", function setInitialVersion(next) {
-  if (this.isNew && (this.version === undefined || this.version === null)) {
-    this.version = 1;
-  }
-  next();
 });
 
 const Classroom = mongoose.model("Classroom", classroomSchema);

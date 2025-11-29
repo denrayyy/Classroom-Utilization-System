@@ -16,6 +16,8 @@ interface Classroom {
 interface Instructor {
   _id: string;
   name: string;
+  unavailable?: boolean;
+  unavailableReason?: string;
 }
 
 const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
@@ -227,25 +229,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             </div>
 
             <div className="form-fields">
-              <div className="field-group">
-                <label>Name:</label>
-                <input
-                  type="text"
-                  value={`${user.firstName} ${user.lastName}`}
-                  readOnly
-                  className="readonly-field"
-                />
-              </div>
-
-              <div className="field-group">
-                <label>Email:</label>
-                <input
-                  type="email"
-                  value={user.email}
-                  readOnly
-                  className="readonly-field"
-                />
-              </div>
+              {/* Name and Email fields hidden as per requirement */}
 
               <div className="field-group">
                 <label>Time-In:</label>
@@ -294,11 +278,39 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 >
                   <option value="">Select Instructor</option>
                   {instructors.map((instructor) => (
-                    <option key={instructor._id} value={instructor.name}>
+                    <option 
+                      key={instructor._id} 
+                      value={instructor.name}
+                      disabled={instructor.unavailable}
+                    >
                       {instructor.name}
+                      {instructor.unavailable && ` (Unavailable)`}
                     </option>
                   ))}
                 </select>
+                {instructorName && (
+                  (() => {
+                    const selectedInstructor = instructors.find(i => i.name === instructorName);
+                    if (selectedInstructor?.unavailable) {
+                      return (
+                        <div style={{
+                          marginTop: '8px',
+                          padding: '10px',
+                          backgroundColor: '#fff3cd',
+                          border: '1px solid #ffc107',
+                          borderRadius: '4px',
+                          color: '#856404',
+                          fontSize: '14px'
+                        }}>
+                          <strong>⚠️ Warning:</strong> This instructor is currently unavailable.
+                          <br />
+                          <strong>Reason:</strong> {selectedInstructor.unavailableReason}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()
+                )}
               </div>
 
               <div className="field-group">

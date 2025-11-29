@@ -1,0 +1,284 @@
+.admin-settings-page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 20px;
+}
+
+.admin-settings-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.settings-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.settings-header {
+  background: #0b5161;
+  color: white;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 24px;
+  flex: 1;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.tab {
+  flex: 1;
+  padding: 16px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+}
+
+.tab:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.tab.active {
+  color: #0b5161;
+  border-bottom-color: #0b5161;
+  background: white;
+}
+
+.tab-content {
+  padding: 32px;
+}
+
+.settings-form {
+  width: 100%;
+}
+
+.form-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+
+.photo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar-large {
+  width: 280px;
+  height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e0e0e0;
+}
+
+.avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-large svg {
+  width: 80px;
+  height: 80px;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.upload-photo-btn {
+  background: #0b5161;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-photo-btn:hover {
+  background: #0a4350;
+}
+
+.fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #0b5161;
+  box-shadow: 0 0 0 3px rgba(11, 81, 97, 0.1);
+}
+
+.form-group input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border-left: 4px solid #c33;
+}
+
+.success-message {
+  background: #efe;
+  color: #3c3;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border-left: 4px solid #3c3;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: #0b5161;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 8px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #0a4350;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .tab-content {
+    padding: 20px;
+  }
+
+  .form-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .avatar-large {
+    width: 200px;
+    height: 200px;
+  }
+
+  .avatar-large svg {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-settings-page {
+    padding: 12px;
+  }
+
+  .settings-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-header h2 {
+    font-size: 20px;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab {
+    padding: 12px;
+    border-bottom: none;
+    border-right: 3px solid transparent;
+  }
+
+  .tab.active {
+    border-bottom: none;
+    border-right-color: #0b5161;
+  }
+
+  .tab-content {
+    padding: 16px;
+  }
+
+  .form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .avatar-large {
+    width: 150px;
+    height: 150px;
+  }
+
+  .avatar-large svg {
+    width: 50px;
+    height: 50px;
+  }
+
+  .form-group input {
+    font-size: 16px;
+  }
+}

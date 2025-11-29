@@ -98,44 +98,22 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ msg: "No fields provided to update" });
     }
 
-    const existing = await Classroom.findById(req.params.id).select("version");
-
-    if (!existing) {
-      return res.status(404).json({ msg: "Classroom not found" });
-    }
-
-    const hasVersion = typeof existing.version === "number";
-    const currentVersion = hasVersion ? existing.version : 1;
-
-    const filter = hasVersion
-      ? { _id: req.params.id, version: currentVersion }
-      : {
-          _id: req.params.id,
-          $or: [{ version: { $exists: false } }, { version: null }]
-        };
-
-    const updateOps = {
-      $set: {
-        ...updateFields,
-        ...(hasVersion ? {} : { version: currentVersion })
-      },
-      $inc: { version: 1 }
-    };
-
-    const updatedClassroom = await Classroom.findOneAndUpdate(filter, updateOps, {
-      new: true,
-      runValidators: true
-    }).lean();
+    const updatedClassroom = await Classroom.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    ).lean();
 
     if (!updatedClassroom) {
-      return res.status(409).json({
-        msg: "MVCC Conflict: This record has been updated by another admin."
-      });
+      return res.status(404).json({ msg: "Classroom not found" });
     }
 
     res.json(updatedClassroom);
   } catch (error) {
     console.error(error.message);
+    if (error.code === 11000) {
+      return res.status(400).json({ msg: "Classroom with this name already exists" });
+    }
     res.status(500).send("Server Error");
   }
 });
@@ -145,28 +123,10 @@ router.put("/:id", async (req, res) => {
 // @access  Public
 router.delete("/:id", async (req, res) => {
   try {
-    const existing = await Classroom.findById(req.params.id).select("version");
-
-    if (!existing) {
-      return res.status(404).json({ msg: "Classroom not found" });
-    }
-
-    const hasVersion = typeof existing.version === "number";
-    const currentVersion = hasVersion ? existing.version : 1;
-
-    const filter = hasVersion
-      ? { _id: req.params.id, version: currentVersion }
-      : {
-          _id: req.params.id,
-          $or: [{ version: { $exists: false } }, { version: null }]
-        };
-
-    const deletedClassroom = await Classroom.findOneAndDelete(filter).lean();
+    const deletedClassroom = await Classroom.findByIdAndDelete(req.params.id).lean();
 
     if (!deletedClassroom) {
-      return res.status(409).json({
-        msg: "MVCC Conflict: This record has been updated by another admin."
-      });
+      return res.status(404).json({ msg: "Classroom not found" });
     }
 
     res.json({ msg: "Classroom deleted successfully" });

@@ -51,10 +51,9 @@ if (!existingSecondAdmin) {
       lastName: "User",
       email: userEmail,
       password: "reden123",
-      employeeId: "REDEN001",
+      // Don't set employeeId to avoid duplicate key errors
       department: "General",
       role: "teacher",
-      phone: "",
       isActive: true
     });
     await teacher.save();

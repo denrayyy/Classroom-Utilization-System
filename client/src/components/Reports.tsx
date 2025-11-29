@@ -53,8 +53,10 @@ interface ReportsProps {
 const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dailyTimeins, setDailyTimeins] = useState<any[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [allTimeins, setAllTimeins] = useState<any[]>([]);
+  const [filteredTimeins, setFilteredTimeins] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [comment, setComment] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -67,29 +69,95 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   });
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
-  // Reports fetching disabled to avoid heavy queries/timeouts; showing only date-based transactions
-
-  useEffect(() => {
-    if (selectedDate) {
-      fetchDailyTimeins(selectedDate);
-    } else {
-      setDailyTimeins([]);
-    }
-  }, [selectedDate]);
-
-  const fetchDailyTimeins = async (dateISO: string) => {
+  const fetchAllTimeins = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/timein?date=${dateISO}`, {
+      const response = await axios.get(`/api/reports/timein/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDailyTimeins(response.data || []);
+      setAllTimeins(response.data || []);
+      setLoading(false);
     } catch (error: any) {
-      console.error('Error fetching time-in transactions:', error);
-      setError('Failed to load transactions for the selected day');
+      console.error('Error fetching all time-in transactions:', error);
+      setError('Failed to load all transactions');
+      setLoading(false);
       setTimeout(() => setError(''), 3000);
     }
   };
+
+  const fetchMonthlyTimeins = async (monthISO: string) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      // monthISO is in format "YYYY-MM"
+      const [year, month] = monthISO.split('-');
+      
+      // Create start and end dates for the month
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1); // Month is 0-indexed
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999); // Last day of month
+      
+      console.log('Fetching transactions for month:', monthISO);
+      console.log('Date range:', startDate, 'to', endDate);
+      
+      // Fetch all transactions from the database
+      const response = await axios.get(
+        `/api/reports/timein/all`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      console.log('Total transactions fetched:', response.data?.length || 0);
+      
+      // Filter transactions for the selected month on client side
+      const monthTransactions = (response.data || []).filter((t: any) => {
+        const transactionDate = new Date(t.date);
+        // Ensure we're comparing dates correctly
+        const isInMonth = transactionDate >= startDate && transactionDate <= endDate;
+        return isInMonth;
+      });
+      
+      console.log('Transactions in selected month:', monthTransactions.length);
+      setAllTimeins(monthTransactions);
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error fetching monthly transactions:', error);
+      setError('Failed to load transactions for the selected month');
+      setLoading(false);
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Apply search filter whenever allTimeins or searchQuery changes
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredTimeins(allTimeins);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = allTimeins.filter((t: any) => {
+        const studentName = `${t.student?.firstName || ''} ${t.student?.lastName || ''}`.toLowerCase();
+        const instructorName = (t.instructorName || '').toLowerCase();
+        return studentName.includes(query) || instructorName.includes(query);
+      });
+      setFilteredTimeins(filtered);
+    }
+  }, [allTimeins, searchQuery]);
+
+  // Fetch all time-in transactions on component mount
+  useEffect(() => {
+    fetchAllTimeins();
+  }, []);
+
+  // When month is selected, filter the transactions
+  // When month is cleared, show all transactions
+  useEffect(() => {
+    if (selectedMonth) {
+      fetchMonthlyTimeins(selectedMonth);
+    } else {
+      fetchAllTimeins();
+    }
+  }, [selectedMonth]);
 
   const handleViewEvidence = async (filename: string) => {
     try {
@@ -194,40 +262,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     });
   };
 
-  const getWeekOptions = () => {
-    const options = [];
-    const currentYear = new Date().getFullYear();
-    for (let week = 1; week <= 52; week++) {
-      options.push(`${currentYear}-${week.toString().padStart(2, '0')}`);
-    }
-    return options;
-  };
-
-  const getMonthOptions = () => {
-    const options = [];
-    const currentYear = new Date().getFullYear();
-    for (let month = 1; month <= 12; month++) {
-      options.push(`${currentYear}-${month.toString().padStart(2, '0')}`);
-    }
-    return options;
-  };
-
-  const filteredReports = reports;
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading reports...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="reports">
       <div className="page-header">
         <h1>Reports</h1>
-        <p>View and export weekly and monthly reports with archived daily data</p>
+        <p>View all time-in transactions (latest to oldest). Use filters to search and narrow down results.</p>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -235,21 +274,49 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
       <div className="reports-filters">
         <div className="filter-group">
-          <label>Select Date:</label>
+          <label>Search by Student or Instructor Name:</label>
           <input
-            type="date"
+            type="text"
             className="filter-select"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            placeholder="Enter name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+        <div className="filter-group">
+          <label>Filter by Month (Optional):</label>
+          <input
+            type="month"
+            className="filter-select"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
+          {selectedMonth && (
+            <button
+              className="btn-clear-filter"
+              onClick={() => setSelectedMonth('')}
+              style={{ marginLeft: '8px', padding: '6px 12px' }}
+            >
+              Clear Filter
+            </button>
+          )}
         </div>
       </div>
 
-      {selectedDate && (
-        <div className="reports-list" style={{ marginBottom: 24 }}>
+      {loading ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading transactions...</p>
+        </div>
+      ) : (
+        <div className="reports-list">
           <div className="report-card">
             <div className="report-header">
-              <h3>Time-in Transactions on {formatDate(selectedDate)}</h3>
+              <h3>
+                Time-in Transactions
+                {selectedMonth ? ` for ${new Date(selectedMonth + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}` : ' (All Transactions)'}
+                {searchQuery && ` - Search: "${searchQuery}"`}
+              </h3>
               <span className="report-type daily">TRANSACTIONS</span>
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -258,18 +325,28 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem('token');
-                    const resp = await axios.get(`/api/timein/export/pdf?date=${selectedDate}`, {
+                    // Build URL based on what's displayed
+                    let url = `/api/timein/export/pdf`;
+                    if (selectedMonth) {
+                      // Export entire month - send date as YYYY-MM-01
+                      url += `?date=${selectedMonth}-01`;
+                    }
+                    // If no month selected, export all transactions (no date param)
+                    
+                    const resp = await axios.get(url, {
                       headers: { Authorization: `Bearer ${token}` },
                       responseType: 'blob'
                     });
-                    const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+                    const blobUrl = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `timein-${selectedDate}.pdf`;
+                    a.href = blobUrl;
+                    a.download = selectedMonth ? `timein-${selectedMonth}.pdf` : `timein-all-transactions.pdf`;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
-                    window.URL.revokeObjectURL(url);
+                    window.URL.revokeObjectURL(blobUrl);
+                    setSuccess('PDF downloaded successfully');
+                    setTimeout(() => setSuccess(''), 3000);
                   } catch (err) {
                     console.error('Error downloading PDF:', err);
                     setError('Failed to download PDF.');
@@ -280,14 +357,21 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                 Download PDF
               </button>
             </div>
-            {dailyTimeins.length === 0 ? (
-              <p>No transactions recorded for this date.</p>
+            {filteredTimeins.length === 0 ? (
+              <p>No transactions found{selectedMonth ? ' for this month' : ''}
+                {searchQuery ? ` matching "${searchQuery}"` : ''}.
+              </p>
             ) : (
               <div className="report-details">
                 <div className="report-info">
-                  {dailyTimeins.map((t: any) => (
-                    <div key={t._id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  <p style={{ marginBottom: '12px', color: '#666' }}>
+                    <strong>Total Transactions: {filteredTimeins.length}</strong>
+                  </p>
+                  {filteredTimeins.map((t: any) => (
+                    <div key={t._id} style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', marginBottom: '8px' }}>
+                      <p><strong>Date:</strong> {t.date ? new Date(t.date).toLocaleDateString() : '—'}</p>
                       <p><strong>Classroom:</strong> {t.classroom?.name} ({t.classroom?.location})</p>
+                      <p><strong>Student:</strong> {t.student?.firstName} {t.student?.lastName}</p>
                       <p><strong>Instructor:</strong> {t.instructorName}</p>
                       <p><strong>Time In:</strong> {t.timeIn ? new Date(t.timeIn).toLocaleTimeString() : '—'}
                         {t.timeOut ? `  |  Time Out: ${new Date(t.timeOut).toLocaleTimeString()}` : ''}
@@ -310,87 +394,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </div>
         </div>
       )}
-
-      <div className="reports-list">
-        {filteredReports.length > 0 && (
-          filteredReports.map((report) => (
-            <div key={report._id} className="report-card">
-              <div className="report-header">
-                <h3>{report.title}</h3>
-                <span className={`report-type ${report.type}`}>{report.type.toUpperCase()}</span>
-              </div>
-
-              <div className="report-details">
-                <div className="report-info">
-                  <p><strong>Period:</strong> {formatDate(report.period.startDate)} - {formatDate(report.period.endDate)}</p>
-                  <p><strong>Generated By:</strong> {report.generatedBy.firstName} {report.generatedBy.lastName}</p>
-                  <p><strong>Generated On:</strong> {formatDate(report.createdAt)}</p>
-                  <p><strong>Status:</strong> <span className={`status-${report.status}`}>{report.status}</span></p>
-                </div>
-
-                {report.data && report.data.statistics && (
-                  <div className="report-statistics">
-                    <h4>Statistics</h4>
-                    <div className="stats-grid">
-                      <div className="stat-item">
-                        <span className="stat-label">Total Records:</span>
-                        <span className="stat-value">{report.data.statistics.totalRecords || 0}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">Verified:</span>
-                        <span className="stat-value">{report.data.statistics.verifiedRecords || 0}</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-label">Pending:</span>
-                        <span className="stat-value">{report.data.statistics.pendingRecords || 0}</span>
-                      </div>
-                      {report.data.statistics.verificationRate !== undefined && (
-                        <div className="stat-item">
-                          <span className="stat-label">Verification Rate:</span>
-                          <span className="stat-value">{report.data.statistics.verificationRate}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {report.summary && (
-                  <div className="report-summary">
-                    <h4>Summary</h4>
-                    <p>Total Classrooms: {report.summary.totalClassrooms || 0}</p>
-                    <p>Total Utilization: {report.summary.totalUtilization || 0}</p>
-                    {report.summary.averageUtilization !== undefined && (
-                      <p>Average Utilization: {report.summary.averageUtilization}%</p>
-                    )}
-                  </div>
-                )}
-
-                {report.comment && (
-                  <div className="report-comment">
-                    <h4>Comments</h4>
-                    <p>{report.comment}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="report-actions">
-                <button
-                  className="btn-export"
-                  onClick={() => handleExportPDF(report._id)}
-                >
-                  Export PDF
-                </button>
-                <button
-                  className="btn-comment"
-                  onClick={() => openCommentModal(report)}
-                >
-                  {report.comment ? 'Edit Comment' : 'Add Comment'}
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
 
       {showCommentModal && selectedReport && (
         <div className="modal-overlay" onClick={() => setShowCommentModal(false)}>

@@ -261,6 +261,10 @@ router.get("/", authenticateToken, async (req, res) => {
     // Date filtering
     if (date) {
       const targetDate = new Date(date);
+      // Check if date is valid
+      if (isNaN(targetDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD format." });
+      }
       const startOfDay = new Date(targetDate);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(targetDate);
@@ -269,9 +273,15 @@ router.get("/", authenticateToken, async (req, res) => {
     }
 
     if (startDate && endDate) {
+      const parsedStartDate = new Date(startDate);
+      const parsedEndDate = new Date(endDate);
+      // Check if dates are valid
+      if (isNaN(parsedStartDate.getTime()) || isNaN(parsedEndDate.getTime())) {
+        return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD format." });
+      }
       query.date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: parsedStartDate,
+        $lte: parsedEndDate
       };
     }
 
@@ -284,95 +294,6 @@ router.get("/", authenticateToken, async (req, res) => {
     res.json(timeInRecords);
   } catch (error) {
     console.error("Get time-in records error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// @route   GET /api/timein/:id
-// @desc    Get time-in record by ID
-// @access  Private
-router.get("/:id", authenticateToken, async (req, res) => {
-  try {
-    const timeInRecord = await TimeIn.findById(req.params.id)
-      .populate("student", "firstName lastName email employeeId department")
-      .populate("classroom", "name location capacity")
-      .populate("verifiedBy", "firstName lastName");
-
-    if (!timeInRecord) {
-      return res.status(404).json({ message: "Time-in record not found" });
-    }
-
-    // Students can only view their own records
-    if (req.user.role === "student" && timeInRecord.student._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    res.json(timeInRecord);
-  } catch (error) {
-    console.error("Get time-in record error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * @route   PUT /api/timein/:id/verify
- * @desc    Verify or reject time-in record (Admin only)
- * @access  Private (Admin role required)
- * 
- * This endpoint allows administrators to verify or reject teacher time-in records.
- * It updates the record status, records who verified it, and when it was verified.
- * This is crucial for maintaining accountability and ensuring proper attendance tracking.
- * 
- * Request Body:
- * - status: "verified" or "rejected" (required)
- * - remarks: Optional admin remarks about the verification
- * 
- * Response:
- * - 200: Verification status updated successfully
- * - 400: Invalid status or validation errors
- * - 401: Authentication required
- * - 403: Admin role required
- * - 404: Time-in record not found
- * - 500: Server error
- */
-router.put("/:id/verify", authenticateToken, [
-  body("status").isIn(["verified", "rejected"]).withMessage("Status must be verified or rejected"),
-  body("remarks").optional().isString()
-], async (req, res) => {
-  try {
-    // Check if user is admin
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admin privileges required." });
-    }
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { status, remarks } = req.body;
-
-    const timeInRecord = await TimeIn.findById(req.params.id);
-    if (!timeInRecord) {
-      return res.status(404).json({ message: "Time-in record not found" });
-    }
-
-    timeInRecord.status = status;
-    timeInRecord.verifiedBy = req.user._id;
-    timeInRecord.verifiedAt = new Date();
-    if (remarks) timeInRecord.remarks = remarks;
-
-    await timeInRecord.save();
-    await timeInRecord.populate("student", "firstName lastName email employeeId department");
-    await timeInRecord.populate("classroom", "name location capacity");
-    await timeInRecord.populate("verifiedBy", "firstName lastName");
-
-    res.json({
-      message: `Time-in record ${status} successfully`,
-      timeInRecord
-    });
-  } catch (error) {
-    console.error("Verify time-in record error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -398,74 +319,133 @@ router.get("/evidence/:filename", authenticateToken, (req, res) => {
 });
 
 /**
- * @route   GET /api/timein/pdf
- * @desc    Generate a PDF of time-in transactions for a specific date
+ * @route   GET /api/timein/export/pdf
+ * @desc    Generate a PDF of time-in transactions for a date or entire month
  * @access  Private (Admin)
+ * @query   date: Either a full date (YYYY-MM-DD) for single day or month start (YYYY-MM-01) for entire month
+ *          If not provided, exports all transactions
  */
 router.get("/export/pdf", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { date } = req.query;
-    if (!date) {
-      return res.status(400).json({ message: "date (YYYY-MM-DD) is required" });
+    let query = {};
+    let formattedPeriod = "";
+    let filename = "timein-report.pdf";
+
+    if (date) {
+      // Check if it's a month (format YYYY-MM-01) or a specific date
+      const dateParts = date.split("-");
+      const isMonthStart = date.endsWith("-01");
+      
+      if (isMonthStart && dateParts.length === 3) {
+        // It's a month export - get all days in that month
+        const [year, month] = date.split("-");
+        const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
+        const monthEnd = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+        
+        query.date = { $gte: monthStart, $lte: monthEnd };
+        
+        formattedPeriod = new Date(monthStart).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long"
+        });
+        
+        filename = `timein-${year}-${month}.pdf`;
+      } else {
+        // It's a single day export
+        const targetDate = new Date(date);
+        const startOfDay = new Date(targetDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(targetDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        query.date = { $gte: startOfDay, $lte: endOfDay };
+        
+        formattedPeriod = new Date(date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+        
+        filename = `timein-${date}.pdf`;
+      }
+    } else {
+      // Export all transactions
+      formattedPeriod = "All Transactions";
+      filename = `timein-all-${new Date().toISOString().split('T')[0]}.pdf`;
     }
 
-    const targetDate = new Date(date);
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const records = await TimeIn.find({
-      date: { $gte: startOfDay, $lte: endOfDay }
-    })
+    const records = await TimeIn.find(query)
       .populate("student", "firstName lastName email employeeId department")
       .populate("classroom", "name location capacity")
-      .sort({ timeIn: 1 });
+      .sort({ date: -1, timeIn: -1 });
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
-    const formattedDate = new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    });
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="timein-${date}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
     doc.pipe(res);
 
     // Title
     doc.fontSize(18).text("Time-in Transactions", { align: "center" }).moveDown(0.3);
-    doc.fontSize(12).text(`Date: ${formattedDate}`, { align: "center" }).moveDown(1);
+    doc.fontSize(12).text(`Period: ${formattedPeriod}`, { align: "center" }).moveDown(0.5);
+    doc.fontSize(10).text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}`, { align: "center" }).moveDown(1);
+
+    // Summary
+    doc.fontSize(11).text(`Total Transactions: ${records.length}`, { align: "left" }).moveDown(0.5);
 
     // Table header
-    doc.font("Helvetica-Bold").fontSize(11);
+    doc.font("Helvetica-Bold").fontSize(10);
     const col = (x) => 40 + x;
 
-    doc.text("Time", col(0));
-    doc.text("Student", col(80));
-    doc.text("Instructor", col(240));
-    doc.text("Classroom", col(360));
+    doc.text("Date", col(0), doc.y);
+    doc.text("Time", col(60));
+    doc.text("Student", col(110));
+    doc.text("Instructor", col(250));
+    doc.text("Classroom", col(370));
     doc.moveDown(0.5);
 
-    doc.font("Helvetica").fontSize(10);
+    // Line separator
+    doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#cccccc").stroke().strokeColor("#000");
+    doc.moveDown(0.3);
+
+    doc.font("Helvetica").fontSize(9);
 
     if (records.length === 0) {
-      doc.text("No transactions recorded for this date.");
+      doc.text("No transactions found for the selected period.");
     } else {
-      records.forEach((r) => {
+      records.forEach((r, index) => {
+        // Check if we need a new page
+        if (doc.y > 700) {
+          doc.addPage();
+          // Repeat header on new page
+          doc.font("Helvetica-Bold").fontSize(10);
+          doc.text("Date", col(0), doc.y);
+          doc.text("Time", col(60));
+          doc.text("Student", col(110));
+          doc.text("Instructor", col(250));
+          doc.text("Classroom", col(370));
+          doc.moveDown(0.5);
+          doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#cccccc").stroke().strokeColor("#000");
+          doc.moveDown(0.3);
+          doc.font("Helvetica").fontSize(9);
+        }
+
+        const dateStr = r.date ? new Date(r.date).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" }) : "—";
         const timeStr = r.timeIn ? new Date(r.timeIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "—";
         const studentName = r.student ? `${r.student.firstName} ${r.student.lastName}` : "—";
         const instructor = r.instructorName || "—";
         const classroom = r.classroom ? r.classroom.name : "—";
 
         const y = doc.y;
-        doc.text(timeStr, col(0), y, { width: 70 });
-        doc.text(studentName, col(80), y, { width: 150 });
-        doc.text(instructor, col(240), y, { width: 110 });
-        doc.text(classroom, col(360), y, { width: 160 });
-        doc.moveDown(0.2);
-        doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#e0e0e0").stroke().strokeColor("#000");
+        doc.text(dateStr, col(0), y, { width: 50 });
+        doc.text(timeStr, col(60), y, { width: 40 });
+        doc.text(studentName, col(110), y, { width: 135 });
+        doc.text(instructor, col(250), y, { width: 110 });
+        doc.text(classroom, col(370), y, { width: 130 });
+        doc.moveDown(0.4);
+        doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor("#f0f0f0").stroke().strokeColor("#000");
       });
     }
 
@@ -565,6 +545,95 @@ router.delete("/:id", authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error("Delete time-in record error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/timein/:id
+// @desc    Get time-in record by ID
+// @access  Private
+router.get("/:id", authenticateToken, async (req, res) => {
+  try {
+    const timeInRecord = await TimeIn.findById(req.params.id)
+      .populate("student", "firstName lastName email employeeId department")
+      .populate("classroom", "name location capacity")
+      .populate("verifiedBy", "firstName lastName");
+
+    if (!timeInRecord) {
+      return res.status(404).json({ message: "Time-in record not found" });
+    }
+
+    // Students can only view their own records
+    if (req.user.role === "student" && timeInRecord.student._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json(timeInRecord);
+  } catch (error) {
+    console.error("Get time-in record error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * @route   PUT /api/timein/:id/verify
+ * @desc    Verify or reject time-in record (Admin only)
+ * @access  Private (Admin role required)
+ * 
+ * This endpoint allows administrators to verify or reject teacher time-in records.
+ * It updates the record status, records who verified it, and when it was verified.
+ * This is crucial for maintaining accountability and ensuring proper attendance tracking.
+ * 
+ * Request Body:
+ * - status: "verified" or "rejected" (required)
+ * - remarks: Optional admin remarks about the verification
+ * 
+ * Response:
+ * - 200: Verification status updated successfully
+ * - 400: Invalid status or validation errors
+ * - 401: Authentication required
+ * - 403: Admin role required
+ * - 404: Time-in record not found
+ * - 500: Server error
+ */
+router.put("/:id/verify", authenticateToken, [
+  body("status").isIn(["verified", "rejected"]).withMessage("Status must be verified or rejected"),
+  body("remarks").optional().isString()
+], async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied. Admin privileges required." });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { status, remarks } = req.body;
+
+    const timeInRecord = await TimeIn.findById(req.params.id);
+    if (!timeInRecord) {
+      return res.status(404).json({ message: "Time-in record not found" });
+    }
+
+    timeInRecord.status = status;
+    timeInRecord.verifiedBy = req.user._id;
+    timeInRecord.verifiedAt = new Date();
+    if (remarks) timeInRecord.remarks = remarks;
+
+    await timeInRecord.save();
+    await timeInRecord.populate("student", "firstName lastName email employeeId department");
+    await timeInRecord.populate("classroom", "name location capacity");
+    await timeInRecord.populate("verifiedBy", "firstName lastName");
+
+    res.json({
+      message: `Time-in record ${status} successfully`,
+      timeInRecord
+    });
+  } catch (error) {
+    console.error("Verify time-in record error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -155,7 +155,7 @@
 
 .sidebar-nav {
   flex: 1;
-  padding: 20px 0;
+  padding: 15px 0;
   overflow-y: auto;
 }
 
@@ -163,16 +163,16 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
   padding: 14px 20px;
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: all 0.2s ease;
-  text-align: left;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
+  margin: 3px 0;
+  gap: 12px;
 }
 
 .nav-item:hover {
@@ -187,14 +187,16 @@
 }
 
 .nav-icon {
-  font-size: 20px;
   width: 24px;
-  text-align: center;
+  height: 24px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
 .nav-label {
   white-space: nowrap;
+  flex: 1;
+  text-align: left;
 }
 
 .sidebar-footer {
@@ -206,14 +208,15 @@
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  padding: 12px 20px;
+  padding: 14px 20px;
   background: rgba(220, 53, 69, 0.1);
   border: 1px solid rgba(220, 53, 69, 0.3);
   color: #ff6b7a;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   transition: all 0.2s ease;
 }
@@ -225,7 +228,9 @@
 }
 
 .logout-icon {
-  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
@@ -243,38 +248,192 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .admin-topbar {
     padding: 0 20px;
   }
 
   .page-title {
-    font-size: 20px;
-  }
-
-  .admin-name {
-    font-size: 14px;
+    font-size: 24px;
   }
 
   .admin-sidebar {
-    width: 80px;
-  }
-
-  .admin-sidebar.open {
-    width: 280px;
-    z-index: 1001;
+    width: 250px;
   }
 
   .admin-main-content {
-    margin-left: 80px;
+    margin-left: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-topbar {
+    padding: 0 15px;
+    height: 60px;
   }
 
-  .sidebar-header .brand-text {
+  .page-title {
+    font-size: 18px;
+  }
+
+  .admin-name {
+    font-size: 12px;
     display: none;
   }
 
-  .sidebar-header .brand-text.open {
+  .topbar-right {
+    gap: 12px;
+  }
+
+  .profile-photo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-photo-placeholder {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-sidebar {
+    width: 70px;
+    position: fixed;
+    left: 0;
+    top: 60px;
+    height: calc(100vh - 60px);
+    z-index: 1000;
+  }
+
+  .admin-sidebar.open {
+    width: 250px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .admin-main-content {
+    margin-left: 70px;
+    margin-top: 60px;
+    padding: 15px;
+  }
+
+  .sidebar-header {
+    padding: 15px;
+    flex-direction: column;
+  }
+
+  .sidebar-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .admin-sidebar.open .brand-text {
     display: flex;
+  }
+
+  .nav-item {
+    padding: 12px 15px;
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .admin-sidebar.open .nav-label {
+    display: block;
+  }
+
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 15px;
+  }
+
+  .logout-btn {
+    width: 100%;
+    padding: 10px;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .logout-confirm-modal {
+    padding: 24px;
+    width: 85%;
+  }
+
+  .logout-confirm-modal h3 {
+    font-size: 20px;
+  }
+
+  .logout-confirm-modal p {
+    font-size: 14px;
+  }
+
+  .modal-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn-cancel,
+  .btn-confirm {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-topbar {
+    padding: 0 10px;
+    height: 56px;
+  }
+
+  .page-title {
+    font-size: 16px;
+  }
+
+  .admin-sidebar {
+    width: 60px;
+    top: 56px;
+    height: calc(100vh - 56px);
+  }
+
+  .admin-main-content {
+    margin-left: 60px;
+    margin-top: 56px;
+    padding: 10px;
+  }
+
+  .sidebar-header {
+    padding: 10px;
+  }
+
+  .sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .nav-item {
+    padding: 10px 12px;
+    font-size: 12px;
+    margin: 2px 0;
+  }
+
+  .logout-confirm-modal {
+    padding: 20px;
+    width: 90%;
+  }
+
+  .logout-confirm-modal h3 {
+    font-size: 18px;
   }
 }
 
@@ -357,27 +516,31 @@
 .modal-buttons {
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
+  justify-content: center;
+  margin-top: 24px;
 }
 
 .btn-cancel,
 .btn-confirm {
-  padding: 10px 24px;
+  padding: 12px 32px;
   border: none;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-width: 120px;
 }
 
 .btn-cancel {
   background: #e1e5e9;
-  color: #555;
+  color: #333;
 }
 
 .btn-cancel:hover {
   background: #d0d4d8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-confirm {
@@ -387,5 +550,7 @@
 
 .btn-confirm:hover {
   background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 

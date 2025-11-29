@@ -58,8 +58,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       
       setActivities(todayRecords);
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching activities:', error);
+      if (error.response?.status === 400) {
+        setError('Failed to load activities. Please refresh the page.');
+      } else if (error.response?.status === 401) {
+        setError('Session expired. Please login again.');
+      } else {
+        console.log('Detailed error:', error.response?.data);
+      }
       setLoading(false);
     }
   };

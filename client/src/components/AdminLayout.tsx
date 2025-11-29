@@ -6,22 +6,26 @@ interface AdminLayoutProps {
   children: React.ReactNode;
   fullName: string;
   onLogout?: () => void;
+  onSettingsClick?: () => void;
+  onSettingsClose?: () => void;
+  showAdminSettings?: boolean;
   profilePhoto?: string;
+  isSettingsActive?: boolean;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout, profilePhoto }) => {
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout, onSettingsClick, onSettingsClose, showAdminSettings, profilePhoto, isSettingsActive }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const menuItems = [
-    { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/schedules', label: 'Scheduling', icon: '📅' },
-    { path: '/reports', label: 'Reports', icon: '📈' },
-    { path: '/users', label: 'Manage Users', icon: '👥' },
-    { path: '/classrooms', label: 'Manage Classroom', icon: '🏫' },
-    { path: '/instructors', label: 'Manage Instructors', icon: '👨‍🏫' },
+    { path: '/', label: 'Dashboard', icon: '/dashboard.png' },
+    { path: '/reports', label: 'Reports', icon: '/reports.png' },
+    { path: '/users', label: 'Manage Users', icon: '/users.png' },
+    { path: '/classrooms', label: 'Manage Classroom', icon: '/classroom.png' },
+    { path: '/instructors', label: 'Manage Instructors', icon: '/instructor.png' },
+    { path: '/settings', label: 'Settings', icon: '/settings.png', onClick: onSettingsClick },
   ];
 
   const handleLogoutClick = () => {
@@ -39,7 +43,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
     setShowLogoutConfirm(false);
   };
 
-  const isActive = (path: string) => {
+  const isActive = (path: string, hasCustomHandler?: boolean) => {
+    // If Settings is active, only highlight Settings
+    if (isSettingsActive && !hasCustomHandler) {
+      return false;
+    }
+    if (hasCustomHandler) {
+      // Settings is active based on isSettingsActive prop
+      return isSettingsActive || false;
+    }
     if (path === '/') {
       return location.pathname === '/';
     }
@@ -47,6 +59,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
   };
 
   const getPageTitle = () => {
+    if (showAdminSettings) return 'Settings';
     const currentPath = location.pathname;
     if (currentPath === '/') return 'Dashboard';
     if (currentPath === '/schedules') return 'Scheduling';
@@ -91,13 +104,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
             {isSidebarOpen ? '◀' : '▶'}
           </button>
           <div className="logo-container">
-            <div className="logo" aria-hidden>
-              <svg viewBox="0 0 64 64" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M24 56h16" stroke="#11303b" strokeWidth="4" strokeLinecap="round"/>
-                <path d="M32 8c-9.389 0-17 7.611-17 17 0 6.06 3.087 11.382 7.78 14.5 1.689 1.114 2.22 2.654 2.22 4.5v2h16v-2c0-1.846.531-3.386 2.22-4.5C45.913 36.382 49 31.06 49 25c0-9.389-7.611-17-17-17Z" stroke="#11303b" strokeWidth="3"/>
-                <path d="M26 42h12" stroke="#11303b" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-            </div>
             {isSidebarOpen && (
               <div className="brand-text">
                 <div className="title">ClaUSys</div>
@@ -111,10 +117,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
           {menuItems.map((item, index) => (
             <button
               key={index}
-              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
-              onClick={() => navigate(item.path)}
+              className={`nav-item ${isActive(item.path, !!item.onClick) ? 'active' : ''}`}
+              onClick={() => {
+                if (item.onClick) {
+                  item.onClick();
+                } else {
+                  onSettingsClose?.();
+                  navigate(item.path);
+                }
+              }}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <img src={item.icon} alt={item.label} className="nav-icon" />
               {isSidebarOpen && <span className="nav-label">{item.label}</span>}
             </button>
           ))}
@@ -122,7 +135,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
 
         <div className="sidebar-footer">
           <button className="logout-btn" onClick={handleLogoutClick}>
-            <span className="logout-icon">🚪</span>
+         
             {isSidebarOpen && <span>Logout</span>}
           </button>
         </div>

@@ -97,6 +97,11 @@ app.get("/api", (req, res) => {
   });
 });
 
+// Serve favicon
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end();
+});
+
 // Serve React app for all non-API routes (for client-side routing)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "client/build", "index.html"));
