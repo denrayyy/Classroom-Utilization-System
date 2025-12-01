@@ -59,7 +59,8 @@ const reportSchema = mongoose.Schema({
     type: String
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: "version"
 });
 
 const Report = mongoose.model("Report", reportSchema);

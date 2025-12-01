@@ -2,6 +2,13 @@ import express from "express";
 import Instructor from "../models/Instructor.js";
 import { body, validationResult } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import {
+  requireVersion,
+  buildVersionedUpdateDoc,
+  runVersionedUpdate,
+  respondWithConflict,
+  isVersionError
+} from "../utils/mvcc.js";
 
 const router = express.Router();
 
@@ -87,8 +94,9 @@ router.delete("/:id", authenticateToken, requireAdmin, async (req, res) => {
 // @access  Private/Admin
 router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const version = requireVersion(req.body.version);
     const { archived, name, unavailable, unavailableReason } = req.body;
-    const updateData = {};
+    const updates = {};
 
     // Handle name update with duplicate check
     if (name !== undefined) {
@@ -102,38 +110,46 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
           message: "Instructor with this name already exists" 
         });
       }
-      updateData.name = name.trim();
+      updates.name = name.trim();
     }
 
     if (archived !== undefined) {
-      updateData.archived = archived;
+      updates.archived = archived;
     }
 
     if (unavailable !== undefined) {
-      updateData.unavailable = unavailable;
+      updates.unavailable = unavailable;
       if (unavailable && unavailableReason) {
-        updateData.unavailableReason = unavailableReason.trim();
+        updates.unavailableReason = unavailableReason.trim();
       } else if (!unavailable) {
-        updateData.unavailableReason = null;
+        updates.unavailableReason = null;
       }
     }
 
-    const instructor = await Instructor.findByIdAndUpdate(
+    const updateDoc = buildVersionedUpdateDoc(updates);
+
+    const instructor = await runVersionedUpdate(
+      Instructor,
       req.params.id,
-      updateData,
-      { new: true }
+      version,
+      updateDoc
     );
 
     if (!instructor) {
-      return res.status(404).json({ message: "Instructor not found" });
+      return respondWithConflict(res, "Instructor");
     }
 
     res.json({ 
-      message: `Instructor updated successfully`,
+      message: "Instructor updated successfully",
       instructor
     });
   } catch (error) {
     console.error("Error updating instructor:", error);
+
+    if (isVersionError(error)) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
     res.status(500).json({ message: "Server error while updating instructor" });
   }
 });

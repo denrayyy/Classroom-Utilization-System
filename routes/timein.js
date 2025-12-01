@@ -8,6 +8,13 @@ import Classroom from "../models/Classroom.js";
 import { body, validationResult } from "express-validator";
 import { authenticateToken, requireTeacher, requireAdmin } from "../middleware/auth.js";
 import { getCurrentTime } from "../utils/worldTimeAPI.js";
+import {
+  requireVersion,
+  buildVersionedUpdateDoc,
+  runVersionedUpdate,
+  respondWithConflict,
+  isVersionError
+} from "../utils/mvcc.js";
 
 const router = express.Router();
 
@@ -585,6 +592,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
  * This is crucial for maintaining accountability and ensuring proper attendance tracking.
  * 
  * Request Body:
+ * - version: Version number for optimistic locking (optional - required for concurrent edits)
  * - status: "verified" or "rejected" (required)
  * - remarks: Optional admin remarks about the verification
  * 
@@ -594,6 +602,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
  * - 401: Authentication required
  * - 403: Admin role required
  * - 404: Time-in record not found
+ * - 409: Version conflict (record was updated elsewhere)
  * - 500: Server error
  */
 router.put("/:id/verify", authenticateToken, [
@@ -611,22 +620,35 @@ router.put("/:id/verify", authenticateToken, [
       return res.status(400).json({ errors: errors.array() });
     }
 
+    const version = requireVersion(req.body.version);
     const { status, remarks } = req.body;
 
-    const timeInRecord = await TimeIn.findById(req.params.id);
+    const updates = {
+      status,
+      verifiedBy: req.user._id,
+      verifiedAt: new Date()
+    };
+    
+    if (remarks !== undefined) updates.remarks = remarks;
+
+    const updateDoc = buildVersionedUpdateDoc(updates);
+
+    const timeInRecord = await runVersionedUpdate(
+      TimeIn,
+      req.params.id,
+      version,
+      updateDoc
+    );
+
     if (!timeInRecord) {
-      return res.status(404).json({ message: "Time-in record not found" });
+      return respondWithConflict(res, "TimeIn Record");
     }
 
-    timeInRecord.status = status;
-    timeInRecord.verifiedBy = req.user._id;
-    timeInRecord.verifiedAt = new Date();
-    if (remarks) timeInRecord.remarks = remarks;
-
-    await timeInRecord.save();
-    await timeInRecord.populate("student", "firstName lastName email employeeId department");
-    await timeInRecord.populate("classroom", "name location capacity");
-    await timeInRecord.populate("verifiedBy", "firstName lastName");
+    await timeInRecord.populate([
+      { path: "student", select: "firstName lastName email employeeId department" },
+      { path: "classroom", select: "name location capacity" },
+      { path: "verifiedBy", select: "firstName lastName" }
+    ]);
 
     res.json({
       message: `Time-in record ${status} successfully`,
@@ -634,6 +656,11 @@ router.put("/:id/verify", authenticateToken, [
     });
   } catch (error) {
     console.error("Verify time-in record error:", error);
+
+    if (isVersionError(error)) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 });

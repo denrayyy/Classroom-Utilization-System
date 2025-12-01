@@ -49,21 +49,25 @@ app.use('/uploads', express.static(path.join(__dirname, "uploads")));
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, "client/build")));
 
-// Connect to MongoDB
-connectDB().then(() => {
-  // Ensure admin exists (runs once on startup)
-  seedAdminIfMissing().catch((e) => console.error("Admin seed error:", e));
-  
-  // Initialize daily archive cron job after DB connection
-  try {
-    initializeDailyArchive();
-  } catch (error) {
-    console.error("Error initializing daily archive cron job:", error);
-    // Don't crash the server if cron job fails to initialize
-  }
-}).catch((e) => {
-  console.error("Database connection error:", e);
-});
+// Connect to MongoDB and start server
+connectDB()
+  .then(() => {
+    console.log("✓ MongoDB connection established successfully");
+    // Ensure admin exists (runs once on startup)
+    seedAdminIfMissing().catch((e) => console.error("Admin seed error:", e));
+    
+    // Initialize daily archive cron job after DB connection
+    try {
+      initializeDailyArchive();
+    } catch (error) {
+      console.error("Error initializing daily archive cron job:", error);
+      // Don't crash the server if cron job fails to initialize
+    }
+  })
+  .catch((e) => {
+    console.error("⚠️  Database connection error:", e.message);
+    console.error("⚠️  Server will start but database operations may fail");
+  });
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -114,6 +118,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Only one PORT declaration
-app.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`\n✓ Server running on http://localhost:${PORT}`);
+  console.log(`✓ API available at http://localhost:${PORT}/api\n`);
+});

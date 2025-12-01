@@ -20,7 +20,8 @@ const instructorSchema = mongoose.Schema({
     default: null
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: "version"
 });
 
 const Instructor = mongoose.model("Instructor", instructorSchema);

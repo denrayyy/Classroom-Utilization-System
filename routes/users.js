@@ -4,6 +4,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import User from "../models/User.js";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import {
+  requireVersion,
+  buildVersionedUpdateDoc,
+  runVersionedUpdate,
+  respondWithConflict,
+  isVersionError
+} from "../utils/mvcc.js";
 
 const router = express.Router();
 
@@ -186,6 +193,8 @@ router.get("/:id", authenticateToken, requireAdmin, async (req, res) => {
 // @access  Private/Admin
 router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const version = requireVersion(req.body.version);
+
     const {
       firstName,
       lastName,
@@ -195,15 +204,8 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       isActive
     } = req.body;
     
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
     // Check if email is being changed to one that already exists
-    const isEmailChanging = email !== undefined && email !== user.email;
-    
-    if (isEmailChanging) {
+    if (email !== undefined) {
       const existingUser = await User.findOne({
         _id: { $ne: req.params.id },
         email
@@ -216,30 +218,48 @@ router.put("/:id", authenticateToken, requireAdmin, async (req, res) => {
       }
     }
 
-    // Update user fields
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (email !== undefined) user.email = email;
-    if (department !== undefined) user.department = department;
-    if (role !== undefined) user.role = role;
-    if (isActive !== undefined) user.isActive = isActive;
+    const updates = {};
+    if (firstName !== undefined) updates.firstName = firstName;
+    if (lastName !== undefined) updates.lastName = lastName;
+    if (email !== undefined) updates.email = email;
+    if (department !== undefined) updates.department = department;
+    if (role !== undefined) updates.role = role;
+    if (isActive !== undefined) updates.isActive = isActive;
 
-    await user.save();
+    const updateDoc = buildVersionedUpdateDoc(updates);
+
+    const updatedUser = await runVersionedUpdate(
+      User,
+      req.params.id,
+      version,
+      updateDoc,
+      { select: "-password" }
+    );
+
+    if (!updatedUser) {
+      return respondWithConflict(res, "User");
+    }
 
     res.json({
       message: "User updated successfully",
       user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        isActive: user.isActive
+        id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        department: updatedUser.department,
+        isActive: updatedUser.isActive,
+        version: updatedUser.version
       }
     });
   } catch (error) {
     console.error("Error updating user:", error);
+
+    if (isVersionError(error)) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
     res.status(500).json({ message: "Server error while updating user" });
   }
 });

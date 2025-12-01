@@ -378,6 +378,32 @@
   animation: slideDown 0.3s ease;
 }
 
+.conflict-message {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 2px solid #fecaca;
+  font-weight: 500;
+  animation: slideDown 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.conflict-message p {
+  margin: 0;
+  flex: 1;
+}
+
+.conflict-message .btn {
+  white-space: nowrap;
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

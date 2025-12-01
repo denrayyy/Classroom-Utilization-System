@@ -62,10 +62,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [evidenceModal, setEvidenceModal] = useState<{ open: boolean; url: string; filename: string }>({
+  const [evidenceModal, setEvidenceModal] = useState<{ open: boolean; url: string; filename: string; isBlob?: boolean }>({
     open: false,
     url: '',
-    filename: ''
+    filename: '',
+    isBlob: false
   });
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
@@ -159,6 +160,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     }
   }, [selectedMonth]);
 
+  const getStaticEvidenceUrl = (filename: string) =>
+    `/uploads/evidence/${encodeURIComponent(filename)}`;
+
   const handleViewEvidence = async (filename: string) => {
     try {
       setEvidenceLoading(true);
@@ -173,31 +177,46 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       setEvidenceModal({
         open: true,
         url,
-        filename
+        filename,
+        isBlob: true
       });
       setEvidenceLoading(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error viewing evidence:', err);
-      setError('Unable to load evidence image.');
+      const serverMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : undefined;
+      const fallbackUrl = getStaticEvidenceUrl(filename);
+      if (serverMessage) {
+        setError(`Unable to load evidence image: ${serverMessage}`);
+      } else {
+        setError('Unable to load evidence image.');
+      }
+      setEvidenceModal({
+        open: true,
+        url: fallbackUrl,
+        filename,
+        isBlob: false
+      });
       setTimeout(() => setError(''), 3000);
       setEvidenceLoading(false);
     }
   };
 
   const closeEvidenceModal = () => {
-    if (evidenceModal.url) {
+    if (evidenceModal.url && evidenceModal.isBlob) {
       window.URL.revokeObjectURL(evidenceModal.url);
     }
-    setEvidenceModal({ open: false, url: '', filename: '' });
+    setEvidenceModal({ open: false, url: '', filename: '', isBlob: false });
   };
 
   useEffect(() => {
     return () => {
-      if (evidenceModal.url) {
+      if (evidenceModal.url && evidenceModal.isBlob) {
         window.URL.revokeObjectURL(evidenceModal.url);
       }
     };
-  }, [evidenceModal.url]);
+  }, [evidenceModal.url, evidenceModal.isBlob]);
 
   const handleExportPDF = async (reportId: string) => {
     try {

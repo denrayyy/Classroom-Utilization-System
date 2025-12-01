@@ -47,7 +47,8 @@ const scheduleSchema = mongoose.Schema({
     type: String
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: "version"
 });
 
 const Schedule = mongoose.model("Schedule", scheduleSchema);

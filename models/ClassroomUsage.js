@@ -40,7 +40,8 @@ const classroomUsageSchema = mongoose.Schema({
     type: String
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: "version"
 });
 
 const ClassroomUsage = mongoose.model("ClassroomUsage", classroomUsageSchema);

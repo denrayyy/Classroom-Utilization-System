@@ -44,7 +44,7 @@ const classroomSchema = mongoose.Schema({
   }]
 }, {
   timestamps: true,
-  versionKey: false
+  versionKey: "version"
 });
 
 const Classroom = mongoose.model("Classroom", classroomSchema);

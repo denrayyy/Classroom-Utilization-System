@@ -36,7 +36,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [searchName, setSearchName] = useState('');
-  const [evidenceModal, setEvidenceModal] = useState<{ open: boolean; url: string; filename: string }>({ open: false, url: '', filename: '' });
+  const [evidenceModal, setEvidenceModal] = useState<{ open: boolean; url: string; filename: string; isBlob?: boolean }>({ open: false, url: '', filename: '', isBlob: false });
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
   const fetchRecentActivities = async () => {
@@ -103,6 +103,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     });
   };
 
+  const getStaticEvidenceUrl = (fileName: string) =>
+    `/uploads/evidence/${encodeURIComponent(fileName)}`;
+
   const handleViewEvidence = async (filename: string) => {
     if (!filename) return;
     try {
@@ -114,30 +117,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       });
 
       const url = window.URL.createObjectURL(response.data);
-      setEvidenceModal({ open: true, url, filename });
+      setEvidenceModal({ open: true, url, filename, isBlob: true });
       setEvidenceLoading(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error viewing evidence:', err);
-      setError('Unable to load evidence image.');
+      const serverMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message
+        : undefined;
+      if (serverMessage) {
+        setError(`Unable to load evidence image: ${serverMessage}`);
+      } else {
+        setError('Unable to load evidence image.');
+      }
+      setEvidenceModal({
+        open: true,
+        url: getStaticEvidenceUrl(filename),
+        filename,
+        isBlob: false
+      });
       setTimeout(() => setError(''), 3000);
       setEvidenceLoading(false);
     }
   };
 
   const closeEvidenceModal = () => {
-    if (evidenceModal.url) {
+    if (evidenceModal.url && evidenceModal.isBlob) {
       window.URL.revokeObjectURL(evidenceModal.url);
     }
-    setEvidenceModal({ open: false, url: '', filename: '' });
+    setEvidenceModal({ open: false, url: '', filename: '', isBlob: false });
   };
 
   useEffect(() => {
     return () => {
-      if (evidenceModal.url) {
+      if (evidenceModal.url && evidenceModal.isBlob) {
         window.URL.revokeObjectURL(evidenceModal.url);
       }
     };
-  }, [evidenceModal.url]);
+  }, [evidenceModal.url, evidenceModal.isBlob]);
 
   return (
     <div className="admin-dashboard">

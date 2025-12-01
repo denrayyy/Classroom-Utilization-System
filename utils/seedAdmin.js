@@ -4,7 +4,9 @@ export default async function seedAdminIfMissing() {
   // Seed Admin
   const adminEmail = "clausysadmin@buksu.edu.ph";
   const existingAdmin = await User.findOne({ email: adminEmail });
+
   if (!existingAdmin) {
+    // Create admin if missing
     const admin = new User({
       firstName: "System",
       lastName: "Administrator",
@@ -18,28 +20,45 @@ export default async function seedAdminIfMissing() {
     });
     await admin.save();
     console.log("Seeded admin:", adminEmail);
+  } else {
+    // Always ensure known credentials & active status after imports
+    existingAdmin.firstName = existingAdmin.firstName || "System";
+    existingAdmin.lastName = existingAdmin.lastName || "Administrator";
+    existingAdmin.password = "admin"; // will be hashed by pre-save hook
+    existingAdmin.role = "admin";
+    existingAdmin.isActive = true;
+    await existingAdmin.save();
+    console.log("Reset admin password for:", adminEmail);
   }
 
   // Seed second admin
-const secondAdminEmail = "raydenivandelfin@gmail.com";
-const existingSecondAdmin = await User.findOne({ email: secondAdminEmail });
+  const secondAdminEmail = "raydenivandelfin@gmail.com";
+  const existingSecondAdmin = await User.findOne({ email: secondAdminEmail });
 
-if (!existingSecondAdmin) {
-  const secondAdmin = new User({
-    firstName: "System",
-    lastName: "Administrator02",
-    email: secondAdminEmail,
-    password: "admin",          // Make sure your User model hashes this automatically
-    employeeId: "ADMIN002",
-    department: "Administration",
-    role: "admin",
-    phone: "",
-    isActive: true,
-  });
+  if (!existingSecondAdmin) {
+    const secondAdmin = new User({
+      firstName: "System",
+      lastName: "Administrator02",
+      email: secondAdminEmail,
+      password: "admin",          // Will be hashed by pre-save hook
+      employeeId: "ADMIN002",
+      department: "Administration",
+      role: "admin",
+      phone: "",
+      isActive: true,
+    });
 
-  await secondAdmin.save();
-  console.log("Seeded second admin:", secondAdminEmail);
-}
+    await secondAdmin.save();
+    console.log("Seeded second admin:", secondAdminEmail);
+  } else {
+    existingSecondAdmin.firstName = existingSecondAdmin.firstName || "System";
+    existingSecondAdmin.lastName = existingSecondAdmin.lastName || "Administrator02";
+    existingSecondAdmin.password = "admin"; // reset to known value
+    existingSecondAdmin.role = "admin";
+    existingSecondAdmin.isActive = true;
+    await existingSecondAdmin.save();
+    console.log("Reset admin password for:", secondAdminEmail);
+  }
 
 
   // Seed Regular User (teacher) - per request
@@ -58,6 +77,13 @@ if (!existingSecondAdmin) {
     });
     await teacher.save();
     console.log("Seeded user:", userEmail);
+  } else {
+    // Keep teacher active and set a known password for debugging if needed
+    existingUser.password = "reden123";
+    existingUser.role = "teacher";
+    existingUser.isActive = true;
+    await existingUser.save();
+    console.log("Reset teacher password for:", userEmail);
   }
 }
 
