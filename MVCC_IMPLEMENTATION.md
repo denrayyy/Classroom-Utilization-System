@@ -81,6 +81,7 @@ React components now include version management:
 
 - `ClassroomManagement.tsx`
 - `UserManagement.tsx`
+- `InstructorManagement.tsx`
 
 ## Implementation Pattern
 
