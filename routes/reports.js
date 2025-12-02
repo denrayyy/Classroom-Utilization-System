@@ -8,6 +8,13 @@ import User from "../models/User.js";
 import TimeIn from "../models/TimeIn.js";
 import { body, validationResult } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import {
+  requireVersion,
+  buildVersionedUpdateDoc,
+  runVersionedUpdate,
+  respondWithConflict,
+  isVersionError
+} from "../utils/mvcc.js";
 
 const router = express.Router();
 
@@ -556,25 +563,40 @@ router.put("/:id/comment", authenticateToken, [
   body("comment").optional().isString()
 ], async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
+    const version = requireVersion(req.body.version);
     const { comment } = req.body;
-    const report = await Report.findById(req.params.id);
 
-    if (!report) {
+    // Check if user can update this report first
+    const reportExists = await Report.findById(req.params.id);
+    if (!reportExists) {
       return res.status(404).json({ message: "Report not found" });
     }
 
-    // Check if user can update this report
-    if (req.user.role === "teacher" && report.generatedBy.toString() !== req.user._id.toString()) {
+    if (req.user.role === "teacher" && reportExists.generatedBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    report.comment = comment || "";
-    await report.save();
+    const updates = {
+      comment: comment || ""
+    };
+
+    const updateDoc = buildVersionedUpdateDoc(updates);
+
+    const report = await runVersionedUpdate(
+      Report,
+      req.params.id,
+      version,
+      updateDoc
+    );
+
+    if (!report) {
+      return respondWithConflict(res, "Report");
+    }
+
+    await report.populate([
+      { path: "generatedBy", select: "firstName lastName email employeeId" },
+      { path: "sharedWith.user", select: "firstName lastName email" }
+    ]);
 
     res.json({
       message: "Comment updated successfully",
@@ -582,6 +604,11 @@ router.put("/:id/comment", authenticateToken, [
     });
   } catch (error) {
     console.error("Update comment error:", error);
+
+    if (isVersionError(error)) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
     res.status(500).json({ message: "Server error" });
   }
 });

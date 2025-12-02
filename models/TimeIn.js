@@ -84,7 +84,8 @@ const timeInSchema = mongoose.Schema({
     default: false
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: "version"
 });
 
 // Index for efficient queries
