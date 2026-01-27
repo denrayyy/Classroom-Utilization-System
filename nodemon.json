@@ -1,28 +1,10 @@
 {
-  "watch": [
-    "server.js",
-    "routes",
-    "models",
-    "middleware",
-    "config",
-    "utils"
-  ],
-  "ignore": [
-    "node_modules",
-    "client",
-    "*.test.js",
-    "*.spec.js",
-    ".git"
-  ],
+  "watch": ["backend"],
+  "ignore": ["node_modules", "frontend"],
   "ext": "js,json",
-  "delay": "1000",
+  "exec": "node backend/server.js",
   "env": {
     "NODE_ENV": "development"
   },
-  "execMap": {
-    "js": "node"
-  },
-  "verbose": true,
   "restartable": "rs"
 }
-

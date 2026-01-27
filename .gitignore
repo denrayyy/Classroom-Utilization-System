@@ -16,6 +16,7 @@ client/package-lock.json
 dist/
 build/
 client/build/
+frontend/client/
 .cache/
 .parcel-cache/
 .next/

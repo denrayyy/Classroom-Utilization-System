@@ -2,16 +2,15 @@
   "name": "classroom-utilization-mern",
   "version": "1.0.0",
   "description": "Classroom Utilization System using MERN Stack",
-  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "server": "nodemon --config nodemon.json server.js",
-    "client": "npm start --prefix client",
+    "start": "node backend/server.js",
+    "server": "nodemon",
+    "client": "npm start --prefix frontend",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "build": "npm run build --prefix client",
+    "build": "npm run build --prefix frontend",
     "build:server": "npm run build && npm start",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix frontend && npm run build --prefix frontend",
     "fix-google-oauth": "node scripts/fixGoogleOAuth.js",
     "seed-instructors": "node scripts/seedInstructors.js"
   },
@@ -43,6 +42,5 @@
     "react",
     "node"
   ],
-  "author": "Your Name",
   "license": "MIT"
 }
