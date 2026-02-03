@@ -658,17 +658,22 @@ const UserManagement: React.FC<UserManagementProps> = ({
     return fullName.includes(query) || email.includes(query);
   });
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setPage(1);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   return (
     <div className="classroom-management">
+      {/* {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+        </div>
+      )} */}
+
       {activeTab === "users" && (
         <>
           <div className="page-header"></div>
@@ -710,10 +715,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   className="search-input"
                   placeholder="Search by name or email..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
                   <button

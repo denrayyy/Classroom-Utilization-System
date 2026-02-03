@@ -42,30 +42,49 @@ export const create = asyncHandler(async (req, res) => {
   const currentTime = req.worldTime ?? new Date();
 
   // Enforce allowed time-in hours: 7:00 AM - 8:00 AM
-  const hour = currentTime.getHours();
-  const minutes = currentTime.getMinutes();
-  // const currentTotalMinutes = hour * 60 + minutes;
-  // const startMinutes = 7 * 60; // 7:00 AM
-  // const endMinutes = 18 * 60;   // 8:00 AM
 
-  if (hour < 7 || hour >= 20) {
-    return res.status(400).json({
-      message: "Time-in is only allowed between 7:00 AM and 8:00 AM",
+
+  // ===== Per-classroom (COMLAB) cooldown validation: 2h 30m =====
+const lastTimeIn = await TimeIn.findOne({
+  student: req.user._id,
+  classroom: classroom, // IMPORTANT: per COMLAB
+}).sort({ timeIn: -1 });
+
+if (lastTimeIn) {
+  const currentTime = req.worldTime ?? new Date();
+  const lastTime = new Date(lastTimeIn.timeIn);
+
+  const diffMs = currentTime - lastTime;
+  const cooldownMs = (2 * 60 * 60 * 1000) + (30 * 60 * 1000); // 2h 30m
+
+  if (diffMs < cooldownMs) {
+    const remainingMs = cooldownMs - diffMs;
+    const remainingMinutes = Math.ceil(remainingMs / 60000);
+    const hours = Math.floor(remainingMinutes / 60);
+    const minutes = remainingMinutes % 60;
+
+    return res.status(429).json({
+      message: `You can time-in again to this comlab after ${hours} hour(s) and ${minutes} minute(s).`,
+      classroom: classroom,
+      retryAfterMinutes: remainingMinutes,
     });
   }
+}
+
+
 
   // Check if another instructor is currently using the classroom
-  const classroomInUse = await TimeIn.findOne({
-    classroom,
-    instructorName: { $ne: instructorName }, // exclude self
-    timeOut: { $exists: false },             // still active
-  });
+  // const classroomInUse = await TimeIn.findOne({
+  //   classroom,
+  //   instructorName: { $ne: instructorName }, // exclude self
+  //   timeOut: { $exists: false },             // still active
+  // });
 
-  if (classroomInUse) {
-    return res.status(409).json({
-      message: "Classroom is currently in use by another instructor",
-    });
-  }
+  // if (classroomInUse) {
+  //   return res.status(409).json({
+  //     message: "Classroom is currently in use by another instructor",
+  //   });
+  // }
 
   // Create time-in record
   const timeInRecord = new TimeIn({
