@@ -15,6 +15,7 @@ import timeInRoutes from "./timein.js";
 import userRoutes from "./users.js";
 import instructorRoutes from "./instructors.js";
 import apiRoutes from "./api.js";
+import activityLogsRoutes from "./activityLogs.js";
 
 const router = express.Router();
 
@@ -50,6 +51,7 @@ router.use("/reports", reportRoutes);
 router.use("/timein", timeInRoutes);
 router.use("/users", userRoutes);
 router.use("/instructors", instructorRoutes);
+router.use("/activity-logs", activityLogsRoutes);
 router.use("/", apiRoutes);
 
 export default router;

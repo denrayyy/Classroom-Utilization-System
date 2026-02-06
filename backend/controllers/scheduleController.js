@@ -166,8 +166,12 @@ export const updateSchedule = asyncHandler(async (req, res) => {
   if (academicYear !== undefined) updates.academicYear = academicYear;
   if (notes !== undefined) updates.notes = notes;
 
+  // Capture BEFORE state for activity log
+  const beforeSchedule = await Schedule.findById(req.params.id).lean();
+
   // Check for conflicts (this will throw if conflict exists)
   await scheduleService.updateSchedule(req.params.id, updates, version);
+
 
   const updateDoc = buildVersionedUpdateDoc(updates);
 
@@ -181,13 +185,16 @@ export const updateSchedule = asyncHandler(async (req, res) => {
   await schedule.populate("classroom", "name location capacity");
 
   // Log activity
-  prepareActivityLog(
+    prepareActivityLog(
     req,
     "update",
     "Schedule",
     schedule._id,
     `${schedule.subject} (${schedule.courseCode || "No Code"})`,
-    updates
+    {
+      before: beforeSchedule,
+      after: schedule.toObject()
+    }
   );
 
   res.json({

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import './AdminLayout.css';
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import "./AdminLayout.css";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -13,19 +13,38 @@ interface AdminLayoutProps {
   isSettingsActive?: boolean;
 }
 
-const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout, onSettingsClick, onSettingsClose, showAdminSettings, profilePhoto, isSettingsActive }) => {
+const AdminLayout: React.FC<AdminLayoutProps> = ({
+  children,
+  fullName,
+  onLogout,
+  onSettingsClick,
+  onSettingsClose,
+  showAdminSettings,
+  profilePhoto,
+  isSettingsActive,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const menuItems = [
-    { path: '/', label: 'Dashboard', icon: '/dashboard.png' },
-    { path: '/reports', label: 'Reports', icon: '/reports.png' },
-    { path: '/users', label: 'Manage Users', icon: '/users.png' },
-    { path: '/classrooms', label: 'Manage Classroom', icon: '/classroom.png' },
-    { path: '/instructors', label: 'Manage Instructors', icon: '/instructor.png' },
-    { path: '/settings', label: 'Settings', icon: '/settings.png', onClick: onSettingsClick },
+    { path: "/", label: "Dashboard", icon: "/dashboard.png" },
+    { path: "/reports", label: "Reports", icon: "/reports.png" },
+    { path: "/users", label: "Manage Users", icon: "/users.png" },
+    { path: "/classrooms", label: "Manage Classroom", icon: "/classroom.png" },
+    {
+      path: "/instructors",
+      label: "Manage Instructors",
+      icon: "/instructor.png",
+    },
+    { path: "/activity-logs", label: "Activity Logs", icon: "/activity.png" },
+    {
+      path: "/settings",
+      label: "Settings",
+      icon: "/settings.png",
+      onClick: onSettingsClick,
+    },
   ];
 
   const handleLogoutClick = () => {
@@ -52,22 +71,23 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
       // Settings is active based on isSettingsActive prop
       return isSettingsActive || false;
     }
-    if (path === '/') {
-      return location.pathname === '/';
+    if (path === "/") {
+      return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
   };
 
   const getPageTitle = () => {
-    if (showAdminSettings) return 'Settings';
+    if (showAdminSettings) return "Settings";
     const currentPath = location.pathname;
-    if (currentPath === '/') return 'Dashboard';
-    if (currentPath === '/schedules') return 'Scheduling';
-    if (currentPath === '/reports') return 'Reports';
-    if (currentPath === '/users') return 'Manage Users';
-    if (currentPath === '/classrooms') return 'Manage Classroom';
-    if (currentPath === '/instructors') return 'Manage Instructors';
-    return 'Dashboard';
+    if (currentPath === "/") return "Dashboard";
+    if (currentPath === "/schedules") return "Scheduling";
+    if (currentPath === "/reports") return "Reports";
+    if (currentPath === "/users") return "Manage Users";
+    if (currentPath === "/classrooms") return "Manage Classroom";
+    if (currentPath === "/instructors") return "Manage Instructors";
+    if (currentPath === "/activity-logs") return "Activity Logs";
+    return "Dashboard";
   };
 
   return (
@@ -83,9 +103,26 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
             <img src={profilePhoto} alt="Profile" className="profile-photo" />
           ) : (
             <div className="profile-photo-placeholder">
-              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none">
-                <circle cx="12" cy="8" r="3.5" stroke="#102a36" strokeWidth="1.8"/>
-                <path d="M4 20c1.8-4 5-6 8-6s6.2 2 8 6" stroke="#102a36" strokeWidth="1.8" strokeLinecap="round"/>
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="8"
+                  r="3.5"
+                  stroke="#102a36"
+                  strokeWidth="1.8"
+                />
+                <path
+                  d="M4 20c1.8-4 5-6 8-6s6.2 2 8 6"
+                  stroke="#102a36"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
               </svg>
             </div>
           )}
@@ -93,15 +130,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
       </header>
 
       {/* Sidebar */}
-      <aside className={`admin-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+      <aside className={`admin-sidebar ${isSidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
           <button
             type="button"
             className="sidebar-toggle"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
-            aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
-            {isSidebarOpen ? '◀' : '▶'}
+            {isSidebarOpen ? "◀" : "▶"}
           </button>
           <div className="logo-container">
             {isSidebarOpen && (
@@ -117,7 +154,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
           {menuItems.map((item, index) => (
             <button
               key={index}
-              className={`nav-item ${isActive(item.path, !!item.onClick) ? 'active' : ''}`}
+              className={`nav-item ${isActive(item.path, !!item.onClick) ? "active" : ""}`}
               onClick={() => {
                 if (item.onClick) {
                   item.onClick();
@@ -135,16 +172,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
 
         <div className="sidebar-footer">
           <button className="logout-btn" onClick={handleLogoutClick}>
-         
             {isSidebarOpen && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="admin-main-content">
-        {children}
-      </main>
+      <main className="admin-main-content">{children}</main>
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
@@ -168,4 +202,3 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, fullName, onLogout,
 };
 
 export default AdminLayout;
-
