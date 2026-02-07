@@ -27,6 +27,6 @@ echo Type 'rs' and press Enter to manually restart the server.
 echo.
 
 REM Start the development servers
-npm run dev
+call npm run dev
 
 pause

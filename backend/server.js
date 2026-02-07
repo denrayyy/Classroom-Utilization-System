@@ -16,6 +16,8 @@ const __dirname = path.dirname(__filename);
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, ".env") });
 
+console.log("Loaded JWT_SECRET:", process.env.JWT_SECRET ? "✓" : "✗");
+
 // Verify Google OAuth configuration is loaded
 if (process.env.GOOGLE_CLIENT_ID) {
   const maskedId = process.env.GOOGLE_CLIENT_ID.substring(0, 20) + '...';

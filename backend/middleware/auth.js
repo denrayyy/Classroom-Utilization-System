@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import config from "../config/config.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || config.JWT_SECRET;
+let jwtWarningLogged = false;
 
 export const authenticateToken = async (req, res, next) => {
   try {
@@ -14,10 +15,10 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     // Validate JWT_SECRET is configured
-    if (!JWT_SECRET || JWT_SECRET === "your-secret-key" || JWT_SECRET === "your_jwt_secret_key_here") {
-      console.error("⚠️  JWT_SECRET is not properly configured. Using default value.");
-      console.error("⚠️  Please set JWT_SECRET in your .env file for production use.");
-    }
+    if (!jwtWarningLogged && (!JWT_SECRET || JWT_SECRET === "your-secret-key")) {
+    console.warn("⚠️  JWT_SECRET is not properly configured. Using default value.");
+    jwtWarningLogged = true;
+  }
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId).select("-password");

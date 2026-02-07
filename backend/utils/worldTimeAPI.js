@@ -1,7 +1,7 @@
 /**
  * World Time API Utility
  * Fetches accurate time from WorldTimeAPI.org
- * Falls back to server time if API is unavailable
+ * Falls back to Manila time if API is unavailable
  * 
  * To change timezone, set WORLD_TIME_ZONE environment variable
  * Example: WORLD_TIME_ZONE=America/New_York
@@ -10,12 +10,26 @@
  * Available timezones: https://worldtimeapi.org/api/timezone
  */
 
+import fetch from "node-fetch";
+
 // Get timezone from environment variable or use default
 const TIMEZONE = process.env.WORLD_TIME_ZONE || 'Asia/Manila';
-const WORLD_TIME_API_URL = TIMEZONE === 'ip' 
+const WORLD_TIME_API_URL = TIMEZONE === 'ip'
   ? 'https://worldtimeapi.org/api/ip'
   : `https://worldtimeapi.org/api/timezone/${TIMEZONE}`;
+
 const FALLBACK_TIMEOUT = 2000; // 2 seconds timeout for API call
+let warnedOnce = false;        // To log only once in case of API failure
+
+/**
+ * Manila fallback time
+ */
+const getManilaTime = () => {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const manilaOffset = 8 * 60; // UTC+8
+  return new Date(utc + manilaOffset * 60000);
+};
 
 /**
  * Get current time from World Time API
@@ -23,15 +37,12 @@ const FALLBACK_TIMEOUT = 2000; // 2 seconds timeout for API call
  */
 export const getWorldTime = async () => {
   try {
-    // Try to fetch from World Time API with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FALLBACK_TIMEOUT);
 
     const response = await fetch(WORLD_TIME_API_URL, {
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/json'
-      }
+      headers: { 'Accept': 'application/json' }
     });
 
     clearTimeout(timeoutId);
@@ -41,27 +52,25 @@ export const getWorldTime = async () => {
     }
 
     const data = await response.json();
-    
-    // Parse the datetime from the API response
-    // Format: "2024-01-15T10:30:00.123456+08:00"
     const worldTime = new Date(data.datetime);
-    
+
     if (isNaN(worldTime.getTime())) {
       throw new Error('Invalid datetime from World Time API');
     }
 
     console.log('Time fetched from World Time API:', worldTime.toISOString());
     return worldTime;
+
   } catch (error) {
-    // Fallback to server time if API fails
-    if (error.name === 'AbortError') {
-      console.warn('World Time API request timed out, using server time');
-    } else {
-      console.warn('World Time API unavailable, using server time:', error.message);
+    if (!warnedOnce) {
+      if (error.name === 'AbortError') {
+        console.warn('World Time API request timed out, using Manila time');
+      } else {
+        console.warn('World Time API unavailable, using Manila time:', error.message);
+      }
+      warnedOnce = true;
     }
-    
-    // Return server's current time as fallback
-    return new Date();
+    return getManilaTime();
   }
 };
 
@@ -75,21 +84,19 @@ const CACHE_DURATION = 60000; // Cache for 1 minute
 
 export const getCurrentTime = async () => {
   const now = Date.now();
-  
+
   // Return cached time if still valid
   if (cachedTime && now < cacheExpiry) {
-    // Adjust cached time by the elapsed time
     const elapsed = now - (cacheExpiry - CACHE_DURATION);
     return new Date(cachedTime.getTime() + elapsed);
   }
 
-  // Fetch new time from API
+  // Fetch new time from API or fallback
   const worldTime = await getWorldTime();
-  
+
   // Cache the time
   cachedTime = worldTime;
   cacheExpiry = now + CACHE_DURATION;
-  
+
   return worldTime;
 };
-

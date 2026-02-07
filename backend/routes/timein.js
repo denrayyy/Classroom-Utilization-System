@@ -8,6 +8,7 @@ import {
   verifyTimeinValidation,
   validateRequest,
 } from "../middleware/timeinValidation.js";
+import { attachWorldTime } from "../middleware/worldTime.js";
 
 import * as timeinController from "../controllers/timeinController.js";
 
@@ -18,6 +19,7 @@ router.post(
   "/",
   authenticateToken,
   requireTeacher,
+  attachWorldTime,
   uploadEvidence,
   multerErrorHandler,
   createTimeinValidation,
@@ -30,6 +32,7 @@ router.put(
   "/timeout",
   authenticateToken,
   requireTeacher,
+  attachWorldTime,
   controllerHandler(timeinController.timeout)
 );
 
@@ -91,6 +94,7 @@ router.put(
   "/:id/verify",
   authenticateToken,
   requireAdmin,
+  attachWorldTime,
   verifyTimeinValidation,
   validateRequest,
   controllerHandler(timeinController.verify)

@@ -1,10 +1,7 @@
-/**
- * Central API router: all /api routes are mounted here and run through shared middleware.
- * - World time is attached via middleware so controllers use req.worldTime (no direct worldTimeAPI in controllers).
- */
-
 import express from "express";
 import { attachWorldTimeOptional } from "../middleware/worldTime.js";
+
+// Route imports
 import authRoutes from "./auth.js";
 import classroomRoutes from "./classrooms.js";
 import reservationRoutes from "./reservations.js";
@@ -19,10 +16,10 @@ import activityLogsRoutes from "./activityLogs.js";
 
 const router = express.Router();
 
-// World time: attached for all API requests; controllers use req.worldTime
+// Attach optional world time to all requests
 router.use(attachWorldTimeOptional);
 
-// GET /api — API info (no auth)
+// API info route
 router.get("/", (_req, res) => {
   res.json({
     message: "Classroom Utilization System API is running...",
@@ -41,7 +38,7 @@ router.get("/", (_req, res) => {
   });
 });
 
-// Mount all route modules (each defines its own auth/validation middleware)
+// Mount route modules
 router.use("/auth", authRoutes);
 router.use("/classrooms", classroomRoutes);
 router.use("/reservations", reservationRoutes);

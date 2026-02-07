@@ -1,39 +1,60 @@
-/**
- * World Time Middleware
- * Adds consistent timezone handling to requests
- * Attaches current world time to request object
- */
-
-import { getCurrentTime } from "../utils/worldTimeAPI.js";
+// backend/middleware/worldTime.js
+import fetch from "node-fetch";
 
 /**
  * Middleware to attach world time to request
- * Use this for operations that need consistent timezone handling
+ * If World Time API fails, immediately fall back to Manila time
  */
 export const attachWorldTime = async (req, res, next) => {
+  const TIMEZONE_OFFSET = 8; // Manila is UTC+8
+
   try {
-    req.worldTime = await getCurrentTime();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
+
+    const response = await fetch(
+      "https://worldtimeapi.org/api/timezone/Asia/Manila",
+      { signal: controller.signal }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error(`Status ${response.status}`);
+
+    const data = await response.json();
+    req.worldTime = new Date(data.datetime);
     next();
   } catch (error) {
-    console.warn("World time unavailable, using server time:", error.message);
-    req.worldTime = new Date();
+    // Immediate fallback to Manila time
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    req.worldTime = new Date(utc + TIMEZONE_OFFSET * 60 * 60000);
+
+    // Optional: log once or use a monitoring service
+    console.warn("World Time API unavailable, using Manila time:", error.message);
+
     next();
   }
 };
 
 /**
- * Middleware to attach world time to request without blocking
- * Use this for non-critical operations
+ * Optional, non-blocking version
  */
 export const attachWorldTimeOptional = (req, res, next) => {
-  getCurrentTime()
-    .then((time) => {
-      req.worldTime = time;
-      next();
-    })
-    .catch(() => {
-      req.worldTime = new Date();
-      next();
-    });
+  try {
+    fetch("https://worldtimeapi.org/api/timezone/Asia/Manila", { timeout: 1000 })
+      .then(r => r.json())
+      .then(data => { req.worldTime = new Date(data.datetime); })
+      .catch(() => {
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        req.worldTime = new Date(utc + 8 * 60 * 60000);
+      })
+      .finally(next);
+  } catch {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    req.worldTime = new Date(utc + 8 * 60 * 60000);
+    next();
+  }
 };
-
