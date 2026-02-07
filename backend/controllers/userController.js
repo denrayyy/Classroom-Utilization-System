@@ -142,10 +142,18 @@ export const updateUser = asyncHandler(async (req, res) => {
       return respondWithConflict(res, "User");
     }
 
+    let action = "update";
+
+// If only `isActive` changed, determine archive/restore
+if (updates.isActive !== undefined) {
+  action = updates.isActive ? "restore" : "archive";
+}
+
+
     // Log activity
     prepareActivityLog(
       req,
-      "update",
+      action,
       "User",
       updatedUser._id,
       `${updatedUser.firstName} ${updatedUser.lastName}`,

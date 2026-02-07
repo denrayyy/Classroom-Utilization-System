@@ -19,6 +19,7 @@ export const logActivity = async (req, res, next) => {
     if (res.statusCode >= 200 && res.statusCode < 300 && req.user) {
       const activityData = req.activityLog;
       if (activityData) {
+
         // Log asynchronously without blocking response
         ActivityLog.create({
           user: req.user._id,

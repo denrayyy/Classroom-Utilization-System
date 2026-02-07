@@ -12,6 +12,8 @@ import {
   respondWithConflict,
   isVersionError,
 } from "../utils/mvcc.js";
+import { prepareActivityLog } from "../middleware/activityLogger.js";
+
 
 /**
  * Get all classrooms with optional filtering
@@ -68,8 +70,19 @@ export const createClassroom = asyncHandler(async (req, res) => {
   });
 
   await classroom.save();
+
+  prepareActivityLog(
+    req,
+    "create",
+    "Classroom",
+    classroom._id,
+    classroom.name,
+    { name, capacity, location, equipment, description }
+  );
+
   res.json(classroom);
 });
+
 
 /**
  * Update classroom
@@ -100,6 +113,10 @@ export const updateClassroom = asyncHandler(async (req, res) => {
     return res.status(400).json({ msg: "No fields provided to update" });
   }
 
+  // Fetch the original classroom
+  const originalClassroom = await Classroom.findById(req.params.id).lean();
+  if (!originalClassroom) return res.status(404).json({ msg: "Classroom not found" });
+
   const updateDoc = buildVersionedUpdateDoc(updates);
 
   const updatedClassroom = await runVersionedUpdate(
@@ -113,8 +130,39 @@ export const updateClassroom = asyncHandler(async (req, res) => {
     return respondWithConflict(res, "Classroom");
   }
 
+  // Prepare activity log: detect changes
+  const changes = {};
+Object.keys(updates).forEach(key => {
+  if (JSON.stringify(originalClassroom[key]) !== JSON.stringify(updates[key])) {
+    changes[key] = { old: originalClassroom[key], new: updates[key] };
+  }
+});
+
+  // Determine the action based on what was changed
+// always one of the enum values
+let action = "update";
+if (updates.isArchived !== undefined) {
+  action = updates.isArchived ? "archive" : "unarchive";
+} else if (Object.keys(changes).length === 0) {
+  action = "update"; // nothing changed, fallback
+}
+
+
+  // prepare log
+  prepareActivityLog(
+  req,
+  action,                  // enum: "update", "archive", etc.
+  "Classroom",
+  updatedClassroom._id,
+  updatedClassroom.name,
+  Object.keys(changes).length ? changes : null
+);
+
+
+
   res.json(updatedClassroom);
 });
+
 
 /**
  * Delete classroom
@@ -126,5 +174,15 @@ export const deleteClassroom = asyncHandler(async (req, res) => {
     return res.status(404).json({ msg: "Classroom not found" });
   }
 
+  prepareActivityLog(
+    req,
+    "delete",
+    "Classroom",
+    deletedClassroom._id,
+    deletedClassroom.name,
+    deletedClassroom
+  );
+
   res.json({ msg: "Classroom deleted successfully" });
 });
+

@@ -2,9 +2,7 @@ import mongoose from "mongoose";
 
 /**
  * Activity Log Schema
- * 
- * Tracks all create, update, and delete operations
- * for audit and accountability purposes
+ * Tracks all create, update, delete, archive, and restore operations
  */
 const activityLogSchema = mongoose.Schema(
   {
@@ -15,7 +13,7 @@ const activityLogSchema = mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ["create", "update", "delete"],
+      enum: ["create", "update", "delete", "archive", "restore"], // <-- added archive & restore
       required: true,
     },
     entityType: {
@@ -63,4 +61,3 @@ activityLogSchema.index({ createdAt: -1 });
 const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 
 export default ActivityLog;
-

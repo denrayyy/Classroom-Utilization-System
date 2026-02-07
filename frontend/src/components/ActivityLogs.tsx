@@ -104,7 +104,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
     <div className="reports">
       <div className="page-header">
         <h1>Activity Logs / Audit Trail</h1>
-        <p>Activity Monitoring.c</p>
+        <p>Activity Monitoring</p>
       </div>
 
       {error && <div className="error-message">{error}</div>}

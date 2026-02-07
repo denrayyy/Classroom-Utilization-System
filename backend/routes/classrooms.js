@@ -2,6 +2,9 @@ import express from "express";
 import * as classroomController from "../controllers/classroomController.js";
 import { controllerHandler } from "../middleware/controllerHandler.js";
 import { validateRequest, createClassroomValidation } from "../middleware/classroomValidation.js";
+import { logActivity } from "../middleware/activityLogger.js";
+import { authenticateToken } from "../middleware/auth.js";
+
 
 const router = express.Router();
 
@@ -22,19 +25,29 @@ router.post(
   "/",
   createClassroomValidation,
   validateRequest,
+  authenticateToken,
+  logActivity,
   controllerHandler(classroomController.createClassroom)
+  
 );
 
 // PUT /api/classrooms/:id — update classroom
 router.put(
   "/:id",
-  controllerHandler(classroomController.updateClassroom)
+   authenticateToken, 
+   logActivity,
+  controllerHandler(classroomController.updateClassroom),
+  
 );
 
 // DELETE /api/classrooms/:id — delete classroom
 router.delete(
   "/:id",
-  controllerHandler(classroomController.deleteClassroom)
+  authenticateToken,
+  logActivity,
+  controllerHandler(classroomController.deleteClassroom),
+  
 );
+
 
 export default router;

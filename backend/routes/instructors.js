@@ -3,6 +3,7 @@ import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 import { controllerHandler } from "../middleware/controllerHandler.js";
 import * as instructorController from "../controllers/instructorController.js";
 import { createInstructorValidation, validateRequest } from "../middleware/instructorValidation.js";
+import { logActivity } from "../middleware/activityLogger.js";
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.post(
   requireAdmin,
   createInstructorValidation,
   validateRequest,
+  logActivity,
   controllerHandler(instructorController.createInstructor)
 );
 
@@ -27,6 +29,7 @@ router.delete(
   "/:id",
   authenticateToken,
   requireAdmin,
+  logActivity ,
   controllerHandler(instructorController.deleteInstructor)
 );
 
@@ -35,6 +38,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireAdmin,
+  logActivity ,
   controllerHandler(instructorController.updateInstructor)
 );
 
