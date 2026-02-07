@@ -1,91 +1,106 @@
 import express from "express";
-import { body, validationResult } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { controllerHandler } from "../middleware/controllerHandler.js";
 import * as reportsController from "../controllers/reportsController.js";
+import {
+  validateRequest,
+  teacherReportValidation,
+  adminReportValidation,
+  weeklyReportValidation,
+  shareReportValidation,
+  commentReportValidation,
+} from "../middleware/reportValidation.js";
 
 const router = express.Router();
 
-const validate = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-  next();
-};
-
 // GET /api/reports — list with filters
-router.get("/", authenticateToken, reportsController.list);
+router.get(
+  "/",
+  authenticateToken,
+  controllerHandler(reportsController.list)
+);
 
-// GET /api/reports/timein/all — all time-in transactions (Admin)
-router.get("/timein/all", authenticateToken, requireAdmin, reportsController.getTimeInAll);
+// GET /api/reports/timein/all — Admin
+router.get(
+  "/timein/all",
+  authenticateToken,
+  requireAdmin,
+  controllerHandler(reportsController.getTimeInAll)
+);
 
-// POST /api/reports/teacher — generate teacher report
+// POST /api/reports/teacher
 router.post(
   "/teacher",
   authenticateToken,
-  [
-    body("startDate").isISO8601().withMessage("Valid start date is required"),
-    body("endDate").isISO8601().withMessage("Valid end date is required"),
-    body("title").optional().isString(),
-  ],
-  validate,
-  reportsController.generateTeacher
+  teacherReportValidation,
+  validateRequest,
+  controllerHandler(reportsController.generateTeacher)
 );
 
-// POST /api/reports/admin — generate admin utilization report
+// POST /api/reports/admin — Admin
 router.post(
   "/admin",
   authenticateToken,
   requireAdmin,
-  [
-    body("startDate").isISO8601().withMessage("Valid start date is required"),
-    body("endDate").isISO8601().withMessage("Valid end date is required"),
-    body("title").optional().isString(),
-  ],
-  validate,
-  reportsController.generateAdmin
+  adminReportValidation,
+  validateRequest,
+  controllerHandler(reportsController.generateAdmin)
 );
 
-// POST /api/reports/weekly — generate weekly report
+// POST /api/reports/weekly
 router.post(
   "/weekly",
   authenticateToken,
-  [body("startDate").isISO8601().withMessage("Valid start date is required")],
-  validate,
-  reportsController.generateWeekly
+  weeklyReportValidation,
+  validateRequest,
+  controllerHandler(reportsController.generateWeekly)
 );
 
-// POST /api/reports/archive-daily — trigger daily archive (Admin)
-router.post("/archive-daily", authenticateToken, requireAdmin, reportsController.archiveDaily);
+// POST /api/reports/archive-daily — Admin
+router.post(
+  "/archive-daily",
+  authenticateToken,
+  requireAdmin,
+  controllerHandler(reportsController.archiveDaily)
+);
 
-// GET /api/reports/:id/export-pdf — export as PDF (before /:id)
-router.get("/:id/export-pdf", authenticateToken, reportsController.exportPdf);
+// GET /api/reports/:id/export-pdf
+router.get(
+  "/:id/export-pdf",
+  authenticateToken,
+  controllerHandler(reportsController.exportPdf)
+);
 
-// GET /api/reports/:id — get by id
-router.get("/:id", authenticateToken, reportsController.getById);
+// GET /api/reports/:id
+router.get(
+  "/:id",
+  authenticateToken,
+  controllerHandler(reportsController.getById)
+);
 
-// POST /api/reports/:id/share — share with users
+// POST /api/reports/:id/share
 router.post(
   "/:id/share",
   authenticateToken,
-  [
-    body("userIds").isArray().withMessage("User IDs array is required"),
-    body("userIds.*").isMongoId().withMessage("Valid user ID is required"),
-  ],
-  validate,
-  reportsController.share
+  shareReportValidation,
+  validateRequest,
+  controllerHandler(reportsController.share)
 );
 
-// DELETE /api/reports/:id — delete report
-router.delete("/:id", authenticateToken, reportsController.remove);
+// DELETE /api/reports/:id
+router.delete(
+  "/:id",
+  authenticateToken,
+  controllerHandler(reportsController.remove)
+);
 
-// PUT /api/reports/:id/comment — add/update comment (versioned)
+// PUT /api/reports/:id/comment
 router.put(
   "/:id/comment",
   authenticateToken,
-  [body("comment").optional().isString()],
-  validate,
-  reportsController.updateComment
+  commentReportValidation,
+  validateRequest,
+  controllerHandler(reportsController.updateComment)
 );
 
 export default router;

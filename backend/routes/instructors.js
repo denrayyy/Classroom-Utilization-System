@@ -1,40 +1,41 @@
 import express from "express";
-import { body, validationResult } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { controllerHandler } from "../middleware/controllerHandler.js";
 import * as instructorController from "../controllers/instructorController.js";
+import { createInstructorValidation, validateRequest } from "../middleware/instructorValidation.js";
 
 const router = express.Router();
 
-// Validation middleware helper
-const validate = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-  next();
-};
+// GET /api/instructors — Public (for time-in form)
+router.get(
+  "/",
+  controllerHandler(instructorController.getInstructors)
+);
 
-// @route   GET /api/instructors
-// @desc    Get all instructors
-// @access  Public (for time-in form)
-router.get("/", instructorController.getInstructors);
+// POST /api/instructors — Admin only
+router.post(
+  "/",
+  authenticateToken,
+  requireAdmin,
+  createInstructorValidation,
+  validateRequest,
+  controllerHandler(instructorController.createInstructor)
+);
 
-// @route   POST /api/instructors
-// @desc    Create a new instructor (admin only)
-// @access  Private/Admin
-router.post("/", authenticateToken, requireAdmin, [
-  body("name").notEmpty().trim().withMessage("Instructor name is required")
-], validate, instructorController.createInstructor);
+// DELETE /api/instructors/:id — Admin only
+router.delete(
+  "/:id",
+  authenticateToken,
+  requireAdmin,
+  controllerHandler(instructorController.deleteInstructor)
+);
 
-// @route   DELETE /api/instructors/:id
-// @desc    Delete an instructor (admin only)
-// @access  Private/Admin
-router.delete("/:id", authenticateToken, requireAdmin, instructorController.deleteInstructor);
-
-// @route   PUT /api/instructors/:id
-// @desc    Update instructor (archive/restore/unavailable status) (admin only)
-// @access  Private/Admin
-router.put("/:id", authenticateToken, requireAdmin, instructorController.updateInstructor);
+// PUT /api/instructors/:id — Admin only
+router.put(
+  "/:id",
+  authenticateToken,
+  requireAdmin,
+  controllerHandler(instructorController.updateInstructor)
+);
 
 export default router;
-
