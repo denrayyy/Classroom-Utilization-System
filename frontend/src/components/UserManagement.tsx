@@ -140,6 +140,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [roleFilter, setRoleFilter] = useState<string>(""); // "" means no filter
+  const [departmentFilter, setDepartmentFilter] = useState<string>("");
   // Update activeTab when defaultTab prop changes
   useEffect(() => {
     setActiveTab(defaultTab);
@@ -655,7 +657,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const email = userItem.email.toLowerCase();
     const query = searchQuery.toLowerCase();
 
-    return fullName.includes(query) || email.includes(query);
+    // Search filter
+    const matchesSearch = fullName.includes(query) || email.includes(query);
+
+    // Role filter
+    const matchesRole = roleFilter ? userItem.role === roleFilter : true;
+
+    // Department filter
+    const matchesDepartment = departmentFilter
+      ? userItem.department === departmentFilter
+      : true;
+
+    return matchesSearch && matchesRole && matchesDepartment;
   });
 
   useEffect(() => {
@@ -708,27 +721,109 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="search-bar-container">
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search by name or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    className="clear-search-btn"
-                    onClick={() => {
-                      setSearchQuery("");
+              {/* Search + Filters Toolbar */}
+              <div
+                className="search-filters-toolbar"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "1rem",
+                  marginBottom: "1rem",
+                  flexWrap: "wrap", // keeps it responsive on smaller screens
+                }}
+              >
+                {/* Search Input */}
+                <div style={{ flex: "1 1 200px", minWidth: "200px" }}>
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "6px",
+                      border: "1px solid #ccc",
+                      fontSize: "1rem",
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      className="clear-search-btn"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setPage(1);
+                      }}
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Role Filter */}
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    fontWeight: 500,
+                    fontSize: "1rem",
+                  }}
+                >
+                  <span>Role:</span>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(e.target.value);
                       setPage(1);
                     }}
-                    title="Clear search"
+                    style={{
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "6px",
+                      border: "1px solid #ccc",
+                      fontSize: "1rem",
+                      minWidth: "120px",
+                    }}
                   >
-                    ✕
-                  </button>
-                )}
+                    <option value="">All</option>
+                    <option value="student">Student</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+
+                {/* Department Filter */}
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    fontWeight: 500,
+                    fontSize: "1rem",
+                  }}
+                >
+                  <span>Department:</span>
+                  <select
+                    value={departmentFilter}
+                    onChange={(e) => {
+                      setDepartmentFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    style={{
+                      padding: "0.4rem 0.6rem",
+                      borderRadius: "6px",
+                      border: "1px solid #ccc",
+                      fontSize: "1rem",
+                      minWidth: "120px",
+                    }}
+                  >
+                    <option value="">All</option>
+                    <option value="IT">IT</option>
+                    <option value="EMC">EMC</option>
+                  </select>
+                </label>
               </div>
 
               <div className="users-table">
