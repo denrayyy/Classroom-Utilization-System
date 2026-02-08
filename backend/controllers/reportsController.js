@@ -520,19 +520,52 @@ export const updateComment = async (req, res) => {
  * Export report as PDF
  */
 export const exportTimeInPdf = asyncHandler(async (req, res) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, month, studentName, instructorName } = req.query;
 
-  const start = startDate ? new Date(startDate) : new Date("2000-01-01");
-  const end = endDate ? new Date(endDate) : new Date();
+  const query = {};
 
-  const records = await TimeIn.find({ date: { $gte: start, $lte: end } })
+  // ---- DATE / MONTH FILTER ----
+  if (month) {
+  // month format: YYYY-MM
+  const [year, monthNum] = month.split("-");
+  const monthStart = new Date(Number(year), Number(monthNum) - 1, 1, 0, 0, 0, 0);
+  const monthEnd = new Date(Number(year), Number(monthNum), 0, 23, 59, 59, 999);
+  query.date = { $gte: monthStart, $lte: monthEnd };
+
+} else if (startDate && endDate) {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  query.date = { $gte: start, $lte: end };
+} else {
+  // default: all records up to today
+  query.date = { $lte: new Date() };
+}
+
+
+  // ---- NAME SEARCH (student OR instructor) ----
+  if (studentName || instructorName) {
+    const regex = new RegExp(studentName || instructorName, "i");
+
+    query.$or = [
+      { instructorName: regex },
+    ];
+  }
+
+  const records = await TimeIn.find(query)
     .populate("student", "firstName lastName")
     .populate("classroom", "name")
-    .sort({ date: -1, timeIn: -1 });
+    .sort({ date: -1, timeIn: -1 }); // OLDEST → LATEST (matches UI)
+
+  // ================= PDF GENERATION =================
 
   const doc = new PDFDocument({ size: "Letter", margin: 50 });
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="timein-report.pdf"`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="timein-report.pdf"`
+  );
   doc.pipe(res);
 
   const pageWidth = doc.page.width;
@@ -541,22 +574,32 @@ export const exportTimeInPdf = asyncHandler(async (req, res) => {
 
   // ----- HEADER -----
   const drawHeader = () => {
-    doc.fontSize(16).font("Helvetica-Bold").fillColor("#000000")
+    doc
+      .fontSize(16)
+      .font("Helvetica-Bold")
       .text("Time-In Records Report", 50, 30, { align: "center" });
-    doc.fontSize(9).font("Helvetica").fillColor("#000000")
-      .text(`Generated: ${new Date().toLocaleString()}`, 50, 50, { align: "right" });
+
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .text(`Generated: ${new Date().toLocaleString()}`, 50, 50, {
+        align: "right",
+      });
+
     doc.moveTo(50, 65).lineTo(pageWidth - 50, 65).stroke();
   };
 
   // ----- FOOTER -----
   const drawFooter = () => {
-    doc.fontSize(9).font("Helvetica").fillColor("#000000")
+    doc
+      .fontSize(9)
+      .font("Helvetica")
       .text(`Page ${pageNumber}`, 0, pageHeight - 65, { align: "center" });
   };
 
   // ----- TABLE HEADER -----
   const drawTableHeader = (y) => {
-    doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
+    doc.fontSize(10).font("Helvetica-Bold");
     doc.text("Date", 50, y);
     doc.text("Classroom", 120, y);
     doc.text("Student", 250, y);
@@ -565,38 +608,62 @@ export const exportTimeInPdf = asyncHandler(async (req, res) => {
     doc.moveTo(50, y + 15).lineTo(pageWidth - 50, y + 15).stroke();
   };
 
-  const columnPositions = { date: 50, classroom: 120, student: 250, instructor: 380, timeIn: 500 };
-  const columnWidths = { date: 70, classroom: 120, student: 120, instructor: 100, timeIn: 60 };
+  const columnPositions = {
+    date: 50,
+    classroom: 120,
+    student: 250,
+    instructor: 380,
+    timeIn: 500,
+  };
 
-  // ----- START FIRST PAGE -----
+  const columnWidths = {
+    date: 70,
+    classroom: 120,
+    student: 120,
+    instructor: 100,
+    timeIn: 60,
+  };
+
+  // ----- FIRST PAGE -----
   drawHeader();
-  let y = 80; // start below header
-  doc.fontSize(10).font("Helvetica-Bold").text(`Total Records: ${records.length}`, 50, y);
+  let y = 80;
+
+  doc
+    .fontSize(10)
+    .font("Helvetica-Bold")
+    .text(`Total Records: ${records.length}`, 50, y);
   y += 15;
-  doc.fontSize(10).font("Helvetica").text(
-    `Date Range: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`,
-    50,
-    y
-  );
-  y += 25;
+
+  if (month) {
+    doc.text(`Filtered Month: ${month}`, 50, y);
+    y += 15;
+  }
+
+  if (studentName || instructorName) {
+    doc.text(`Search: ${studentName || instructorName}`, 50, y);
+    y += 15;
+  }
+
+  y += 10;
   drawTableHeader(y);
   y += 20;
 
   // ----- TABLE ROWS -----
   for (let i = 0; i < records.length; i++) {
     const r = records[i];
+
     const date = r.date ? new Date(r.date).toLocaleDateString() : "N/A";
     const classroom = r.classroom?.name || "N/A";
-    const student = r.student ? `${r.student.firstName} ${r.student.lastName}` : "N/A";
+    const student = r.student
+      ? `${r.student.firstName} ${r.student.lastName}`
+      : "N/A";
     const instructor = r.instructorName || "N/A";
-    const timeIn = r.timeIn ? new Date(r.timeIn).toLocaleTimeString() : "N/A";
+    const timeIn = r.timeIn
+      ? new Date(r.timeIn).toLocaleTimeString()
+      : "N/A";
 
-    // calculate row height
-    const studentHeight = doc.heightOfString(student, { width: columnWidths.student });
-    const instructorHeight = doc.heightOfString(instructor, { width: columnWidths.instructor });
-    const rowHeight = Math.max(20, studentHeight, instructorHeight);
+    const rowHeight = 20;
 
-    // page break check
     if (y + rowHeight > pageHeight - 70) {
       drawFooter();
       doc.addPage();
@@ -607,43 +674,24 @@ export const exportTimeInPdf = asyncHandler(async (req, res) => {
       y += 20;
     }
 
-    // alternating row background
-    if (i % 2 === 0) {
-      doc.rect(50, y - 2, pageWidth - 100, rowHeight).fillOpacity(0.05).fillAndStroke("#cccccc", "#cccccc");
-      doc.fillOpacity(1);
-    }
-
-    doc.fontSize(10).font("Helvetica").fillColor("#000000");
+    doc.fontSize(10).font("Helvetica");
     doc.text(date, columnPositions.date, y, { width: columnWidths.date });
-    doc.text(classroom, columnPositions.classroom, y, { width: columnWidths.classroom });
-    doc.text(student, columnPositions.student, y, { width: columnWidths.student });
-    doc.text(instructor, columnPositions.instructor, y, { width: columnWidths.instructor });
-    doc.text(timeIn, columnPositions.timeIn, y, { width: columnWidths.timeIn });
+    doc.text(classroom, columnPositions.classroom, y, {
+      width: columnWidths.classroom,
+    });
+    doc.text(student, columnPositions.student, y, {
+      width: columnWidths.student,
+    });
+    doc.text(instructor, columnPositions.instructor, y, {
+      width: columnWidths.instructor,
+    });
+    doc.text(timeIn, columnPositions.timeIn, y, {
+      width: columnWidths.timeIn,
+    });
 
-    y += rowHeight + 5;
+    y += rowHeight;
   }
 
-  // Footer for last page
   drawFooter();
-
-  // ----- DIGITAL SIGNATURE PAGE -----
-  doc.addPage();
-  pageNumber++;
-  drawHeader();
-  drawFooter();
-
-  let sigY = 100;
-  doc.fontSize(14).font("Helvetica-Bold").text("Digital Signature", 50, sigY);
-  doc.rect(50, sigY + 30, 220, 60).stroke();
-  doc.fontSize(10).font("Helvetica").text(
-    "This document was generated electronically by \nthe system.No handwritten signature is required.",
-    55,
-    sigY + 40
-  );
-  doc.text(`Authorized by: Admin System`, 55, sigY + 90);
-  doc.text(`Timestamp: ${new Date().toLocaleString()}`, 55, sigY + 105);
-
-  drawFooter();
-
   doc.end();
 });

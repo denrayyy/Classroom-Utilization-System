@@ -93,8 +93,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
       const params: any = {};
       if (monthISO) {
-        const [year, month] = monthISO.split("-");
-        params.startDate = `${year}-${month}-01`; // backend can calculate endDate
+        params.month = monthISO; // send as month instead of start/end dates
+      }
+      if (searchQuery) {
+        params.studentName = searchQuery;
+        params.instructorName = searchQuery;
       }
 
       const response = await axios.get("/api/reports/timein/all", {
@@ -111,24 +114,36 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     }
   };
 
-  // Apply search filter whenever allTimeins or searchQuery changes
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredTimeins(allTimeins);
-    } else {
+    let filtered = [...allTimeins];
+
+    // Apply month filter
+    if (selectedMonth) {
+      const [year, monthNum] = selectedMonth.split("-");
+      filtered = filtered.filter((t: any) => {
+        const d = new Date(t.date);
+        return (
+          d.getFullYear() === Number(year) &&
+          d.getMonth() + 1 === Number(monthNum)
+        );
+      });
+    }
+
+    // Apply search filter
+    if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
-      const filtered = allTimeins.filter((t: any) => {
+      filtered = filtered.filter((t: any) => {
         const studentName =
           `${t.student?.firstName || ""} ${t.student?.lastName || ""}`.toLowerCase();
         const instructorName = (t.instructorName || "").toLowerCase();
         return studentName.includes(query) || instructorName.includes(query);
       });
-      setFilteredTimeins(filtered);
     }
-    setPage(1);
-  }, [allTimeins, searchQuery]);
 
-  // Fetch transactions on mount and whenever month changes
+    setFilteredTimeins(filtered);
+    setPage(1);
+  }, [allTimeins, searchQuery, selectedMonth]);
+
   useEffect(() => {
     fetchTimeins(selectedMonth || undefined);
   }, [selectedMonth]);
@@ -329,62 +344,40 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                 onClick={async () => {
                   try {
                     const token = localStorage.getItem("token");
-                    // Build URL based on what's displayed
-                    let url = `/api/reports/timein/export-pdf`;
-                    if (selectedMonth) {
-                      url += `?date=${selectedMonth}-01`;
-                    }
-                    // If no month selected, export all transactions (no date param)
 
-                    const resp = await axios.get(url, {
-                      headers: { Authorization: `Bearer ${token}` },
-                      responseType: "blob",
-                    });
+                    const resp = await axios.get(
+                      "/api/reports/timein/export-pdf",
+                      {
+                        headers: { Authorization: `Bearer ${token}` },
+                        responseType: "blob",
+                        params: {
+                          month: selectedMonth || undefined,
+                          studentName: searchQuery || undefined,
+                          instructorName: searchQuery || undefined,
+                        },
+                      },
+                    );
+
                     const blobUrl = window.URL.createObjectURL(
                       new Blob([resp.data], { type: "application/pdf" }),
                     );
+
                     const a = document.createElement("a");
                     a.href = blobUrl;
                     a.download = selectedMonth
                       ? `timein-${selectedMonth}.pdf`
-                      : `timein-all-transactions.pdf`;
+                      : "timein-transactions.pdf";
+
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
                     window.URL.revokeObjectURL(blobUrl);
+
                     setSuccess("PDF downloaded successfully");
                     setTimeout(() => setSuccess(""), 3000);
-                  } catch (err: unknown) {
+                  } catch (err) {
                     console.error("Error downloading PDF:", err);
-
-                    // Try to extract server message even when responseType is blob
-                    let message = "Failed to download PDF.";
-                    if (axios.isAxiosError(err)) {
-                      const status = err.response?.status;
-                      const data = err.response?.data as any;
-
-                      if (data instanceof Blob) {
-                        try {
-                          const text = await data.text();
-                          const parsed = JSON.parse(text);
-                          if (parsed?.message) message = parsed.message;
-                        } catch {
-                          // ignore parse errors
-                        }
-                      } else if (data?.message) {
-                        message = data.message;
-                      }
-
-                      if (status === 401)
-                        message =
-                          message ||
-                          "Authentication required. Please log in again.";
-                      if (status === 403)
-                        message =
-                          message || "Admin access required to export PDF.";
-                    }
-
-                    setError(message);
+                    setError("Failed to download PDF");
                     setTimeout(() => setError(""), 3000);
                   }
                 }}
