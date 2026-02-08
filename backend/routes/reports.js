@@ -64,11 +64,12 @@ router.post(
   controllerHandler(reportsController.archiveDaily)
 );
 
-// GET /api/reports/:id/export-pdf
+// GET /api/reports/timein/export-pdf
 router.get(
-  "/:id/export-pdf",
+  "/timein/export-pdf",
   authenticateToken,
-  controllerHandler(reportsController.exportPdf)
+  requireAdmin,
+  controllerHandler(reportsController.exportTimeInPdf)
 );
 
 // GET /api/reports/:id

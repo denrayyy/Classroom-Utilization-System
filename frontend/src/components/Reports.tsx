@@ -84,130 +84,30 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const fetchAllTimeins = async () => {
+  const fetchTimeins = async (monthISO?: string) => {
     try {
       setLoading(true);
       setError("");
       const token = localStorage.getItem("token");
+      if (!token) throw new Error("No auth token");
 
-      if (!token) {
-        setError("No authentication token found. Please log in again.");
-        setLoading(false);
-        return;
+      const params: any = {};
+      if (monthISO) {
+        const [year, month] = monthISO.split("-");
+        params.startDate = `${year}-${month}-01`; // backend can calculate endDate
       }
 
-      const response = await axios.get(`/api/reports/timein/all`, {
+      const response = await axios.get("/api/reports/timein/all", {
         headers: { Authorization: `Bearer ${token}` },
+        params,
       });
 
-      if (response.data) {
-        setAllTimeins(response.data || []);
-      } else {
-        setAllTimeins([]);
-      }
+      setAllTimeins(response.data || []);
+    } catch (err: any) {
+      console.error("Error fetching time-ins:", err);
+      setError(err.response?.data?.message || "Failed to fetch");
+    } finally {
       setLoading(false);
-    } catch (error: any) {
-      console.error("Error fetching all time-in transactions:", error);
-
-      let errorMessage = "Failed to load all transactions";
-
-      if (error.response) {
-        // Server responded with error
-        if (error.response.status === 401) {
-          errorMessage = "Authentication failed. Please log in again.";
-        } else if (error.response.status === 403) {
-          errorMessage = "Admin access required to view all transactions.";
-        } else if (error.response.status === 500) {
-          errorMessage = "Server error. Please try again later.";
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message;
-        }
-      } else if (error.request) {
-        // Request was made but no response received
-        errorMessage =
-          "Cannot connect to server. Please check your connection.";
-      }
-
-      setError(errorMessage);
-      setLoading(false);
-      setTimeout(() => setError(""), 5000);
-    }
-  };
-
-  const fetchMonthlyTimeins = async (monthISO: string) => {
-    try {
-      setLoading(true);
-      setError("");
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setError("No authentication token found. Please log in again.");
-        setLoading(false);
-        return;
-      }
-
-      // monthISO is in format "YYYY-MM"
-      const [year, month] = monthISO.split("-");
-
-      // Create start and end dates for the month
-      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1); // Month is 0-indexed
-      const endDate = new Date(
-        parseInt(year),
-        parseInt(month),
-        0,
-        23,
-        59,
-        59,
-        999,
-      ); // Last day of month
-
-      console.log("Fetching transactions for month:", monthISO);
-      console.log("Date range:", startDate, "to", endDate);
-
-      // Fetch all transactions from the database
-      const response = await axios.get(`/api/reports/timein/all`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log("Total transactions fetched:", response.data?.length || 0);
-
-      // Filter transactions for the selected month on client side
-      const monthTransactions = (response.data || []).filter((t: any) => {
-        const transactionDate = new Date(t.date);
-        // Ensure we're comparing dates correctly
-        const isInMonth =
-          transactionDate >= startDate && transactionDate <= endDate;
-        return isInMonth;
-      });
-
-      console.log("Transactions in selected month:", monthTransactions.length);
-      setAllTimeins(monthTransactions);
-      setLoading(false);
-    } catch (error: any) {
-      console.error("Error fetching monthly transactions:", error);
-
-      let errorMessage = "Failed to load transactions for the selected month";
-
-      if (error.response) {
-        // Server responded with error
-        if (error.response.status === 401) {
-          errorMessage = "Authentication failed. Please log in again.";
-        } else if (error.response.status === 403) {
-          errorMessage = "Admin access required to view all transactions.";
-        } else if (error.response.status === 500) {
-          errorMessage = "Server error. Please try again later.";
-        } else if (error.response.data?.message) {
-          errorMessage = error.response.data.message;
-        }
-      } else if (error.request) {
-        // Request was made but no response received
-        errorMessage =
-          "Cannot connect to server. Please check your connection.";
-      }
-
-      setError(errorMessage);
-      setLoading(false);
-      setTimeout(() => setError(""), 5000);
     }
   };
 
@@ -228,19 +128,9 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     setPage(1);
   }, [allTimeins, searchQuery]);
 
-  // Fetch all time-in transactions on component mount
+  // Fetch transactions on mount and whenever month changes
   useEffect(() => {
-    fetchAllTimeins();
-  }, []);
-
-  // When month is selected, filter the transactions
-  // When month is cleared, show all transactions
-  useEffect(() => {
-    if (selectedMonth) {
-      fetchMonthlyTimeins(selectedMonth);
-    } else {
-      fetchAllTimeins();
-    }
+    fetchTimeins(selectedMonth || undefined);
   }, [selectedMonth]);
 
   const totalPages = Math.max(1, Math.ceil(filteredTimeins.length / pageSize));
@@ -440,9 +330,8 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                   try {
                     const token = localStorage.getItem("token");
                     // Build URL based on what's displayed
-                    let url = `/api/timein/export/pdf`;
+                    let url = `/api/reports/timein/export-pdf`;
                     if (selectedMonth) {
-                      // Export entire month - send date as YYYY-MM-01
                       url += `?date=${selectedMonth}-01`;
                     }
                     // If no month selected, export all transactions (no date param)
