@@ -18,6 +18,7 @@ import {
 /**
  * Get all users with pagination, search, filter, and sort
  */
+
 export const getUsers = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -25,20 +26,32 @@ export const getUsers = asyncHandler(async (req, res) => {
     search = "",
     role,
     department,
-    isActive,
+    isActive, // Frontend sends isActive
     sortBy = "createdAt",
     sortOrder = "desc",
   } = req.query;
 
   // Build filter
   const filter = {};
+  
+  // Handle active/archived filtering
+  if (isActive !== undefined) {
+    filter.isActive = isActive === "true";
+  } else {
+    // Default to showing only active users
+    filter.isActive = true;
+  }
+
+  // Add role filter if provided
   if (role) filter.role = role;
+  
+  // Add department filter if provided
   if (department) filter.department = department;
-  if (isActive !== undefined) filter.isActive = isActive === "true";
 
   // Build sort
   const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
+  // Get users from service - this ALREADY returns { users, pagination }
   const result = await userService.getUsers({
     page: parseInt(page),
     limit: parseInt(limit),
@@ -47,7 +60,24 @@ export const getUsers = asyncHandler(async (req, res) => {
     sort,
   });
 
+//  Just return the result directly
   res.json(result);
+});
+
+/**
+ *  ADD THIS RIGHT HERE - Get all unique departments for filter dropdown
+ */
+export const getDepartments = asyncHandler(async (req, res) => {
+  const departments = await User.distinct("department", { 
+    department: { $ne: null, $ne: "" } 
+  });
+  
+  // Filter out null/empty values and sort alphabetically
+  const validDepartments = departments
+    .filter(dept => dept && dept.trim() !== "")
+    .sort();
+  
+  res.json(validDepartments);
 });
 
 /**

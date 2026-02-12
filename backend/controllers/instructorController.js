@@ -15,11 +15,55 @@ import {
 } from "../utils/mvcc.js";
 
 /**
- * Get all instructors
+ * Get all instructors with pagination and filtering
  */
 export const getInstructors = asyncHandler(async (req, res) => {
-  const instructors = await Instructor.find().sort({ name: 1 });
-  res.json(instructors);
+  const { 
+    archived, 
+    page = 1, 
+    limit = 10, 
+    search 
+  } = req.query;
+
+  // Build query
+  const query = {};
+  
+  // Filter by archived status if provided
+  if (archived !== undefined) {
+    query.archived = archived === 'true';
+  }
+
+  // Add search functionality
+  if (search) {
+    query.name = { $regex: search, $options: 'i' };
+  }
+
+  // Get total count for pagination
+  const total = await Instructor.countDocuments(query);
+  
+  // Calculate pagination
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+  const pages = Math.ceil(total / limitNum);
+
+  // Get paginated results
+  const instructors = await Instructor.find(query)
+    .sort({ name: 1 })
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  // Return paginated response
+  res.json({
+    data: instructors,
+    pagination: {
+      total,
+      pages,
+      page: pageNum,
+      limit: limitNum
+    }
+  });
 });
 
 /**
@@ -56,12 +100,14 @@ export const createInstructor = asyncHandler(async (req, res) => {
     message: "Instructor added successfully",
     instructor: {
       _id: instructor._id,
-      name: instructor.name
+      name: instructor.name,
+      archived: instructor.archived,
+      unavailable: instructor.unavailable,
+      unavailableReason: instructor.unavailableReason,
+      version: instructor.version
     }
   });
 });
-
-
 
 /**
  * Update / Edit instructor (includes Archive/Restore)
@@ -157,7 +203,6 @@ export const updateInstructor = asyncHandler(async (req, res) => {
     action = updates.archived ? "archive" : "restore";
   }
 
-  // ✅ STEP 5: LOG WITH EVIDENCE
   prepareActivityLog(
     req,
     action,
@@ -173,26 +218,24 @@ export const updateInstructor = asyncHandler(async (req, res) => {
   });
 });
 
-
 /**
  * Delete instructor
  */
 export const deleteInstructor = asyncHandler(async (req, res) => {
   const instructor = await Instructor.findByIdAndDelete(req.params.id);
 
-if (!instructor) {
-  return res.status(404).json({ message: "Instructor not found" });
-}
+  if (!instructor) {
+    return res.status(404).json({ message: "Instructor not found" });
+  }
 
-// Log activity
-prepareActivityLog(
-  req,
-  "delete",
-  "Instructor",
-  instructor._id,
-  instructor.name
-);
+  // Log activity
+  prepareActivityLog(
+    req,
+    "delete",
+    "Instructor",
+    instructor._id,
+    instructor.name
+  );
 
-res.json({ message: "Instructor deleted successfully" });
-
+  res.json({ message: "Instructor deleted successfully" });
 });

@@ -79,15 +79,47 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
+  // FIXED: Handle paginated response from instructors endpoint
   const fetchInstructors = async () => {
     try {
-      const response = await fetch("/api/instructors");
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "/api/instructors?archived=false&limit=1000",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
       if (response.ok) {
         const data = await response.json();
-        setInstructors(data);
+        console.log("Instructors API response:", data); // Debug log
+
+        // Handle both paginated and non-paginated responses
+        let instructorArray: Instructor[] = [];
+
+        if (Array.isArray(data)) {
+          // Direct array response
+          instructorArray = data;
+        } else if (data && data.data && Array.isArray(data.data)) {
+          // Paginated response { data: [...], pagination: {...} }
+          instructorArray = data.data;
+        } else if (data && typeof data === "object") {
+          // Try to find any array property in the response
+          const possibleArray = Object.values(data).find((val) =>
+            Array.isArray(val),
+          );
+          if (possibleArray) {
+            instructorArray = possibleArray as Instructor[];
+          }
+        }
+
+        setInstructors(instructorArray);
       }
     } catch (error) {
       console.error("Error fetching instructors:", error);
+      setInstructors([]); // Set empty array on error
     }
   };
 
@@ -114,7 +146,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
     if (!selectedClassroom || !evidence || !instructorName.trim()) {
       setError(
-        "Please select a classroom, upload evidence, and enter instructor name",
+        "Please select a classroom, upload evidence, and select an instructor",
       );
       return;
     }
@@ -237,8 +269,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
           </button>
         </div>
 
-        
-
         <form className="timein-form" onSubmit={handleSubmit}>
           <div className="form-content">
             <div className="upload-section">
@@ -343,18 +373,25 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                   className="form-field"
                 >
                   <option value="">Select Instructor</option>
-                  {instructors.map((instructor) => (
-                    <option
-                      key={instructor._id}
-                      value={instructor.name}
-                      disabled={instructor.unavailable}
-                    >
-                      {instructor.name}
-                      {instructor.unavailable && ` (Unavailable)`}
+                  {Array.isArray(instructors) && instructors.length > 0 ? (
+                    instructors.map((instructor) => (
+                      <option
+                        key={instructor._id}
+                        value={instructor.name}
+                        disabled={instructor.unavailable}
+                      >
+                        {instructor.name}
+                        {instructor.unavailable && ` (Unavailable)`}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>
+                      Loading instructors...
                     </option>
-                  ))}
+                  )}
                 </select>
                 {instructorName &&
+                  Array.isArray(instructors) &&
                   (() => {
                     const selectedInstructor = instructors.find(
                       (i) => i.name === instructorName,

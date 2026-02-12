@@ -21,6 +21,11 @@ const classroomSchema = mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isArchived: {
+  type: Boolean,
+  default: false,
+  index: true
+  },
   description: {
     type: String
   },

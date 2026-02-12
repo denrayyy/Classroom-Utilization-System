@@ -191,13 +191,11 @@ const App: React.FC = () => {
                   <Route path="/reports" element={<Reports user={user} />} />
                   <Route
                     path="/users"
-                    element={<UserManagement user={user} defaultTab="users" />}
+                    element={<UserManagement user={user} />}
                   />
                   <Route
                     path="/classrooms"
-                    element={
-                      <UserManagement user={user} defaultTab="classrooms" />
-                    }
+                    element={<ClassroomManagement user={user} />}
                   />
                   <Route
                     path="/instructors"
@@ -207,7 +205,6 @@ const App: React.FC = () => {
                     path="/activity-logs"
                     element={<ActivityLogs user={user} />}
                   />
-
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               )}

@@ -19,8 +19,16 @@ import { prepareActivityLog } from "../middleware/activityLogger.js";
  * Get all classrooms with optional filtering
  */
 export const getClassrooms = asyncHandler(async (req, res) => {
-  const { computerLabOnly, excludeComputerLabs } = req.query;
+  const { computerLabOnly, excludeComputerLabs, showArchived } = req.query;
+  
   let query = {};
+  
+  // Explicitly filter based on showArchived
+  if (showArchived === 'true') {
+    query.isArchived = true;  // ✅ ONLY show archived classrooms
+  } else {
+    query.isArchived = false; // ✅ ONLY show active classrooms
+  }
 
   // Filter for computer labs only (name contains "ComLab" or equipment includes "Computers")
   if (computerLabOnly === "true") {
@@ -132,57 +140,137 @@ export const updateClassroom = asyncHandler(async (req, res) => {
 
   // Prepare activity log: detect changes
   const changes = {};
-Object.keys(updates).forEach(key => {
-  if (JSON.stringify(originalClassroom[key]) !== JSON.stringify(updates[key])) {
-    changes[key] = { old: originalClassroom[key], new: updates[key] };
-  }
-});
+  Object.keys(updates).forEach(key => {
+    if (JSON.stringify(originalClassroom[key]) !== JSON.stringify(updates[key])) {
+      changes[key] = { old: originalClassroom[key], new: updates[key] };
+    }
+  });
 
   // Determine the action based on what was changed
-// always one of the enum values
-let action = "update";
-if (updates.isArchived !== undefined) {
-  action = updates.isArchived ? "archive" : "unarchive";
-} else if (Object.keys(changes).length === 0) {
-  action = "update"; // nothing changed, fallback
-}
-
+  let action = "update";
+  if (updates.isArchived !== undefined) {
+    action = updates.isArchived ? "archive" : "restore";
+  } else if (Object.keys(changes).length === 0) {
+    action = "update";
+  }
 
   // prepare log
   prepareActivityLog(
-  req,
-  action,                  // enum: "update", "archive", etc.
-  "Classroom",
-  updatedClassroom._id,
-  updatedClassroom.name,
-  Object.keys(changes).length ? changes : null
-);
-
-
+    req,
+    action,
+    "Classroom",
+    updatedClassroom._id,
+    updatedClassroom.name,
+    Object.keys(changes).length ? changes : null
+  );
 
   res.json(updatedClassroom);
 });
 
-
 /**
- * Delete classroom
+ * Archive classroom (soft delete)
  */
-export const deleteClassroom = asyncHandler(async (req, res) => {
-  const deletedClassroom = await Classroom.findByIdAndDelete(req.params.id).lean();
+export const archiveClassroom = asyncHandler(async (req, res) => {
+  const version = requireVersion(req.body.version);
 
-  if (!deletedClassroom) {
+  const originalClassroom = await Classroom.findById(req.params.id).lean();
+  if (!originalClassroom) {
     return res.status(404).json({ msg: "Classroom not found" });
+  }
+
+  if (originalClassroom.isArchived) {
+    return res.status(400).json({ msg: "Classroom is already archived" });
+  }
+
+  const updateDoc = buildVersionedUpdateDoc({
+    isArchived: true,
+    isAvailable: false
+  });
+
+  const updatedClassroom = await runVersionedUpdate(
+    Classroom,
+    req.params.id,
+    version,
+    updateDoc
+  );
+
+  if (!updatedClassroom) {
+    return respondWithConflict(res, "Classroom");
   }
 
   prepareActivityLog(
     req,
-    "delete",
+    "archive",
     "Classroom",
-    deletedClassroom._id,
-    deletedClassroom.name,
-    deletedClassroom
+    updatedClassroom._id,
+    updatedClassroom.name,
+    { isArchived: { old: false, new: true } }
   );
 
-  res.json({ msg: "Classroom deleted successfully" });
+  res.json(updatedClassroom);
 });
 
+/**
+ * Restore classroom (unarchive)
+ */
+export const restoreClassroom = asyncHandler(async (req, res) => {
+  const version = requireVersion(req.body.version);
+
+  const originalClassroom = await Classroom.findById(req.params.id).lean();
+  if (!originalClassroom) {
+    return res.status(404).json({ msg: "Classroom not found" });
+  }
+
+  if (!originalClassroom.isArchived) {
+    return res.status(400).json({ msg: "Classroom is not archived" });
+  }
+
+  const updateDoc = buildVersionedUpdateDoc({
+    isArchived: false
+    // Don't automatically set isAvailable to true - let admin decide
+  });
+
+  const updatedClassroom = await runVersionedUpdate(
+    Classroom,
+    req.params.id,
+    version,
+    updateDoc
+  );
+
+  if (!updatedClassroom) {
+    return respondWithConflict(res, "Classroom");
+  }
+
+  prepareActivityLog(
+    req,
+    "restore",
+    "Classroom",
+    updatedClassroom._id,
+    updatedClassroom.name,
+    { isArchived: { old: true, new: false } }
+  );
+
+  res.json(updatedClassroom);
+});
+
+/**
+ * Delete classroom (permanent delete - commented out)
+ */
+// export const deleteClassroom = asyncHandler(async (req, res) => {
+//   const deletedClassroom = await Classroom.findByIdAndDelete(req.params.id).lean();
+
+//   if (!deletedClassroom) {
+//     return res.status(404).json({ msg: "Classroom not found" });
+//   }
+
+//   prepareActivityLog(
+//     req,
+//     "delete",
+//     "Classroom",
+//     deletedClassroom._id,
+//     deletedClassroom.name,
+//     deletedClassroom
+//   );
+
+//   res.json({ msg: "Classroom deleted successfully" });
+// });

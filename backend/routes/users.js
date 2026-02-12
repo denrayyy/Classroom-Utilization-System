@@ -41,6 +41,18 @@ router.post(
   controllerHandler(userController.createUser)
 );
 
+// ✅ FIX: ADD THIS ROUTE HERE - BEFORE the /:id routes
+// @route   GET /api/users/departments
+// @desc    Get all unique departments for filter dropdown
+// @access  Private/Admin
+router.get(
+  "/departments",
+  authenticateToken,
+  requireAdmin,
+  controllerHandler(userController.getDepartments)
+);
+
+// ⚠️ DYNAMIC ROUTES - These must come AFTER specific routes
 // @route   GET /api/users/:id
 // @desc    Get user by ID
 // @access  Private/Admin

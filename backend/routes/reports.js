@@ -64,8 +64,8 @@ router.post(
   controllerHandler(reportsController.archiveDaily)
 );
 
-// GET /api/reports/timein/export-pdf
-router.get(
+// ⚠️ FIXED: Changed from GET to POST since we're sending data in the request body
+router.post(
   "/timein/export-pdf",
   authenticateToken,
   requireAdmin,

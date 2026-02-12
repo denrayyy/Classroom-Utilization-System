@@ -40,14 +40,29 @@ router.put(
   
 );
 
-// DELETE /api/classrooms/:id — delete classroom
-router.delete(
-  "/:id",
+// PATCH /api/classrooms/:id/archive — archive classroom (soft delete)
+router.patch(
+  "/:id/archive",
   authenticateToken,
   logActivity,
-  controllerHandler(classroomController.deleteClassroom),
-  
+  controllerHandler(classroomController.archiveClassroom)
 );
 
+// PATCH /api/classrooms/:id/restore — unarchive classroom
+router.patch(
+  "/:id/restore",
+  authenticateToken,
+  logActivity,
+  controllerHandler(classroomController.restoreClassroom)
+);
+
+// DELETE /api/classrooms/:id — delete classroom
+// router.delete(
+//   "/:id",
+//   authenticateToken,
+//   logActivity,
+//   controllerHandler(classroomController.deleteClassroom),
+  
+// );
 
 export default router;
