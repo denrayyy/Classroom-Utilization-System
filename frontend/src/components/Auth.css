@@ -232,6 +232,8 @@
   background-color: #114e5f;
   color: #e9f6f8;
   border: none;
+  display: flex;
+  justify-content: center;
 }
 
 .figma-login-btn:hover {
