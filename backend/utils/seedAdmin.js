@@ -62,7 +62,7 @@ export default async function seedAdminIfMissing() {
     email: "reden@gmail.com",
     firstName: "Reden",
     lastName: "User",
-    passwordEnvKey: "TEACHER_DEFAULT_PASSWORD",
-    role: "teacher",
+    passwordEnvKey: "STUDENT_DEFAULT_PASSWORD",
+    role: "student",
   });
 }
