@@ -402,8 +402,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (isActive) {
       return (
         <span className="status-badge status-active">
-          <span className="status-icon">✅</span>
-          <span className="status-text">Active</span>
+          {/* <span className="status-icon">✅</span> */}
+          <span className="status-text">✅ Active</span>
         </span>
       );
     }

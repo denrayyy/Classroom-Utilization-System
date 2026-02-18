@@ -483,16 +483,20 @@
   font-size: 14px;
 }
 
-/* Status Badges */
+/* Status Badges - Fixed Version */
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
   border-radius: 30px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  min-width: 85px; /* Fixed minimum width */
+  min-height: 32px;
+  line-height: 1;
 }
 
 .status-active {
@@ -508,7 +512,22 @@
 }
 
 .status-icon {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.status-text {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  height: 100%;
+  letter-spacing: 0.3px;
 }
 
 /* Gender Badges */
