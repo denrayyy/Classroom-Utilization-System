@@ -372,7 +372,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                       <th>Module</th>
                       <th>Entity</th>
                       <th>Changes</th>
-                      <th>IP Address</th>
+                      {/* <th>IP Address</th> */}
                     </tr>
                   </thead>
                   <tbody>
@@ -429,11 +429,11 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                               <span className="no-changes">—</span>
                             )}
                           </td>
-                          <td className="ip-cell">
+                          {/* <td className="ip-cell">
                             <span className="ip-address">
                               {log.ipAddress || "N/A"}
                             </span>
-                          </td>
+                          </td> */}
                         </tr>
                       );
                     })}

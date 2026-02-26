@@ -9,7 +9,7 @@ interface User {
   email: string;
   role: "student" | "admin" | "teacher";
   department: string;
-  gender?: "male" | "female"; // Made optional since we're removing it
+  gender?: "male" | "female";
 }
 
 interface RegisteredUser {
@@ -19,7 +19,7 @@ interface RegisteredUser {
   email: string;
   role: "student" | "admin" | "teacher";
   department: string;
-  gender?: "male" | "female"; // Made optional since we're removing it
+  gender?: "male" | "female";
   isActive: boolean;
   version?: number;
   lastLogin?: string;
@@ -27,16 +27,25 @@ interface RegisteredUser {
 }
 
 interface UserManagementProps {
-  user: User;
+  user?: User; // Make user optional
   defaultTab?: "users";
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({
-  user,
+  user = {
+    id: "",
+    firstName: "Admin",
+    lastName: "User",
+    email: "admin@example.com",
+    role: "admin",
+    department: "IT",
+  },
   defaultTab = "users",
 }) => {
   // User state
   const [users, setUsers] = useState<RegisteredUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<RegisteredUser[]>([]);
+  const [allUsers, setAllUsers] = useState<RegisteredUser[]>([]);
   const [showUserForm, setShowUserForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -88,11 +97,87 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
   const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
 
+  // Fetch all users on mount and when filters change
   useEffect(() => {
-    fetchUsers();
+    fetchAllUsers();
     fetchStats();
     fetchDepartments();
-  }, [showArchived, page, pageSize, searchQuery, roleFilter, departmentFilter]);
+  }, [showArchived, roleFilter, departmentFilter]);
+
+  // Filter users whenever search query or filters change
+  useEffect(() => {
+    filterUsers();
+    setPage(1);
+  }, [searchQuery, allUsers, showArchived, roleFilter, departmentFilter]);
+
+  const fetchAllUsers = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Authentication required. Please log in again.");
+        setLoading(false);
+        return;
+      }
+
+      if (!axios.defaults.headers.common["Authorization"]) {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Fetch ALL users (no pagination for filtering)
+      const params: any = {
+        limit: 1000, // Get a large limit for client-side filtering
+        page: 1,
+        isActive: showArchived ? "false" : "true",
+      };
+
+      if (roleFilter) params.role = roleFilter;
+      if (departmentFilter) params.department = departmentFilter;
+
+      const response = await axios.get("/api/users", { params });
+
+      if (response.data.users) {
+        setAllUsers(response.data.users);
+        setTotalUsers(response.data.pagination?.total || 0);
+        setTotalPages(
+          Math.ceil((response.data.pagination?.total || 0) / pageSize),
+        );
+      } else {
+        setAllUsers([]);
+        setTotalUsers(0);
+        setTotalPages(1);
+      }
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        setError("Authentication failed. Please log in again.");
+      } else {
+        setError(error.response?.data?.message || "Failed to fetch users.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterUsers = () => {
+    let filtered = [...allUsers];
+
+    // Apply search filter (client-side like Reports component)
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((user) => {
+        const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+        const email = user.email.toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+    }
+
+    setFilteredUsers(filtered);
+    setTotalUsers(filtered.length);
+    setTotalPages(Math.ceil(filtered.length / pageSize));
+  };
 
   const fetchStats = async () => {
     try {
@@ -125,55 +210,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Authentication required. Please log in again.");
-        setLoading(false);
-        return;
-      }
-
-      if (!axios.defaults.headers.common["Authorization"]) {
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      }
-
-      const params: any = {
-        limit: pageSize,
-        page,
-        isActive: showArchived ? "false" : "true",
-      };
-
-      if (searchQuery) params.search = searchQuery;
-      if (roleFilter) params.role = roleFilter;
-      if (departmentFilter) params.department = departmentFilter;
-
-      const response = await axios.get("/api/users", { params });
-
-      if (response.data.users) {
-        setUsers(response.data.users);
-        setTotalPages(response.data.pagination?.pages || 1);
-        setTotalUsers(response.data.pagination?.total || 0);
-      } else {
-        setUsers([]);
-        setTotalPages(1);
-        setTotalUsers(0);
-      }
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        setError("Authentication failed. Please log in again.");
-      } else {
-        setError(error.response?.data?.message || "Failed to fetch users.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -201,7 +237,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         isActive: true,
       });
 
-      fetchUsers();
+      fetchAllUsers();
       fetchStats();
       setShowUserForm(false);
       setTimeout(() => setSuccess(""), 3000);
@@ -234,6 +270,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       isActive: userToEdit.isActive,
     });
     setShowEditUserForm(true);
+    setShowUserForm(false);
   };
 
   const handleSaveEditUser = async () => {
@@ -270,7 +307,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         password: "",
         isActive: true,
       });
-      fetchUsers();
+      fetchAllUsers();
       fetchStats();
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
@@ -322,7 +359,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         version: userToArchive.version,
       });
       setSuccess("User archived successfully!");
-      fetchUsers();
+      fetchAllUsers();
       fetchStats();
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
@@ -362,7 +399,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         version: userToRestore.version,
       });
       setSuccess("User restored successfully!");
-      fetchUsers();
+      fetchAllUsers();
       fetchStats();
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
@@ -377,10 +414,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setShowRestoreConfirm(false);
     setUserToRestore(null);
   };
-
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, roleFilter, departmentFilter, showArchived]);
 
   const getRoleBadge = (role: string) => {
     const badges: Record<string, { class: string; icon: string }> = {
@@ -402,7 +435,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (isActive) {
       return (
         <span className="status-badge status-active">
-          {/* <span className="status-icon">✅</span> */}
           <span className="status-text">✅ Active</span>
         </span>
       );
@@ -429,7 +461,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
     return date.toLocaleDateString();
   };
 
-  if (loading) {
+  // Get paginated data for current page
+  const getPaginatedUsers = () => {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredUsers.slice(start, end);
+  };
+
+  if (loading && allUsers.length === 0) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -474,7 +513,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <strong>⚠️ Data was updated elsewhere:</strong> The user data has
             been modified by another user.
           </div>
-          <button className="btn btn-secondary" onClick={fetchUsers}>
+          <button className="btn btn-secondary" onClick={fetchAllUsers}>
             Refresh
           </button>
         </div>
@@ -483,371 +522,155 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className="card">
         <div className="card-header">
           <h2>
-            <span className="header-icon">{showArchived ? "📦" : "👥"}</span>
-            {showArchived ? "Archived Users" : "Active Users"}
+            <span className="header-icon">
+              {showUserForm || showEditUserForm
+                ? showEditUserForm
+                  ? "✏️"
+                  : "➕"
+                : showArchived
+                  ? "📦"
+                  : "👥"}
+            </span>
+            {showUserForm || showEditUserForm
+              ? showEditUserForm
+                ? "Edit User"
+                : "Add New User"
+              : showArchived
+                ? "Archived Users"
+                : "Active Users"}
           </h2>
-          <div className="header-actions">
-            <button
-              className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
-              onClick={() => setShowArchived(!showArchived)}
-            >
-              <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
-              {showArchived
-                ? "Show Active"
-                : `View Archived (${totalArchived})`}
-            </button>
-            {!showArchived && (
+
+          {!showUserForm && !showEditUserForm && (
+            <div className="header-actions">
               <button
-                className="btn btn-primary"
-                onClick={() => setShowUserForm(true)}
+                className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
+                onClick={() => setShowArchived(!showArchived)}
               >
-                <span className="btn-icon">➕</span>
-                Add User
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filters Section */}
-        <div className="filters-section">
-          <div className="search-wrapper">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                className="search-clear"
-                onClick={() => setSearchQuery("")}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="filter-group">
-            <select
-              className="filter-select"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-            >
-              <option value="">All Roles</option>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <select
-              className="filter-select"
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              <option value="">All Departments</option>
-              {departmentOptions.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(searchQuery || roleFilter || departmentFilter) && (
-            <button
-              className="btn-clear-filters"
-              onClick={() => {
-                setSearchQuery("");
-                setRoleFilter("");
-                setDepartmentFilter("");
-              }}
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {/* Users Table */}
-        <div className="table-container">
-          {users.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">
-                {showArchived ? "📦" : "👥"}
-              </div>
-              <h3>No Users Found</h3>
-              <p>
+                <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
                 {showArchived
-                  ? "No archived users available."
-                  : searchQuery || roleFilter || departmentFilter
-                    ? "Try adjusting your filters to see more results."
-                    : "Get started by adding your first user."}
-              </p>
-              {!showArchived &&
-                !searchQuery &&
-                !roleFilter &&
-                !departmentFilter && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setShowUserForm(true)}
-                  >
-                    Add User
-                  </button>
-                )}
-            </div>
-          ) : (
-            <>
-              <div className="table-responsive">
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Department</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th>Last Login</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((userItem) => (
-                      <tr key={userItem._id}>
-                        <td className="user-cell">
-                          <div className="user-avatar">
-                            {userItem.firstName.charAt(0)}
-                            {userItem.lastName.charAt(0)}
-                          </div>
-                          <div className="user-info">
-                            <div className="user-name">
-                              {userItem.firstName} {userItem.lastName}
-                            </div>
-                            <div className="user-email">{userItem.email}</div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="department-badge">
-                            {userItem.department || "—"}
-                          </span>
-                        </td>
-                        <td>{getRoleBadge(userItem.role)}</td>
-                        <td>{getStatusBadge(userItem.isActive)}</td>
-                        <td>
-                          <span className="last-login">
-                            {formatLastLogin(userItem.lastLogin)}
-                          </span>
-                        </td>
-                        <td className="actions-cell">
-                          {showArchived ? (
-                            <button
-                              className="btn-icon-label success"
-                              onClick={() => handleRestoreUser(userItem)}
-                              title="Restore user"
-                            >
-                              <span className="btn-icon">♻️</span>
-                              Restore
-                            </button>
-                          ) : (
-                            <div className="action-buttons">
-                              <button
-                                className="btn-icon-label"
-                                onClick={() => handleEditUser(userItem)}
-                                title="Edit user"
-                              >
-                                <span className="btn-icon">✏️</span>
-                                Edit
-                              </button>
-                              {userItem._id !== user.id && (
-                                <button
-                                  className="btn-icon-label warning"
-                                  onClick={() => handleArchiveUser(userItem)}
-                                  title="Archive user"
-                                >
-                                  <span className="btn-icon">📦</span>
-                                  Archive
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="pagination-section">
-                  <div className="pagination-info">
-                    Showing {(page - 1) * pageSize + 1} to{" "}
-                    {Math.min(page * pageSize, totalUsers)} of {totalUsers}{" "}
-                    users
-                  </div>
-                  <div className="pagination-controls">
-                    <button
-                      className="btn-pagination"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => p - 1)}
-                    >
-                      ← Prev
-                    </button>
-                    <div className="page-numbers">
-                      {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                        let pageNum: number;
-                        if (totalPages <= 5) pageNum = i + 1;
-                        else if (page <= 3) pageNum = i + 1;
-                        else if (page >= totalPages - 2)
-                          pageNum = totalPages - 4 + i;
-                        else pageNum = page - 2 + i;
-                        return (
-                          <button
-                            key={pageNum}
-                            className={`btn-page ${page === pageNum ? "active" : ""}`}
-                            onClick={() => setPage(pageNum)}
-                          >
-                            {pageNum}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <button
-                      className="btn-pagination"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => p + 1)}
-                    >
-                      Next →
-                    </button>
-                    <select
-                      className="page-size-select"
-                      value={pageSize}
-                      onChange={(e) => {
-                        setPageSize(Number(e.target.value));
-                        setPage(1);
-                      }}
-                    >
-                      <option value={10}>10 / page</option>
-                      <option value={25}>25 / page</option>
-                      <option value={50}>50 / page</option>
-                      <option value={100}>100 / page</option>
-                    </select>
-                  </div>
-                </div>
+                  ? "Show Active"
+                  : `View Archived (${totalArchived})`}
+              </button>
+              {!showArchived && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowUserForm(true);
+                    setShowEditUserForm(false);
+                  }}
+                >
+                  <span className="btn-icon">➕</span>
+                  Add User
+                </button>
               )}
-            </>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Add User Modal */}
-      {showUserForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
+        {/* Add User Inline Form */}
+        {showUserForm && (
+          <div className="form-container">
+            <form onSubmit={handleUserSubmit} className="user-form">
               <h3>Add New User</h3>
-              <button className="modal-close" onClick={handleCancelUser}>
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleUserSubmit}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>First Name *</label>
-                    <input
-                      type="text"
-                      value={userFormData.firstName}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          firstName: e.target.value,
-                        })
-                      }
-                      placeholder="Enter first name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Last Name *</label>
-                    <input
-                      type="text"
-                      value={userFormData.lastName}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          lastName: e.target.value,
-                        })
-                      }
-                      placeholder="Enter last name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      value={userFormData.email}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          email: e.target.value,
-                        })
-                      }
-                      placeholder="user@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Department</label>
-                    <input
-                      type="text"
-                      value={userFormData.department}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          department: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., IT, EMC"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Password</label>
-                    <input
-                      type="password"
-                      value={userFormData.password}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          password: e.target.value,
-                        })
-                      }
-                      placeholder="Leave blank for default"
-                    />
-                    <small className="form-hint">
-                      Default: DefaultPassword123
-                    </small>
-                  </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>First Name *</label>
+                  <input
+                    type="text"
+                    value={userFormData.firstName}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        firstName: e.target.value,
+                      })
+                    }
+                    placeholder="Enter first name"
+                    required
+                  />
                 </div>
-                <div className="form-group checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={userFormData.isActive}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          isActive: e.target.checked,
-                        })
-                      }
-                    />
-                    <span>Active Account</span>
-                  </label>
+                <div className="form-group">
+                  <label>Last Name *</label>
+                  <input
+                    type="text"
+                    value={userFormData.lastName}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        lastName: e.target.value,
+                      })
+                    }
+                    placeholder="Enter last name"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={userFormData.email}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        email: e.target.value,
+                      })
+                    }
+                    placeholder="user@example.com"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Department</label>
+                  <input
+                    type="text"
+                    value={userFormData.department}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        department: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., IT, EMC"
+                  />
+                </div>
+                <div className="form-group full-width">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    value={userFormData.password}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        password: e.target.value,
+                      })
+                    }
+                    placeholder="Leave blank for default"
+                  />
+                  <small className="form-hint">
+                    Default: DefaultPassword123
+                  </small>
+
+                  {/* Checkbox placed right after password hint */}
+                  <div
+                    className="checkbox-wrapper"
+                    style={{ marginTop: "16px" }}
+                  >
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={userFormData.isActive}
+                        onChange={(e) =>
+                          setUserFormData({
+                            ...userFormData,
+                            isActive: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>Active Account</span>
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="form-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -861,85 +684,94 @@ const UserManagement: React.FC<UserManagementProps> = ({
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Edit User Modal */}
-      {showEditUserForm && editingUser && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Edit User</h3>
-              <button className="modal-close" onClick={handleCancelEditUser}>
-                ×
-              </button>
-            </div>
+        {/* Edit User Inline Form */}
+        {showEditUserForm && editingUser && (
+          <div className="form-container">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSaveEditUser();
               }}
+              className="user-form"
             >
-              <div className="modal-body">
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>First Name *</label>
-                    <input
-                      type="text"
-                      value={userFormData.firstName}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          firstName: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Last Name *</label>
-                    <input
-                      type="text"
-                      value={userFormData.lastName}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          lastName: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email *</label>
-                    <input
-                      type="email"
-                      value={userFormData.email}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          email: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Department</label>
-                    <input
-                      type="text"
-                      value={userFormData.department}
-                      onChange={(e) =>
-                        setUserFormData({
-                          ...userFormData,
-                          department: e.target.value,
-                        })
-                      }
-                    />
+              <h3>Edit User</h3>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>First Name *</label>
+                  <input
+                    type="text"
+                    value={userFormData.firstName}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        firstName: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Last Name *</label>
+                  <input
+                    type="text"
+                    value={userFormData.lastName}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        lastName: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={userFormData.email}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        email: e.target.value,
+                      })
+                    }
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Department</label>
+                  <input
+                    type="text"
+                    value={userFormData.department}
+                    onChange={(e) =>
+                      setUserFormData({
+                        ...userFormData,
+                        department: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="form-group full-width">
+                  <div className="checkbox-wrapper">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={userFormData.isActive}
+                        onChange={(e) =>
+                          setUserFormData({
+                            ...userFormData,
+                            isActive: e.target.checked,
+                          })
+                        }
+                      />
+                      <span>Active Account</span>
+                    </label>
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="form-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -953,15 +785,263 @@ const UserManagement: React.FC<UserManagementProps> = ({
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Only show filters and table when NOT in add/edit mode */}
+        {!showUserForm && !showEditUserForm && (
+          <>
+            <div className="filters-section">
+              <div className="search-wrapper">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    className="search-clear"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="filter-group">
+                <select
+                  className="filter-select"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="">All Roles</option>
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <select
+                  className="filter-select"
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                >
+                  <option value="">All Departments</option>
+                  {departmentOptions.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(searchQuery || roleFilter || departmentFilter) && (
+                <button
+                  className="btn-clear-filters"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setRoleFilter("");
+                    setDepartmentFilter("");
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            <div className="table-container">
+              {filteredUsers.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">
+                    {showArchived ? "📦" : "👥"}
+                  </div>
+                  <h3>No Users Found</h3>
+                  <p>
+                    {showArchived
+                      ? "No archived users available."
+                      : searchQuery || roleFilter || departmentFilter
+                        ? "Try adjusting your filters to see more results."
+                        : "Get started by adding your first user."}
+                  </p>
+                  {!showArchived &&
+                    !searchQuery &&
+                    !roleFilter &&
+                    !departmentFilter && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                          setShowUserForm(true);
+                          setShowEditUserForm(false);
+                        }}
+                      >
+                        Add User
+                      </button>
+                    )}
+                </div>
+              ) : (
+                <>
+                  <div className="table-responsive">
+                    <table className="users-table">
+                      <thead>
+                        <tr>
+                          <th>User</th>
+                          <th>Department</th>
+                          <th>Role</th>
+                          <th>Status</th>
+                          <th>Last Login</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getPaginatedUsers().map((userItem) => (
+                          <tr key={userItem._id}>
+                            <td className="user-cell">
+                              <div className="user-avatar">
+                                {userItem.firstName.charAt(0)}
+                                {userItem.lastName.charAt(0)}
+                              </div>
+                              <div className="user-info">
+                                <div className="user-name">
+                                  {userItem.firstName} {userItem.lastName}
+                                </div>
+                                <div className="user-email">
+                                  {userItem.email}
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="department-badge">
+                                {userItem.department || "—"}
+                              </span>
+                            </td>
+                            <td>{getRoleBadge(userItem.role)}</td>
+                            <td>{getStatusBadge(userItem.isActive)}</td>
+                            <td>
+                              <span className="last-login">
+                                {formatLastLogin(userItem.lastLogin)}
+                              </span>
+                            </td>
+                            <td className="actions-cell">
+                              {showArchived ? (
+                                <button
+                                  className="btn-icon-label success"
+                                  onClick={() => handleRestoreUser(userItem)}
+                                  title="Restore user"
+                                >
+                                  <span className="btn-icon">♻️</span>
+                                  Restore
+                                </button>
+                              ) : (
+                                <div className="action-buttons">
+                                  <button
+                                    className="btn-icon-label"
+                                    onClick={() => {
+                                      handleEditUser(userItem);
+                                      setShowEditUserForm(true);
+                                    }}
+                                    title="Edit user"
+                                  >
+                                    <span className="btn-icon">✏️</span>
+                                    Edit
+                                  </button>
+                                  {userItem._id !== user.id && (
+                                    <button
+                                      className="btn-icon-label warning"
+                                      onClick={() =>
+                                        handleArchiveUser(userItem)
+                                      }
+                                      title="Archive user"
+                                    >
+                                      <span className="btn-icon">📦</span>
+                                      Archive
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="pagination-section">
+                      <div className="pagination-info">
+                        Showing {(page - 1) * pageSize + 1} to{" "}
+                        {Math.min(page * pageSize, filteredUsers.length)} of{" "}
+                        {filteredUsers.length} users
+                      </div>
+                      <div className="pagination-controls">
+                        <button
+                          className="btn-pagination"
+                          disabled={page <= 1}
+                          onClick={() => setPage((p) => p - 1)}
+                        >
+                          ← Prev
+                        </button>
+                        <div className="page-numbers">
+                          {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                            let pageNum: number;
+                            if (totalPages <= 5) pageNum = i + 1;
+                            else if (page <= 3) pageNum = i + 1;
+                            else if (page >= totalPages - 2)
+                              pageNum = totalPages - 4 + i;
+                            else pageNum = page - 2 + i;
+                            return (
+                              <button
+                                key={pageNum}
+                                className={`btn-page ${page === pageNum ? "active" : ""}`}
+                                onClick={() => setPage(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          className="btn-pagination"
+                          disabled={page >= totalPages}
+                          onClick={() => setPage((p) => p + 1)}
+                        >
+                          Next →
+                        </button>
+                        <select
+                          className="page-size-select"
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setPage(1);
+                          }}
+                        >
+                          <option value={10}>10 / page</option>
+                          <option value={25}>25 / page</option>
+                          <option value={50}>50 / page</option>
+                          <option value={100}>100 / page</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Archive Confirmation Modal */}
       {showArchiveConfirm && userToArchive && (
         <div className="modal-overlay">
           <div className="modal-content confirm-modal">
             <div className="modal-header">
-              <h3>Archive User</h3>
+              <h3>
+                <span className="modal-icon">📦</span>
+                Archive User
+              </h3>
               <button className="modal-close" onClick={handleArchiveCancel}>
                 ×
               </button>
@@ -999,7 +1079,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
         <div className="modal-overlay">
           <div className="modal-content confirm-modal">
             <div className="modal-header">
-              <h3>Restore User</h3>
+              <h3>
+                <span className="modal-icon">♻️</span>
+                Restore User
+              </h3>
               <button className="modal-close" onClick={handleRestoreCancel}>
                 ×
               </button>

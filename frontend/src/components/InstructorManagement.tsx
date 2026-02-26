@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import "./InstructorManagement.css"; // Create separate CSS file
+import "./InstructorManagement.css";
 
 interface Instructor {
   _id: string;
@@ -19,10 +19,19 @@ interface InstructorManagementProps {
 const InstructorManagement: React.FC<InstructorManagementProps> = ({
   user,
 }) => {
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [archivedInstructors, setArchivedInstructors] = useState<Instructor[]>(
-    [],
-  );
+  // Main data states
+  const [allActiveInstructors, setAllActiveInstructors] = useState<
+    Instructor[]
+  >([]);
+  const [filteredActiveInstructors, setFilteredActiveInstructors] = useState<
+    Instructor[]
+  >([]);
+  const [allArchivedInstructors, setAllArchivedInstructors] = useState<
+    Instructor[]
+  >([]);
+  const [filteredArchivedInstructors, setFilteredArchivedInstructors] =
+    useState<Instructor[]>([]);
+
   const [showInstructorForm, setShowInstructorForm] = useState(false);
   const [showArchivedList, setShowArchivedList] = useState(false);
   const [newInstructorName, setNewInstructorName] = useState("");
@@ -53,110 +62,102 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
   const [activePage, setActivePage] = useState(1);
   const [activePageSize, setActivePageSize] = useState(10);
   const [activeTotalPages, setActiveTotalPages] = useState(1);
-  const [activeTotalCount, setActiveTotalCount] = useState(0);
+
   const [archivedPage, setArchivedPage] = useState(1);
   const [archivedPageSize, setArchivedPageSize] = useState(10);
   const [archivedTotalPages, setArchivedTotalPages] = useState(1);
-  const [archivedTotalCount, setArchivedTotalCount] = useState(0);
 
   // Stats
   const [totalActive, setTotalActive] = useState(0);
   const [totalArchived, setTotalArchived] = useState(0);
   const [totalUnavailable, setTotalUnavailable] = useState(0);
 
+  // Fetch all data on mount and when filters change
   useEffect(() => {
-    fetchStats();
-    if (showArchivedList) {
-      fetchArchivedInstructors();
-    } else {
-      fetchActiveInstructors();
-    }
-  }, [
-    showArchivedList,
-    activePage,
-    activePageSize,
-    archivedPage,
-    archivedPageSize,
-    searchQuery,
-    archivedSearchQuery,
-  ]);
+    fetchAllData();
+  }, []);
 
-  const fetchStats = async () => {
+  // Filter active instructors whenever search query changes
+  useEffect(() => {
+    filterActiveInstructors();
+    setActivePage(1);
+  }, [searchQuery, allActiveInstructors]);
+
+  // Filter archived instructors whenever archived search query changes
+  useEffect(() => {
+    filterArchivedInstructors();
+    setArchivedPage(1);
+  }, [archivedSearchQuery, allArchivedInstructors]);
+
+  const fetchAllData = async () => {
     try {
-      const response = await axios.get("/api/instructors", {
-        params: { limit: 1000, archived: false },
-      });
-      const allActive = response.data.data || response.data || [];
-      setTotalActive(allActive.length);
-      setTotalUnavailable(
-        allActive.filter((i: Instructor) => i.unavailable).length,
-      );
+      setLoading(true);
 
+      // Fetch active instructors
+      const activeResponse = await axios.get("/api/instructors", {
+        params: { archived: false, limit: 1000 },
+      });
+
+      const activeData = activeResponse.data.data || activeResponse.data || [];
+      setAllActiveInstructors(activeData);
+      setFilteredActiveInstructors(activeData);
+
+      // Fetch archived instructors
       const archivedResponse = await axios.get("/api/instructors", {
         params: { archived: true, limit: 1000 },
       });
-      const allArchived =
+
+      const archivedData =
         archivedResponse.data.data || archivedResponse.data || [];
-      setTotalArchived(allArchived.length);
+      setAllArchivedInstructors(archivedData);
+      setFilteredArchivedInstructors(archivedData);
+
+      // Update stats
+      setTotalActive(activeData.length);
+      setTotalUnavailable(
+        activeData.filter((i: Instructor) => i.unavailable).length,
+      );
+      setTotalArchived(archivedData.length);
+
+      // Update pagination
+      setActiveTotalPages(Math.ceil(activeData.length / activePageSize));
+      setArchivedTotalPages(Math.ceil(archivedData.length / archivedPageSize));
     } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
-  };
-
-  const fetchActiveInstructors = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/instructors", {
-        params: {
-          archived: false,
-          page: activePage,
-          limit: activePageSize,
-          search: searchQuery || undefined,
-        },
-      });
-
-      if (response.data.data) {
-        setInstructors(response.data.data);
-        setActiveTotalPages(response.data.pagination?.pages || 1);
-        setActiveTotalCount(response.data.pagination?.total || 0);
-      } else {
-        setInstructors(response.data);
-        setActiveTotalPages(1);
-        setActiveTotalCount(response.data.length || 0);
-      }
-    } catch (error: any) {
+      console.error("Error fetching instructors:", error);
       setError("Failed to fetch instructors");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchArchivedInstructors = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/instructors", {
-        params: {
-          archived: true,
-          page: archivedPage,
-          limit: archivedPageSize,
-          search: archivedSearchQuery || undefined,
-        },
-      });
+  const filterActiveInstructors = () => {
+    let filtered = [...allActiveInstructors];
 
-      if (response.data.data) {
-        setArchivedInstructors(response.data.data);
-        setArchivedTotalPages(response.data.pagination?.pages || 1);
-        setArchivedTotalCount(response.data.pagination?.total || 0);
-      } else {
-        setArchivedInstructors(response.data);
-        setArchivedTotalPages(1);
-        setArchivedTotalCount(response.data.length || 0);
-      }
-    } catch (error: any) {
-      setError("Failed to fetch archived instructors");
-    } finally {
-      setLoading(false);
+    // Apply search filter (client-side)
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((instructor) =>
+        instructor.name.toLowerCase().includes(query),
+      );
     }
+
+    setFilteredActiveInstructors(filtered);
+    setActiveTotalPages(Math.ceil(filtered.length / activePageSize));
+  };
+
+  const filterArchivedInstructors = () => {
+    let filtered = [...allArchivedInstructors];
+
+    // Apply search filter (client-side)
+    if (archivedSearchQuery.trim() !== "") {
+      const query = archivedSearchQuery.toLowerCase();
+      filtered = filtered.filter((instructor) =>
+        instructor.name.toLowerCase().includes(query),
+      );
+    }
+
+    setFilteredArchivedInstructors(filtered);
+    setArchivedTotalPages(Math.ceil(filtered.length / archivedPageSize));
   };
 
   const handleAddInstructor = async (e: React.FormEvent) => {
@@ -173,8 +174,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       await axios.post("/api/instructors", { name: newInstructorName.trim() });
       setNewInstructorName("");
       setShowInstructorForm(false);
-      fetchActiveInstructors();
-      fetchStats();
+      await fetchAllData();
       setSuccess("Instructor added successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
@@ -208,7 +208,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       }
 
       await axios.put(`/api/instructors/${id}`, payload);
-      fetchActiveInstructors();
+      await fetchAllData();
       setSuccess("Instructor name updated successfully!");
       setTimeout(() => setSuccess(""), 3000);
       setEditingId(null);
@@ -277,8 +277,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       }
 
       await axios.put(`/api/instructors/${unavailableModalData.id}`, payload);
-      fetchActiveInstructors();
-      fetchStats();
+      await fetchAllData();
       setSuccess(
         `Instructor ${
           isUnavailable ? "marked as unavailable" : "marked as available"
@@ -327,15 +326,14 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       setTimeout(() => setSuccess(""), 3000);
       setShowConfirmModal(false);
       setConfirmAction(null);
-      fetchStats();
+
+      await fetchAllData();
 
       if (confirmAction.type === "archive") {
         setShowArchivedList(false);
         setActivePage(1);
-        fetchActiveInstructors();
       } else {
         setArchivedPage(1);
-        fetchArchivedInstructors();
       }
     } catch (error: any) {
       if (error.response?.status === 409) {
@@ -368,21 +366,29 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (showArchivedList) {
       setArchivedSearchQuery(e.target.value);
-      setArchivedPage(1);
     } else {
       setSearchQuery(e.target.value);
-      setActivePage(1);
     }
   };
 
   const handleClearSearch = () => {
     if (showArchivedList) {
       setArchivedSearchQuery("");
-      setArchivedPage(1);
     } else {
       setSearchQuery("");
-      setActivePage(1);
     }
+  };
+
+  const getPaginatedActiveInstructors = () => {
+    const start = (activePage - 1) * activePageSize;
+    const end = start + activePageSize;
+    return filteredActiveInstructors.slice(start, end);
+  };
+
+  const getPaginatedArchivedInstructors = () => {
+    const start = (archivedPage - 1) * archivedPageSize;
+    const end = start + archivedPageSize;
+    return filteredArchivedInstructors.slice(start, end);
   };
 
   const getAvailabilityBadge = (instructor: Instructor) => {
@@ -402,7 +408,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
     );
   };
 
-  if (loading && instructors.length === 0 && archivedInstructors.length === 0) {
+  if (
+    loading &&
+    allActiveInstructors.length === 0 &&
+    allArchivedInstructors.length === 0
+  ) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
@@ -442,75 +452,121 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       <div className="card">
         <div className="card-header">
           <h2>
-            {showArchivedList ? (
-              <>
-                <span className="header-icon">📦</span>
-                Archived Instructors
-              </>
-            ) : (
-              <>
-                <span className="header-icon">👨‍🏫</span>
-                Active Instructors
-              </>
-            )}
+            <span className="header-icon">
+              {showInstructorForm ? "➕" : showArchivedList ? "📦" : "👨‍🏫"}
+            </span>
+            {showInstructorForm
+              ? "Add New Instructor"
+              : showArchivedList
+                ? "Archived Instructors"
+                : "Active Instructors"}
           </h2>
-          <div className="header-actions">
-            {!showArchivedList && (
+
+          {!showInstructorForm && (
+            <div className="header-actions">
+              {!showArchivedList && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setNewInstructorName("");
+                    setError("");
+                    setShowInstructorForm(true);
+                  }}
+                >
+                  <span className="btn-icon">➕</span>
+                  Add Instructor
+                </button>
+              )}
               <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setNewInstructorName("");
-                  setError("");
-                  setShowInstructorForm(true);
-                }}
+                className={`btn ${showArchivedList ? "btn-secondary" : "btn-outline"}`}
+                onClick={
+                  showArchivedList ? handleViewActive : handleViewArchived
+                }
               >
-                <span className="btn-icon">➕</span>
-                Add Instructor
+                <span className="btn-icon">
+                  {showArchivedList ? "👁️" : "📦"}
+                </span>
+                {showArchivedList
+                  ? "View Active"
+                  : `View Archived (${totalArchived})`}
               </button>
-            )}
-            <button
-              className={`btn ${showArchivedList ? "btn-secondary" : "btn-outline"}`}
-              onClick={showArchivedList ? handleViewActive : handleViewArchived}
-            >
-              <span className="btn-icon">{showArchivedList ? "👁️" : "📦"}</span>
-              {showArchivedList
-                ? "View Active"
-                : `View Archived (${totalArchived})`}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Search Bar */}
-        <div className="search-bar">
-          <div className="search-input-wrapper">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              className="search-input"
-              placeholder={
-                showArchivedList
-                  ? "Search archived instructors..."
-                  : "Search instructors by name..."
-              }
-              value={showArchivedList ? archivedSearchQuery : searchQuery}
-              onChange={handleSearchChange}
-            />
-            {(searchQuery || archivedSearchQuery) && (
-              <button
-                className="search-clear"
-                onClick={handleClearSearch}
-                title="Clear search"
-              >
-                ✕
-              </button>
-            )}
+        {/* Add Instructor Inline Form */}
+        {showInstructorForm && (
+          <div className="form-container">
+            <form onSubmit={handleAddInstructor} className="instructor-form">
+              <h3>Add New Instructor</h3>
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label htmlFor="instructorName">Instructor Name *</label>
+                  <input
+                    type="text"
+                    id="instructorName"
+                    value={newInstructorName}
+                    onChange={(e) => setNewInstructorName(e.target.value)}
+                    placeholder="Enter instructor full name"
+                    autoFocus
+                    className="form-input"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowInstructorForm(false);
+                    setNewInstructorName("");
+                    setError("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Add Instructor
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        )}
+
+        {/* Search Bar - Only show when not in add mode */}
+        {!showInstructorForm && (
+          <div className="search-bar">
+            <div className="search-input-wrapper">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="search-input"
+                placeholder={
+                  showArchivedList
+                    ? "Search archived instructors..."
+                    : "Search instructors by name..."
+                }
+                value={showArchivedList ? archivedSearchQuery : searchQuery}
+                onChange={handleSearchChange}
+              />
+              {(searchQuery || archivedSearchQuery) && (
+                <button
+                  className="search-clear"
+                  onClick={handleClearSearch}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Active Instructors View */}
-        {!showArchivedList && (
+        {!showInstructorForm && !showArchivedList && (
           <div className="instructors-list">
-            {instructors.length === 0 ? (
+            {filteredActiveInstructors.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">👨‍🏫</div>
                 <h3>No Instructors Found</h3>
@@ -531,7 +587,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
             ) : (
               <>
                 <div className="instructor-grid">
-                  {instructors.map((instructor) => (
+                  {getPaginatedActiveInstructors().map((instructor) => (
                     <div key={instructor._id} className="instructor-card">
                       <div className="card-header">
                         <div className="instructor-avatar">
@@ -553,14 +609,14 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                                   className="btn-icon-only success"
                                   title="Save"
                                 >
-                                  ✓
+                                  ✅
                                 </button>
                                 <button
                                   onClick={handleCancelEdit}
                                   className="btn-icon-only danger"
                                   title="Cancel"
                                 >
-                                  ✕
+                                  ❌
                                 </button>
                               </div>
                             </div>
@@ -642,8 +698,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                   <div className="pagination">
                     <div className="pagination-info">
                       Showing {(activePage - 1) * activePageSize + 1} to{" "}
-                      {Math.min(activePage * activePageSize, activeTotalCount)}{" "}
-                      of {activeTotalCount} instructors
+                      {Math.min(
+                        activePage * activePageSize,
+                        filteredActiveInstructors.length,
+                      )}{" "}
+                      of {filteredActiveInstructors.length} instructors
                     </div>
                     <div className="pagination-controls">
                       <button
@@ -707,9 +766,9 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         )}
 
         {/* Archived Instructors View */}
-        {showArchivedList && (
+        {!showInstructorForm && showArchivedList && (
           <div className="instructors-list">
-            {archivedInstructors.length === 0 ? (
+            {filteredArchivedInstructors.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">📦</div>
                 <h3>No Archived Instructors</h3>
@@ -722,7 +781,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
             ) : (
               <>
                 <div className="instructor-grid">
-                  {archivedInstructors.map((instructor) => (
+                  {getPaginatedArchivedInstructors().map((instructor) => (
                     <div
                       key={instructor._id}
                       className="instructor-card archived"
@@ -760,9 +819,10 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                       Showing {(archivedPage - 1) * archivedPageSize + 1} to{" "}
                       {Math.min(
                         archivedPage * archivedPageSize,
-                        archivedTotalCount,
+                        filteredArchivedInstructors.length,
                       )}{" "}
-                      of {archivedTotalCount} archived instructors
+                      of {filteredArchivedInstructors.length} archived
+                      instructors
                     </div>
                     <div className="pagination-controls">
                       <button
@@ -826,63 +886,15 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         )}
       </div>
 
-      {/* Add Instructor Modal */}
-      {showInstructorForm && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Add New Instructor</h3>
-              <button
-                className="modal-close"
-                onClick={() => {
-                  setShowInstructorForm(false);
-                  setNewInstructorName("");
-                  setError("");
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleAddInstructor}>
-              <div className="form-group">
-                <label htmlFor="instructorName">Instructor Name</label>
-                <input
-                  type="text"
-                  id="instructorName"
-                  value={newInstructorName}
-                  onChange={(e) => setNewInstructorName(e.target.value)}
-                  placeholder="Enter instructor full name"
-                  autoFocus
-                  className="form-input"
-                />
-              </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowInstructorForm(false);
-                    setNewInstructorName("");
-                    setError("");
-                  }}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Add Instructor
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Confirmation Modal */}
       {showConfirmModal && confirmAction && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
               <h3>
+                <span className="modal-icon">
+                  {confirmAction.type === "archive" ? "📦" : "♻️"}
+                </span>
                 {confirmAction.type === "archive"
                   ? "Archive Instructor"
                   : "Restore Instructor"}
@@ -934,7 +946,10 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h3>Instructor Availability</h3>
+              <h3>
+                <span className="modal-icon">⏸️</span>
+                Instructor Availability
+              </h3>
               <button
                 className="modal-close"
                 onClick={() => {

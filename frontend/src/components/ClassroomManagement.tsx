@@ -77,6 +77,14 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     number | null
   >(null);
 
+  // In Use Warning state
+  const [showInUseWarning, setShowInUseWarning] = useState(false);
+  const [inUseClassroom, setInUseClassroom] = useState<{
+    name: string;
+    instructorName?: string;
+    timeIn?: string;
+  } | null>(null);
+
   // Archive/Restore confirmation states
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [classroomToArchive, setClassroomToArchive] = useState<{
@@ -175,11 +183,23 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     }
   };
 
-  // Helper function to check if classroom is in use
+  // Helper function to check if classroom is in use (only ACTIVE sessions within 2.5h)
   const isClassroomInUse = (classroomId: string) => {
-    return activeTimeIns.some(
-      (record: any) => record.classroom && record.classroom._id === classroomId,
-    );
+    const now = new Date();
+    const twoPointFiveHoursAgo = new Date(now.getTime() - 2.5 * 60 * 60 * 1000);
+
+    return activeTimeIns.some((record: any) => {
+      // Check if this record belongs to the classroom we're checking
+      if (!record.classroom || record.classroom._id !== classroomId)
+        return false;
+
+      const timeIn = new Date(record.timeIn);
+      const hasNoTimeOut = !record.timeOut;
+      const isWithinLast2_5Hours = timeIn > twoPointFiveHoursAgo;
+
+      // Only active if: within last 2.5h AND no timeout
+      return hasNoTimeOut && isWithinLast2_5Hours;
+    });
   };
 
   // Classroom handlers
@@ -268,50 +288,74 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   };
 
   const handleArchiveClick = (classroom: Classroom) => {
-    setClassroomToArchive({
-      id: classroom._id,
-      name: classroom.name,
-      version: classroom.version,
-    });
-    setShowArchiveConfirm(true);
+    // Check if classroom is in use
+    const inUse = isClassroomInUse(classroom._id);
+
+    if (inUse) {
+      // Find the active time-in record for this classroom
+      const activeRecord = activeTimeIns.find(
+        (record: any) =>
+          record.classroom && record.classroom._id === classroom._id,
+      );
+
+      setInUseClassroom({
+        name: classroom.name,
+        instructorName: activeRecord?.instructorName || "An instructor",
+        timeIn: activeRecord?.timeIn
+          ? new Date(activeRecord.timeIn).toLocaleTimeString()
+          : undefined,
+      });
+      setShowInUseWarning(true);
+    } else {
+      setClassroomToArchive({
+        id: classroom._id,
+        name: classroom.name,
+        version: classroom.version,
+      });
+      setShowArchiveConfirm(true);
+    }
   };
 
   const handleArchiveConfirm = async () => {
     if (!classroomToArchive) return;
-    if (classroomToArchive.version === undefined) {
-      setError(
-        "Unable to archive this classroom because version information is missing. Please refresh the page and try again.",
-      );
-      setShowArchiveConfirm(false);
-      setClassroomToArchive(null);
-      return;
-    }
 
     try {
+      // Try to archive with current version
       await axios.patch(`/api/classrooms/${classroomToArchive.id}/archive`, {
         version: classroomToArchive.version,
       });
+
       setSuccess(
         `Classroom "${classroomToArchive.name}" archived successfully!`,
       );
       fetchData();
-      setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
-      const statusCode = error.response?.status;
+      if (error.response?.status === 409) {
+        // Version conflict - get latest version and retry automatically
+        try {
+          const response = await axios.get(
+            `/api/classrooms/${classroomToArchive.id}`,
+          );
+          const latestVersion = response.data.version;
 
-      if (statusCode === 409) {
-        setVersionConflict(true);
-        setError(
-          "⚠️ CONFLICT DETECTED: Another admin updated this classroom. Please refresh and try again.",
-        );
+          // Retry with correct version
+          await axios.patch(
+            `/api/classrooms/${classroomToArchive.id}/archive`,
+            {
+              version: latestVersion,
+            },
+          );
+
+          setSuccess(
+            `Classroom "${classroomToArchive.name}" archived successfully!`,
+          );
+          fetchData();
+        } catch (retryError) {
+          setError("Failed to archive. Please refresh and try again.");
+        }
       } else {
-        setError(
-          error.response?.data?.message ||
-            error.response?.data?.msg ||
-            "Failed to archive classroom",
-        );
+        setError(error.response?.data?.message || "Failed to archive");
       }
-      setTimeout(() => setError(""), 3000);
     } finally {
       setShowArchiveConfirm(false);
       setClassroomToArchive(null);
@@ -658,59 +702,76 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       <div className="card">
         <div className="card-header">
           <h2>
-            <span className="header-icon">{showArchived ? "📦" : "🏛️"}</span>
-            {showArchived ? "Archived Classrooms" : "Active Classrooms"}
+            <span className="header-icon">
+              {showClassroomForm
+                ? editingClassroom
+                  ? "✏️"
+                  : "➕"
+                : showArchived
+                  ? "📦"
+                  : "🏛️"}
+            </span>
+            {showClassroomForm
+              ? editingClassroom
+                ? "Edit Classroom"
+                : "Add New Classroom"
+              : showArchived
+                ? "Archived Classrooms"
+                : "Active Classrooms"}
           </h2>
 
-          <div className="header-actions">
-            <div className="filter-group">
-              <span className="filter-label">Room type:</span>
-              <select
-                value={roomFilter}
-                onChange={(e) =>
-                  setRoomFilter(
-                    e.target.value as "all" | "comlab" | "non-comlab",
-                  )
-                }
-                className="filter-select"
-              >
-                <option value="all">All Rooms</option>
-                <option value="comlab">ComLab Only</option>
-                <option value="non-comlab">Non-ComLab</option>
-              </select>
-            </div>
+          {/* Only show header actions when NOT in form mode */}
+          {!showClassroomForm && (
+            <div className="header-actions">
+              <div className="filter-group">
+                <span className="filter-label">Room type:</span>
+                <select
+                  value={roomFilter}
+                  onChange={(e) =>
+                    setRoomFilter(
+                      e.target.value as "all" | "comlab" | "non-comlab",
+                    )
+                  }
+                  className="filter-select"
+                >
+                  <option value="all">All Rooms</option>
+                  <option value="comlab">ComLab Only</option>
+                  <option value="non-comlab">Non-ComLab</option>
+                </select>
+              </div>
 
-            <button
-              className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
-              onClick={() => setShowArchived(!showArchived)}
-            >
-              <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
-              {showArchived
-                ? "Show Active"
-                : `View Archived (${totalArchived})`}
-            </button>
-
-            {!showClassroomForm && !showArchived && (
               <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setEditingClassroom(null);
-                  setClassroomFormData({
-                    name: "",
-                    location: "",
-                    description: "",
-                    isAvailable: true,
-                    capacity: "",
-                    equipment: "",
-                  });
-                  setShowClassroomForm(true);
-                }}
+                className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
+                onClick={() => setShowArchived(!showArchived)}
               >
-                <span className="btn-icon">➕</span>
-                Add Classroom
+                <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
+                {showArchived
+                  ? "Show Active"
+                  : `View Archived (${totalArchived})`}
               </button>
-            )}
-          </div>
+
+              {!showArchived && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setEditingClassroom(null);
+                    setClassroomFormData({
+                      name: "",
+                      location: "",
+                      description: "",
+                      isAvailable: true,
+                      capacity: "",
+                      equipment: "",
+                    });
+                    setShowClassroomForm(true);
+                  }}
+                >
+                  <span className="btn-icon">➕</span>
+                  Add Classroom
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {showClassroomForm && (
@@ -974,10 +1035,9 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                               <button
                                 className="btn-icon-label warning"
                                 onClick={() => handleArchiveClick(classroom)}
-                                disabled={inUse}
                                 title={
                                   inUse
-                                    ? "Cannot archive classroom while in use"
+                                    ? "Classroom is currently in use"
                                     : "Archive classroom"
                                 }
                               >
@@ -1333,6 +1393,95 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 onClick={handleRestoreConfirm}
               >
                 Yes, Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In Use Warning Modal - Now showing TEACHER instead of student */}
+      {showInUseWarning && inUseClassroom && (
+        <div className="modal-overlay">
+          <div className="modal-content confirm-modal">
+            <div className="modal-header">
+              <h3>
+                <span className="modal-icon">⏳</span>
+                Classroom In Use
+              </h3>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setShowInUseWarning(false);
+                  setInUseClassroom(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="confirm-text">
+                <strong>{inUseClassroom.name}</strong> is currently in use.
+              </p>
+
+              <div
+                className="in-use-details"
+                style={{
+                  background: "#f8fafc",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  marginBottom: "16px",
+                  border: "1px solid #e1e5e9",
+                }}
+              >
+                <p
+                  style={{
+                    margin: "8px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "18px" }}>👨‍🏫</span>
+                  <strong>Instructor:</strong> {inUseClassroom.instructorName}
+                </p>
+                {inUseClassroom.timeIn && (
+                  <p
+                    style={{
+                      margin: "8px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span style={{ fontSize: "18px" }}>⏰</span>
+                    <strong>Since:</strong> {inUseClassroom.timeIn}
+                  </p>
+                )}
+              </div>
+
+              <p
+                className="warning-text"
+                style={{
+                  background: "#fff3cd",
+                  borderLeft: "4px solid #ffc107",
+                  padding: "12px",
+                  borderRadius: "4px",
+                }}
+              >
+                ⚠️ You can only archive this classroom after the current session
+                ends (automatically after 2.5 hours or when the instructor times
+                out).
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowInUseWarning(false);
+                  setInUseClassroom(null);
+                }}
+              >
+                Got it
               </button>
             </div>
           </div>

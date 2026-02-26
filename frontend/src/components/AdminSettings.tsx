@@ -36,12 +36,11 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    const backendUrl = "http://localhost:5000"; // Your backend origin
+    const backendUrl = "http://localhost:5000";
     setFirstName(user.firstName);
     setLastName(user.lastName);
     setEmail(user.email);
     if (user.profilePhoto) {
-      // Ensure the image URL points to the backend
       setPreviewUrl(
         user.profilePhoto.startsWith("http")
           ? user.profilePhoto
@@ -176,156 +175,172 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
     }
   };
 
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
   return (
-    <div className="admin-settings-page">
-      <div className="admin-settings-container">
-        <div className="settings-card">
-          <div className="settings-header">
-            <h2>Admin Settings</h2>
-          </div>
+    <div className="admin-settings">
+      <div className="content-header">
+        <h1>Account Settings</h1>
+        <p className="content-description">
+          Manage your profile and security preferences
+        </p>
+      </div>
 
-          <div className="tabs">
-            <button
-              className={`tab ${activeTab === "profile" ? "active" : ""}`}
-              onClick={() => setActiveTab("profile")}
-            >
-              Profile
-            </button>
-            <button
-              className={`tab ${activeTab === "password" ? "active" : ""}`}
-              onClick={() => setActiveTab("password")}
-            >
-              Change Password
-            </button>
-          </div>
+      {error && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
-          <div className="tab-content">
-            {activeTab === "profile" && (
-              <form className="settings-form" onSubmit={handleProfileSubmit}>
-                <div className="form-layout">
-                  <div className="photo-section">
-                    <div className="avatar-large">
-                      {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt="Profile"
-                          className="avatar-preview"
-                        />
-                      ) : (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <circle
-                            cx="12"
-                            cy="8"
-                            r="4"
-                            stroke="#ccc"
-                            strokeWidth="2"
-                          />
-                          <path
-                            d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"
-                            stroke="#ccc"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      )}
-                    </div>
+      <div className="settings-card">
+        {/* Tabs */}
+        <div className="settings-tabs">
+          <button
+            className={`tab-btn ${activeTab === "profile" ? "active" : ""}`}
+            onClick={() => setActiveTab("profile")}
+          >
+            <span className="tab-icon">👤</span>
+            Profile Information
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "password" ? "active" : ""}`}
+            onClick={() => setActiveTab("password")}
+          >
+            <span className="tab-icon">🔒</span>
+            Security & Password
+          </button>
+        </div>
 
-                    <input
-                      type="file"
-                      id="profilePhoto"
-                      accept="image/*"
-                      onChange={handlePhotoChange}
-                      className="file-input-hidden"
-                    />
-                    <button
-                      type="button"
-                      className="upload-photo-btn"
-                      onClick={() =>
-                        document.getElementById("profilePhoto")?.click()
-                      }
-                    >
-                      Upload Photo
-                    </button>
+        {/* Profile Tab */}
+        {activeTab === "profile" && (
+          <form onSubmit={handleProfileSubmit}>
+            {/* Profile Photo Section */}
+            <div className="photo-section">
+              <div className="avatar-large">
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={`${firstName} ${lastName}`}
+                    className="avatar-image"
+                  />
+                ) : (
+                  <div className="avatar-placeholder">
+                    {getInitials(firstName, lastName)}
                   </div>
+                )}
+              </div>
+              <div className="upload-controls">
+                <input
+                  type="file"
+                  id="profilePhoto"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="file-input"
+                />
+                <label htmlFor="profilePhoto" className="upload-label">
+                  <span className="btn-icon">📸</span>
+                  Change Photo
+                </label>
+                <p className="upload-hint">JPG, PNG or GIF. Max 5MB.</p>
+              </div>
+            </div>
 
-                  <div className="fields-section">
-                    <div className="form-group">
-                      <label>First Name:</label>
-                      <input
-                        type="text"
-                        placeholder="Enter your first name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                      />
-                    </div>
+            {/* Personal Information Form */}
+            <div className="form-grid">
+              <div className="form-group">
+                <label>First Name</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your first name"
+                  required
+                />
+              </div>
 
-                    <div className="form-group">
-                      <label>Last Name:</label>
-                      <input
-                        type="text"
-                        placeholder="Enter your last name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                      />
-                    </div>
+              <div className="form-group">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Enter your last name"
+                  required
+                />
+              </div>
 
-                    <div className="form-group">
-                      <label>Email:</label>
-                      <input
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
+              <div className="form-group full-width">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+                <small className="form-hint">
+                  This email will be used for notifications and login
+                </small>
+              </div>
+            </div>
 
-                    {error && <div className="error-message">{error}</div>}
-                    {success && (
-                      <div className="success-message">{success}</div>
-                    )}
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onBack}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="loading-spinner-small"></span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <span className="btn-icon">💾</span>
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
 
-                    <button
-                      type="submit"
-                      className="submit-btn"
-                      disabled={loading}
-                    >
-                      {loading ? "Saving..." : "Save Changes"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
+        {/* Password Tab */}
+        {activeTab === "password" && (
+          <form onSubmit={handlePasswordSubmit}>
+            <div className="password-section">
+              <h3>Change Password</h3>
+              <p className="section-description">
+                Your password should be at least 6 characters long and unique.
+              </p>
 
-            {activeTab === "password" && (
-              <form className="settings-form" onSubmit={handlePasswordSubmit}>
-                <div className="form-group">
-                  <label htmlFor="currentPassword">Current Password:</label>
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Current Password</label>
                   <input
-                    id="currentPassword"
                     type="password"
-                    placeholder="Enter your current password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
                     disabled={loading}
                     required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="newPassword">New Password:</label>
+                  <label>New Password</label>
                   <input
-                    id="newPassword"
                     type="password"
-                    placeholder="Enter new password (min. 6 characters)"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
                     disabled={loading}
                     required
                     minLength={6}
@@ -333,29 +348,89 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="confirmPassword">Confirm New Password:</label>
+                  <label>Confirm Password</label>
                   <input
-                    id="confirmPassword"
                     type="password"
-                    placeholder="Confirm new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
                     disabled={loading}
                     required
                     minLength={6}
                   />
                 </div>
+              </div>
 
-                {error && <div className="error-message">{error}</div>}
-                {success && <div className="success-message">{success}</div>}
+              {/* Password Requirements */}
+              <div className="requirements-box">
+                <p className="requirements-title">Password requirements:</p>
+                <ul className="requirements-list">
+                  <li className={newPassword.length >= 6 ? "met" : ""}>
+                    <span className="requirement-icon">
+                      {newPassword.length >= 6 ? "✅" : "○"}
+                    </span>
+                    At least 6 characters
+                  </li>
+                  <li
+                    className={
+                      newPassword !== "" && newPassword === confirmPassword
+                        ? "met"
+                        : ""
+                    }
+                  >
+                    <span className="requirement-icon">
+                      {newPassword !== "" && newPassword === confirmPassword
+                        ? "✅"
+                        : "○"}
+                    </span>
+                    Passwords match
+                  </li>
+                  <li
+                    className={
+                      currentPassword !== "" && currentPassword !== newPassword
+                        ? "met"
+                        : ""
+                    }
+                  >
+                    <span className="requirement-icon">
+                      {currentPassword !== "" && currentPassword !== newPassword
+                        ? "✅"
+                        : "○"}
+                    </span>
+                    Different from current password
+                  </li>
+                </ul>
+              </div>
+            </div>
 
-                <button type="submit" className="submit-btn" disabled={loading}>
-                  {loading ? "Updating..." : "Change Password"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onBack}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="loading-spinner-small"></span>
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <span className="btn-icon">🔒</span>
+                    Update Password
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

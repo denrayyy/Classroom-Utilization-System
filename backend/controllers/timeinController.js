@@ -22,6 +22,40 @@ const __dirname = path.dirname(__filename);
 const evidenceDir = path.join(__dirname, "../uploads/evidence");
 
 /**
+ * Auto time-out expired sessions
+ * Runs before any time-in query to clean up old sessions
+ */
+const autoTimeoutExpiredSessions = async () => {
+  try {
+    const cooldownMs = (2 * 60 * 60 * 1000) + (30 * 60 * 1000); // 2h 30m
+    const expiryTime = new Date(Date.now() - cooldownMs);
+    
+    const result = await TimeIn.updateMany(
+      {
+        timeOut: { $exists: false },
+        timeIn: { $lte: expiryTime }
+      },
+      {
+        $set: {
+          timeOut: new Date(),
+          status: "auto-timed-out"
+        }
+      }
+    );
+    
+    if (result.modifiedCount > 0) {
+      console.log(`✅ Auto timed-out ${result.modifiedCount} expired sessions`);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error auto time-out:", error);
+    return null;
+  }
+};
+
+
+/**
  * Create time-in record with evidence upload.
  * RULES:
  * 1. Only prevent SAME USER from timing in to SAME classroom within 2.5 hours
@@ -167,22 +201,23 @@ export const timeout = asyncHandler(async (req, res) => {
 
 /**
  * List time-in records with optional filters
- * ✅ FIXED: ADMIN sees ALL students, STUDENT only sees themselves
+ * Auto time-out expired sessions
+ * ADMIN sees ALL students, STUDENT only sees themselves
  */
 export const list = asyncHandler(async (req, res) => {
+  // Auto time-out expired sessions first
+  await autoTimeoutExpiredSessions();
+  
   const { student, classroom, date, status, startDate, endDate } = req.query;
   const query = {};
 
   // Don't show archived records
   query.isArchived = { $ne: true };
 
-  // ✅ FIX: STUDENT - only see their own records
+  // STUDENT - only see their own records
   if (req.user.role === "student") {
     query.student = req.user._id;
   }
-  
-  // ✅ FIX: ADMIN - NO student filter (sees ALL students)
-  // DO NOT add any student filter for admin
   
   // Only apply student filter from query if admin explicitly requests it
   if (student && req.user.role === "admin") {
@@ -190,9 +225,13 @@ export const list = asyncHandler(async (req, res) => {
   }
 
   if (classroom) query.classroom = classroom;
-  if (status) query.status = status;
+  
+  // Only filter by status if provided
+  if (status) {
+    query.status = status;
+  }
 
-  // Date filter - keep as is
+  // Date filter
   if (date) {
     const targetDate = new Date(date);
     const startOfDay = new Date(targetDate);
@@ -216,7 +255,6 @@ export const list = asyncHandler(async (req, res) => {
     .populate("verifiedBy", "firstName lastName")
     .sort({ date: -1, timeIn: -1 });
 
-  // console.log(`👤 User role: ${req.user.role}, 📊 Records found: ${timeInRecords.length}`);
   res.json(timeInRecords);
 });
 

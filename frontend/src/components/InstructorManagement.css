@@ -18,13 +18,13 @@
 .header-content h1 {
   font-size: 32px;
   font-weight: 700;
-  color: #1c2529; /* Dark from topbar */
+  color: #1c2529;
   margin-bottom: 8px;
 }
 
 .header-content p {
   font-size: 16px;
-  color: #5a7480; /* Muted dark blue-gray */
+  color: #5a7480;
   margin: 0;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .alert-success {
-  background: rgba(216, 235, 233, 0.2); /* Light d8ebe9 */
+  background: rgba(216, 235, 233, 0.2);
   border: 1px solid #d8ebe9;
   color: #1c2529;
 }
@@ -126,7 +126,7 @@
   flex-wrap: wrap;
 }
 
-/* Buttons - Using admin panel colors */
+/* Buttons */
 .btn {
   padding: 10px 20px;
   border: none;
@@ -149,46 +149,59 @@
   font-size: 16px;
 }
 
+/* Perfectly aligned icon buttons with ✅ and ❌ */
 .btn-icon-only {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 16px;
+  font-size: 20px;
+  line-height: 1;
+  background: transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  /* Perfect emoji rendering */
+  font-family: 'Segoe UI', 'Apple Color Emoji', 'Noto Color Emoji', 'Android Emoji', 'EmojiOne Color', 'Twemoji Mozilla', sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .btn-icon-only.success {
-  background: rgba(216, 235, 233, 0.3);
-  color: #1c2529;
+  background: #27ae60;
+  color: white;
 }
 
 .btn-icon-only.success:hover {
-  background: #d8ebe9;
+  background: #229954;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
 }
 
 .btn-icon-only.danger {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
-}
-
-.btn-icon-only.danger:hover {
   background: #dc3545;
   color: white;
 }
 
+.btn-icon-only.danger:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
 .btn-primary {
-  background: #2e3a43; /* Sidebar color */
+  background: #2e3a43;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #1c2529; /* Topbar color */
+  background: #1c2529;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(28, 37, 41, 0.2);
 }
@@ -398,7 +411,7 @@
 .instructor-avatar {
   width: 48px;
   height: 48px;
-  background: #2e3a43; /* Sidebar color */
+  background: #2e3a43;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -410,7 +423,7 @@
 }
 
 .instructor-avatar.archived {
-  background: #5a7480; /* Muted dark blue-gray */
+  background: #5a7480;
 }
 
 .instructor-info {
@@ -430,11 +443,12 @@
   flex-wrap: wrap;
 }
 
-/* Edit Mode */
+/* Edit Mode - Fixed alignment */
 .edit-mode {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
 }
 
 .edit-input {
@@ -444,6 +458,7 @@
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .edit-input:focus {
@@ -454,6 +469,12 @@
 .edit-actions {
   display: flex;
   gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.edit-actions .btn-icon-only {
+  margin: 0;
 }
 
 /* Badges */
@@ -641,7 +662,7 @@
   border-color: #2e3a43;
 }
 
-/* Modal Styles - Matching admin panel */
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -682,6 +703,13 @@
   font-weight: 700;
   color: #1c2529;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-icon {
+  font-size: 20px;
 }
 
 .modal-close {

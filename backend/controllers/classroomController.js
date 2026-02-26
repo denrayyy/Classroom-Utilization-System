@@ -25,12 +25,12 @@ export const getClassrooms = asyncHandler(async (req, res) => {
   
   // Explicitly filter based on showArchived
   if (showArchived === 'true') {
-    query.isArchived = true;  // ✅ ONLY show archived classrooms
+    query.isArchived = true;
   } else {
-    query.isArchived = false; // ✅ ONLY show active classrooms
+    query.isArchived = false;
   }
 
-  // Filter for computer labs only (name contains "ComLab" or equipment includes "Computers")
+  // Filter for computer labs only
   if (computerLabOnly === "true") {
     query.$or = [
       { name: { $regex: /ComLab/i } },
@@ -46,7 +46,11 @@ export const getClassrooms = asyncHandler(async (req, res) => {
     ];
   }
 
-  const classrooms = await Classroom.find(query).lean();
+  // ✅ Sort alphabetically by name
+  const classrooms = await Classroom.find(query)
+    .sort({ name: 1 }) // 1 for ascending, -1 for descending
+    .lean();
+    
   res.json(classrooms);
 });
 
