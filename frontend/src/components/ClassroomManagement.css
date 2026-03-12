@@ -725,9 +725,35 @@
   background: #f8fafc;
 }
 
+/* ============ SCHEDULE CONFLICT STYLES ============ */
+.schedule-table tr.conflict-row {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 3px solid #ffc107;
+}
+
+.schedule-table tr.conflict-row:hover {
+  background-color: rgba(255, 193, 7, 0.15);
+}
+
+.conflict-badge {
+  display: inline-block;
+  background: #ffc107;
+  color: #1c2529;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 8px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .schedule-day {
   font-weight: 600;
   color: #2e3a43;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .schedule-section {

@@ -519,7 +519,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                     <tr>
                       <th>Time</th>
                       <th>Student Name</th>
-                      <th>Gender</th>
+                      {/* <th>Gender</th> */}
                       <th>Department</th>
                       <th>Instructor</th>
                       <th>Classroom</th>
@@ -536,7 +536,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                             {activity.student?.firstName}{" "}
                             {activity.student?.lastName}
                           </td>
-                          <td>{getGenderBadge(activity.student?.gender)}</td>
+                          {/* <td>{getGenderBadge(activity.student?.gender)}</td> */}
                           <td>
                             <span className="department-badge">
                               {activity.student?.department || "N/A"}

@@ -110,6 +110,69 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   const [success, setSuccess] = useState("");
   const [versionConflict, setVersionConflict] = useState(false);
 
+  // ============ SCHEDULE CONFLICT DETECTION FUNCTIONS ============
+
+  /**
+   * Helper function to check for schedule conflicts
+   * Returns true if duplicate schedules exist
+   */
+  const hasScheduleConflict = (schedules: Schedule[] = []): boolean => {
+    const seen = new Set<string>();
+
+    for (const schedule of schedules) {
+      // Create a unique key based on all schedule fields
+      const key = `${schedule.day}|${schedule.time}|${schedule.section}|${schedule.subjectCode}|${schedule.instructor}`;
+
+      if (seen.has(key)) {
+        return true; // Conflict found
+      }
+      seen.add(key);
+    }
+
+    return false; // No conflicts
+  };
+
+  /**
+   * Helper function to get all conflicting schedules
+   * Returns array of schedules that are duplicates
+   */
+  const getConflictingSchedules = (schedules: Schedule[] = []): Schedule[] => {
+    const seen = new Map<string, number>();
+    const conflicts: Schedule[] = [];
+
+    schedules.forEach((schedule) => {
+      const key = `${schedule.day}|${schedule.time}|${schedule.section}|${schedule.subjectCode}|${schedule.instructor}`;
+
+      if (seen.has(key)) {
+        conflicts.push(schedule);
+      } else {
+        seen.set(key, 1);
+      }
+    });
+
+    return conflicts;
+  };
+
+  /**
+   * Check if a specific schedule is a duplicate
+   */
+  const isScheduleDuplicate = (schedule: Schedule, index?: number): boolean => {
+    if (!viewingClassroom?.schedules) return false;
+
+    return viewingClassroom.schedules.some((s, i) => {
+      if (index !== undefined && i === index) return false;
+      return (
+        s.day === schedule.day &&
+        s.time === schedule.time &&
+        s.section === schedule.section &&
+        s.subjectCode === schedule.subjectCode &&
+        s.instructor === schedule.instructor
+      );
+    });
+  };
+
+  // ============ END SCHEDULE CONFLICT FUNCTIONS ============
+
   useEffect(() => {
     fetchData();
   }, [showArchived]);
@@ -468,6 +531,16 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   const handleSaveSchedules = async () => {
     if (!viewingClassroom) return;
 
+    // Check for conflicts before saving
+    if (hasScheduleConflict(viewingClassroom.schedules)) {
+      const conflicts = getConflictingSchedules(viewingClassroom.schedules);
+      setError(
+        `⚠️ Cannot save: Found ${conflicts.length} duplicate schedule(s). Please remove or edit duplicates before saving.`,
+      );
+      setTimeout(() => setError(""), 4000);
+      return;
+    }
+
     try {
       setVersionConflict(false);
       const response = await axios.put(
@@ -525,9 +598,28 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       instructor: scheduleFormData.instructor,
     };
 
+    // Check for duplicate with existing schedules
+    const existingSchedules = viewingClassroom.schedules || [];
+    const isDuplicate = existingSchedules.some(
+      (schedule) =>
+        schedule.day === newSchedule.day &&
+        schedule.time === newSchedule.time &&
+        schedule.section === newSchedule.section &&
+        schedule.subjectCode === newSchedule.subjectCode &&
+        schedule.instructor === newSchedule.instructor,
+    );
+
+    if (isDuplicate) {
+      setError(
+        "⚠️ Cannot add duplicate schedule. This schedule already exists.",
+      );
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
     setViewingClassroom({
       ...viewingClassroom,
-      schedules: [...(viewingClassroom.schedules || []), newSchedule],
+      schedules: [...existingSchedules, newSchedule],
     });
 
     setScheduleFormData({
@@ -567,14 +659,36 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       return;
     }
 
-    const updatedSchedules = [...(viewingClassroom.schedules || [])];
-    updatedSchedules[editingScheduleIndex] = {
+    const updatedSchedule = {
       day: scheduleFormData.day,
       time: scheduleFormData.time,
       section: scheduleFormData.section,
       subjectCode: scheduleFormData.subjectCode,
       instructor: scheduleFormData.instructor,
     };
+
+    // Check for duplicate with other schedules (excluding the current one)
+    const existingSchedules = viewingClassroom.schedules || [];
+    const isDuplicate = existingSchedules.some(
+      (schedule, index) =>
+        index !== editingScheduleIndex &&
+        schedule.day === updatedSchedule.day &&
+        schedule.time === updatedSchedule.time &&
+        schedule.section === updatedSchedule.section &&
+        schedule.subjectCode === updatedSchedule.subjectCode &&
+        schedule.instructor === updatedSchedule.instructor,
+    );
+
+    if (isDuplicate) {
+      setError(
+        "⚠️ Cannot update to a duplicate schedule. This schedule already exists.",
+      );
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    const updatedSchedules = [...existingSchedules];
+    updatedSchedules[editingScheduleIndex] = updatedSchedule;
 
     setViewingClassroom({
       ...viewingClassroom,
@@ -1224,43 +1338,59 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {viewingClassroom.schedules.map((schedule, index) => (
-                        <tr key={index}>
-                          <td>
-                            <span className="schedule-day">{schedule.day}</span>
-                          </td>
-                          <td>{schedule.time}</td>
-                          <td>
-                            <span className="schedule-section">
-                              {schedule.section}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="schedule-subject">
-                              {schedule.subjectCode}
-                            </span>
-                          </td>
-                          <td>{schedule.instructor}</td>
-                          {isEditingSchedules && (
-                            <td className="action-cell">
-                              <button
-                                className="btn-icon-only primary"
-                                onClick={() => handleEditSchedule(index)}
-                                title="Edit schedule"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                className="btn-icon-only danger"
-                                onClick={() => handleDeleteSchedule(index)}
-                                title="Delete schedule"
-                              >
-                                🗑️
-                              </button>
+                      {viewingClassroom.schedules.map((schedule, index) => {
+                        const isDuplicate = isScheduleDuplicate(
+                          schedule,
+                          index,
+                        );
+                        return (
+                          <tr
+                            key={index}
+                            className={isDuplicate ? "conflict-row" : ""}
+                          >
+                            <td>
+                              <span className="schedule-day">
+                                {schedule.day}
+                              </span>
+                              {isDuplicate && (
+                                <span className="conflict-badge">
+                                  ⚠️ Duplicate
+                                </span>
+                              )}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            <td>{schedule.time}</td>
+                            <td>
+                              <span className="schedule-section">
+                                {schedule.section}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="schedule-subject">
+                                {schedule.subjectCode}
+                              </span>
+                            </td>
+                            <td>{schedule.instructor}</td>
+                            {isEditingSchedules && (
+                              <td className="action-cell">
+                                <button
+                                  className="btn-icon-only primary"
+                                  onClick={() => handleEditSchedule(index)}
+                                  title="Edit schedule"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  className="btn-icon-only danger"
+                                  onClick={() => handleDeleteSchedule(index)}
+                                  title="Delete schedule"
+                                >
+                                  🗑️
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 ) : (
