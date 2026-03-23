@@ -13,7 +13,7 @@ import { prepareActivityLog } from "../middleware/activityLogger.js";
 export const updateProfile = asyncHandler(async (req, res) => {
   const { firstName, lastName, email } = req.body;
 
-  // ✅ STEP 1: FETCH ORIGINAL USER (FOR EVIDENCE)
+  // FETCH ORIGINAL USER (FOR EVIDENCE)
   const originalUser = await User.findById(req.user._id).lean();
 
   if (!originalUser) {
@@ -34,7 +34,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
-  // ✅ STEP 2: APPLY UPDATES
+  // APPLY UPDATES
   const user = await User.findById(req.user._id);
 
   if (firstName) user.firstName = firstName;
@@ -47,7 +47,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   await user.save();
 
-  // ✅ STEP 3: BUILD EVIDENCE (OLD vs NEW)
+  // BUILD EVIDENCE (OLD vs NEW)
   const changes = {};
 
   if (firstName && originalUser.firstName !== firstName) {
@@ -78,7 +78,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     };
   }
 
-  // ✅ STEP 4: LOG ACTIVITY
+  // STEP 4: LOG ACTIVITY
   prepareActivityLog(
     req,
     "update",

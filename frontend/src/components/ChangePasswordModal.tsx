@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import "./ChangePasswordModal.css";
 
 interface ChangePasswordModalProps {
@@ -62,10 +63,22 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
     try {
       const token = localStorage.getItem("token");
-      // Simulate API call - replace with actual endpoint
-      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      setSuccess("Password changed successfully!");
+      // Use POST instead of PUT to match your backend route
+      const response = await axios.post(
+        "/api/auth/change-password",
+        {
+          currentPassword,
+          newPassword,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      setSuccess(response.data.message || "Password changed successfully!");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -77,6 +90,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     } catch (error: any) {
       setError(
         error.response?.data?.message ||
+          error.response?.data?.msg ||
           "Failed to change password. Please try again.",
       );
     } finally {
@@ -98,8 +112,8 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <div className="modal-header">
           <h2>Change password</h2>
           <button
