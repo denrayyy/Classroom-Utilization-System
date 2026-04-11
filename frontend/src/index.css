@@ -1,3 +1,27 @@
+/* ===== 1. CSS VARIABLES ===== */
+:root {
+  /* Primary - Background (60%) */
+  --color-primary: #184354;
+  --color-primary-light: #1e5368;
+  --color-primary-dark: #123341;
+  
+  /* Secondary - Cards/Sidebars (30%) */
+  --color-secondary: #123341;
+  --color-secondary-light: #1a4356;
+  --color-secondary-dark: #0e2e3a;
+  
+  /* Accent - Buttons/Highlights (10%) */
+  --color-accent: #0ec0d4;
+  --color-accent-light: #3ecfdf;
+  --color-accent-dark: #0b9aab;
+  
+  /* Text Colors */
+  --text-on-primary: #ffffff;
+  --text-on-secondary: #ffffff;
+  --text-on-accent: #184354;
+}
+
+/* ===== 2. RESET & BASE ===== */
 * {
   margin: 0;
   padding: 0;
@@ -6,313 +30,24 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
+  background-color: var(--color-primary);
+  color: var(--text-on-primary);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
 
+/* ===== 3. LAYOUT ===== */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
 }
 
-.card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.btn {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
-
-.btn:hover {
-  background-color: #0056b3;
-}
-
-.btn-danger {
-  background-color: #dc3545;
-}
-
-.btn-danger:hover {
-  background-color: #c82333;
-}
-
-.btn-success {
-  background-color: #28a745;
-}
-
-.btn-success:hover {
-  background-color: #218838;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.form-group textarea {
-  height: 80px;
-  resize: vertical;
-}
-
-.error {
-  color: #dc3545;
-  font-size: 12px;
-  margin-top: 5px;
-}
-
-.success {
-  color: #28a745;
-  font-size: 12px;
-  margin-top: 5px;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.table th,
-.table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-.table th {
-  background-color: #f8f9fa;
-  font-weight: bold;
-}
-
-.table tr:hover {
-  background-color: #f5f5f5;
-}
-
-.status-pending {
-  color: #ffc107;
-  font-weight: bold;
-}
-
-.status-approved {
-  color: #28a745;
-  font-weight: bold;
-}
-
-.status-rejected {
-  color: #dc3545;
-  font-weight: bold;
-}
-
-.status-cancelled {
-  color: #6c757d;
-  font-weight: bold;
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .container {
-    max-width: 95%;
-    padding: 15px;
-  }
-
-  .btn {
-    padding: 8px 16px;
-    font-size: 13px;
-  }
-
-  .card {
-    padding: 15px;
-    margin-bottom: 15px;
-  }
-
-  .table th,
-  .table td {
-    padding: 10px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
-    max-width: 100%;
-    padding: 10px;
-  }
-
-  .card {
-    padding: 12px;
-    margin-bottom: 12px;
-  }
-
-  .btn {
-    padding: 8px 12px;
-    font-size: 12px;
-    width: 100%;
-  }
-
-  .btn:not(:last-child) {
-    margin-bottom: 8px;
-  }
-
-  .form-group {
-    margin-bottom: 12px;
-  }
-
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    padding: 10px;
-    font-size: 16px;
-  }
-
-  .table {
-    font-size: 12px;
-  }
-
-  .table th,
-  .table td {
-    padding: 8px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .action-buttons button {
-    width: 100%;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .tabs {
-    flex-wrap: wrap;
-  }
-
-  .tab {
-    padding: 8px 12px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  .container {
-    padding: 8px;
-  }
-
-  .card {
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 6px;
-  }
-
-  .btn {
-    padding: 10px 8px;
-    font-size: 11px;
-    width: 100%;
-  }
-
-  .form-group {
-    margin-bottom: 10px;
-  }
-
-  .form-group label {
-    font-size: 13px;
-    margin-bottom: 4px;
-  }
-
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    padding: 12px;
-    font-size: 16px;
-    border-radius: 4px;
-  }
-
-  .table {
-    font-size: 11px;
-  }
-
-  .table th,
-  .table td {
-    padding: 6px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .action-buttons button {
-    padding: 6px 4px;
-    font-size: 10px;
-    width: 100%;
-  }
-
-  h1 {
-    font-size: 20px;
-  }
-
-  h2 {
-    font-size: 18px;
-  }
-
-  h3 {
-    font-size: 16px;
-  }
-
-  .error-message,
-  .success-message {
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
-}
-
-/* Flexbox utilities for responsive layouts */
 .flex-responsive {
   display: flex;
   flex-wrap: wrap;
@@ -324,166 +59,347 @@ code {
   min-width: 200px;
 }
 
+/* ===== 4. CARDS ===== */
+.card {
+  background: var(--color-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  margin-bottom: 20px;
+  color: var(--text-on-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ===== 5. BUTTONS ===== */
+.btn {
+  background-color: var(--color-accent);
+  color: var(--text-on-accent);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn:hover {
+  background-color: var(--color-accent-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(14, 192, 212, 0.3);
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.btn-success {
+  background-color: #27ae60;
+  color: #ffffff;
+}
+
+.btn-success:hover {
+  background-color: #229954;
+}
+
+/* ===== 6. FORMS ===== */
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--text-on-secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--color-primary-dark);
+  color: var(--text-on-primary);
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px rgba(14, 192, 212, 0.2);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.form-group textarea {
+  height: 80px;
+  resize: vertical;
+}
+
+/* ===== 7. TABLES ===== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  color: var(--text-on-primary);
+}
+
+.table th,
+.table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.table th {
+  background-color: var(--color-secondary);
+  font-weight: 700;
+  color: var(--text-on-secondary);
+  border-bottom: 3px solid var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table tr:hover {
+  background-color: rgba(14, 192, 212, 0.08);
+}
+
+/* ===== 8. TYPOGRAPHY ===== */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-on-primary);
+}
+
+h1 {
+  color: var(--color-accent);
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-accent-light);
+}
+
+/* ===== 9. STATUS & UTILITIES ===== */
+.error {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.success {
+  color: #27ae60;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-on-primary);
+}
+
+.status-pending {
+  color: #ffc107;
+  font-weight: 700;
+}
+
+.status-approved {
+  color: #27ae60;
+  font-weight: 700;
+}
+
+.status-rejected {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.status-cancelled {
+  color: #6c757d;
+  font-weight: 700;
+}
+
+.loading-spinner {
+  border: 3px solid var(--color-secondary);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 10. SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-primary-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-light);
+}
+
+/* ===== 11. RESPONSIVE DESIGN ===== */
 @media (max-width: 1024px) {
   .container {
-    max-width: 100%;
+    max-width: 95%;
     padding: 15px;
   }
-
+  .btn {
+    padding: 10px 18px;
+    font-size: 13px;
+  }
   .card {
     padding: 15px;
     margin-bottom: 15px;
   }
-
-  .btn {
-    padding: 10px 16px;
+  .table th,
+  .table td {
+    padding: 12px;
     font-size: 13px;
   }
 }
 
 @media (max-width: 768px) {
-  html {
-    font-size: 14px;
-  }
-
-  body {
-    font-size: 14px;
-  }
-
+  html { font-size: 14px; }
+  body { font-size: 14px; }
+  
   .container {
     max-width: 100%;
     padding: 12px;
   }
-
   .card {
     padding: 12px;
     margin-bottom: 12px;
-    border-radius: 8px;
   }
-
   .btn {
     padding: 10px 14px;
     font-size: 13px;
     min-height: 40px;
-  }
-
-  .btn-primary {
     width: 100%;
   }
-
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 16px; /* Prevents zoom on iOS */
+  input, select, textarea, button {
+    font-size: 16px;
   }
-
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  
   .flex-responsive > * {
     min-width: 150px;
     flex: 1 1 calc(50% - 5px);
   }
-
-  h1 {
-    font-size: 24px;
+  .action-buttons {
+    flex-direction: column;
+    gap: 8px;
   }
-
-  h2 {
-    font-size: 20px;
-  }
-
-  h3 {
-    font-size: 18px;
-  }
-
-  p {
-    line-height: 1.5;
+  .action-buttons button {
+    width: 100%;
   }
 }
 
 @media (max-width: 480px) {
-  html {
-    font-size: 13px;
-  }
-
-  body {
-    font-size: 13px;
-  }
-
+  html { font-size: 13px; }
+  body { font-size: 13px; }
+  
   .container {
-    max-width: 100%;
     padding: 10px;
   }
-
   .card {
     padding: 10px;
     margin-bottom: 10px;
-    border-radius: 6px;
   }
-
   .btn {
     padding: 12px 14px;
     font-size: 12px;
     width: 100%;
     min-height: 44px;
   }
-
-  .btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  input,
-  select,
-  textarea,
-  button {
+  input, select, textarea {
     font-size: 16px;
-    line-height: 1.5;
-  }
-
-  input,
-  textarea {
     width: 100%;
     padding: 12px 10px;
   }
-
+  h1 { font-size: 20px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+  
   .flex-responsive > * {
     flex: 1 1 100%;
     min-width: 100%;
   }
-
-  h1 {
-    font-size: 20px;
-  }
-
-  h2 {
-    font-size: 18px;
-  }
-
-  h3 {
-    font-size: 16px;
-  }
-
-  h4 {
-    font-size: 14px;
-  }
-
-  p {
-    line-height: 1.6;
-    margin-bottom: 10px;
-  }
-
-  .text-center {
-    text-align: center;
-  }
-
   table {
     font-size: 12px;
   }
-
   table th,
   table td {
     padding: 8px 4px;
   }
+  .action-buttons {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .action-buttons button {
+    padding: 8px 6px;
+    font-size: 11px;
+    width: 100%;
+  }
 }
 
+/* Filter inputs (for dashboard) */
+.filter-group input,
+.filter-group select,
+.filter-input,
+.filter-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 14px;
+  background: #0e2e3a;
+  color: #ffffff;
+}
+
+.filter-group input::placeholder,
+.filter-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.filter-group input:focus,
+.filter-group select:focus,
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: #0ec0d4;
+  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.2);
+}

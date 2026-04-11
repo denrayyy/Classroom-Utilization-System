@@ -38,7 +38,8 @@ const autoTimeoutExpiredSessions = async () => {
       {
         $set: {
           timeOut: new Date(),
-          status: "auto-timed-out"
+          status: "auto-timed-out",
+          autoTimedOutAt: new Date() // Add timestamp for audit trail
         }
       }
     );
@@ -54,15 +55,18 @@ const autoTimeoutExpiredSessions = async () => {
   }
 };
 
-
 /**
  * Create time-in record with evidence upload.
  * RULES:
- * 1. Only prevent SAME USER from timing in to SAME classroom within 2.5 hours
- * 2. No classroom locking - multiple students can use same classroom
- * 3. No auto time-out - manual time-out only
+ * 1. Student cannot have an active time-in in ANY classroom (must time-out first)
+ * 2. Classroom cannot be occupied by other students (only one student per classroom at a time)
+ * 3. Prevent SAME USER from timing in to SAME classroom within 2.5 hours
+ * 4. Instructor cannot be active in multiple classrooms simultaneously
  */
 export const create = asyncHandler(async (req, res) => {
+  // ✅ Auto time-out expired sessions BEFORE checking for active time-ins
+  await autoTimeoutExpiredSessions();
+  
   if (!req.file) {
     return res.status(400).json({ message: "Evidence photo is required" });
   }
@@ -77,7 +81,54 @@ export const create = asyncHandler(async (req, res) => {
 
   const currentTime = req.worldTime ?? new Date();
 
-  // ===== SIMPLE RULE: Prevent same user from timing in to same classroom within 2.5h =====
+  // ===== RULE 1: Check if student has any active time-in (not timed out) =====
+  const activeTimeIn = await TimeIn.findOne({
+    student: req.user._id,
+    timeOut: { $exists: false } // No time-out means still active
+  });
+
+  if (activeTimeIn) {
+    // Get the classroom details for the active time-in
+    const activeClassroom = await Classroom.findById(activeTimeIn.classroom);
+    const classroomName = activeClassroom ? activeClassroom.name : "another classroom";
+    
+    return res.status(429).json({
+      message: `You already have an active time-in at ${classroomName}. Please time-out first before timing in to another classroom.`,
+      activeTimeIn: {
+        id: activeTimeIn._id,
+        classroom: classroomName,
+        timeIn: activeTimeIn.timeIn,
+        instructorName: activeTimeIn.instructorName
+      }
+    });
+  }
+
+  // ===== RULE 2: Check if classroom is already occupied by another student =====
+  const occupiedClassroom = await TimeIn.findOne({
+    classroom: classroom,
+    timeOut: { $exists: false } // Active time-in in this classroom
+  });
+
+  if (occupiedClassroom) {
+    // Get the student details who is currently using the classroom
+    await occupiedClassroom.populate("student", "firstName lastName email");
+    
+    return res.status(409).json({
+      message: `This classroom (${classroomExists.name}) is currently occupied by ${occupiedClassroom.student.firstName} ${occupiedClassroom.student.lastName}. Please wait until they time-out or choose another classroom.`,
+      classroom: {
+        id: classroomExists._id,
+        name: classroomExists.name,
+        location: classroomExists.location
+      },
+      occupiedBy: {
+        id: occupiedClassroom.student._id,
+        name: `${occupiedClassroom.student.firstName} ${occupiedClassroom.student.lastName}`,
+        timeIn: occupiedClassroom.timeIn
+      }
+    });
+  }
+
+  // ===== RULE 3: Prevent same user from timing in to same classroom within 2.5h =====
   const lastTimeIn = await TimeIn.findOne({
     student: req.user._id,
     classroom: classroom
@@ -101,6 +152,25 @@ export const create = asyncHandler(async (req, res) => {
         cooldownEndsAt: new Date(lastTime.getTime() + cooldownMs)
       });
     }
+  }
+
+  // ===== RULE 4: Check if instructor is already teaching in another classroom =====
+  // Find if the same instructor has an active time-in in ANY classroom
+  const activeInstructorTimeIn = await TimeIn.findOne({
+    instructorName: instructorName,
+    timeOut: { $exists: false } // Instructor is still teaching somewhere
+  }).populate("classroom", "name location");
+
+  if (activeInstructorTimeIn) {
+    return res.status(409).json({
+      message: `Instructor ${instructorName} is currently teaching in ${activeInstructorTimeIn.classroom.name}. They cannot be marked as present in two classrooms simultaneously.`,
+      activeTeachingSession: {
+        id: activeInstructorTimeIn._id,
+        classroom: activeInstructorTimeIn.classroom.name,
+        timeIn: activeInstructorTimeIn.timeIn,
+        student: activeInstructorTimeIn.student
+      }
+    });
   }
 
   // Create time-in record
@@ -134,7 +204,7 @@ export const create = asyncHandler(async (req, res) => {
   ]);
 
   res.status(201).json({
-    message: `Successfully timed in to ${classroomExists.name}`,
+    message: `Successfully timed in to ${classroomExists.name} with instructor ${instructorName}`,
     timeInRecord: {
       id: timeInRecord._id,
       student: timeInRecord.student,
@@ -157,6 +227,9 @@ export const create = asyncHandler(async (req, res) => {
  * Record time-out for the most recent active time-in
  */
 export const timeout = asyncHandler(async (req, res) => {
+  // ✅ Auto time-out expired sessions before finding active session
+  await autoTimeoutExpiredSessions();
+  
   const timeInRecord = await TimeIn.findOne({
     student: req.user._id,
     timeOut: { $exists: false },
@@ -275,6 +348,9 @@ export const getEvidence = (req, res) => {
  * Generate PDF of time-in transactions for a date or month
  */
 export const exportPdf = asyncHandler(async (req, res) => {
+  // ✅ Auto time-out expired sessions before generating report
+  await autoTimeoutExpiredSessions();
+  
   const { date } = req.query;
   let query = {};
   let formattedPeriod = "";
@@ -305,11 +381,62 @@ export const exportPdf = asyncHandler(async (req, res) => {
     .populate("classroom", "name location capacity")
     .sort({ date: -1, timeIn: -1 });
 
-  // ... PDF generation code remains the same ...
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
   
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  // ... rest of PDF code
+  
+  doc.pipe(res);
+  
+  // Header
+  doc.fontSize(20).text("Time-In Report", { align: "center" });
+  doc.fontSize(12).text(`Period: ${formattedPeriod}`, { align: "center" });
+  doc.moveDown();
+  doc.text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+  doc.moveDown(2);
+  
+  // Table headers
+  const tableTop = doc.y;
+  const startX = 50;
+  const colWidths = [80, 100, 80, 100, 80];
+  const rowHeight = 25;
+  
+  doc.fontSize(10).font("Helvetica-Bold");
+  doc.text("Date", startX, tableTop);
+  doc.text("Time", startX + colWidths[0], tableTop);
+  doc.text("Student", startX + colWidths[0] + colWidths[1], tableTop);
+  doc.text("Instructor", startX + colWidths[0] + colWidths[1] + colWidths[2], tableTop);
+  doc.text("Classroom", startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], tableTop);
+  
+  doc.moveTo(startX, tableTop + 15)
+     .lineTo(startX + colWidths.reduce((a, b) => a + b, 0), tableTop + 15)
+     .stroke();
+  
+  doc.font("Helvetica");
+  let currentY = tableTop + rowHeight;
+  
+  records.forEach((record) => {
+    const dateStr = new Date(record.timeIn).toLocaleDateString();
+    const timeStr = new Date(record.timeIn).toLocaleTimeString();
+    const studentName = `${record.student?.firstName || ""} ${record.student?.lastName || ""}`.trim() || "N/A";
+    const instructor = record.instructorName || "N/A";
+    const classroom = record.classroom?.name || "N/A";
+    
+    doc.text(dateStr, startX, currentY);
+    doc.text(timeStr, startX + colWidths[0], currentY);
+    doc.text(studentName, startX + colWidths[0] + colWidths[1], currentY, { width: colWidths[2], ellipsis: true });
+    doc.text(instructor, startX + colWidths[0] + colWidths[1] + colWidths[2], currentY);
+    doc.text(classroom, startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], currentY);
+    
+    currentY += rowHeight;
+    
+    if (currentY > doc.page.height - 100) {
+      doc.addPage();
+      currentY = 50;
+    }
+  });
+  
+  doc.end();
 });
 
 /**
@@ -382,6 +509,9 @@ export const remove = asyncHandler(async (req, res) => {
  * Get a single time-in record by ID
  */
 export const getById = asyncHandler(async (req, res) => {
+  // ✅ Auto time-out expired sessions before fetching record
+  await autoTimeoutExpiredSessions();
+  
   const timeInRecord = await TimeIn.findById(req.params.id)
     .populate("student", "firstName lastName email employeeId department gender")
     .populate("classroom", "name location capacity")
@@ -449,3 +579,66 @@ export const verify = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+/**
+ * Reset old time-ins (Admin only)
+ * Archives time-in records older than specified hours
+ */
+export const resetOldTimeIns = asyncHandler(async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Access denied. Admin privileges required." });
+  }
+
+  const { hoursThreshold = 24, timeZone = "Asia/Manila" } = req.body;
+  
+  try {
+    // Calculate cutoff time based on Manila timezone
+    const now = new Date();
+    const manilaNow = new Date(now.toLocaleString("en-US", { timeZone }));
+    const cutoffTime = new Date(manilaNow.getTime() - (hoursThreshold * 60 * 60 * 1000));
+    
+    // Find records older than threshold that are not yet archived
+    const oldRecords = await TimeIn.find({
+      timeIn: { $lte: cutoffTime },
+      isArchived: { $ne: true }
+    });
+    
+    if (oldRecords.length === 0) {
+      return res.json({
+        success: true,
+        resetCount: 0,
+        message: "No records older than threshold found"
+      });
+    }
+    
+    // Archive old records
+    const result = await TimeIn.updateMany(
+      {
+        timeIn: { $lte: cutoffTime },
+        isArchived: { $ne: true }
+      },
+      {
+        $set: {
+          isArchived: true,
+          archivedAt: new Date(),
+          archivedReason: `Auto-archived after ${hoursThreshold} hours`
+        }
+      }
+    );
+    
+    console.log(`✅ Auto-archived ${result.modifiedCount} old time-in records (older than ${hoursThreshold} hours)`);
+    
+    res.json({
+      success: true,
+      resetCount: result.modifiedCount,
+      message: `Successfully archived ${result.modifiedCount} records older than ${hoursThreshold} hours`
+    });
+  } catch (error) {
+    console.error("Error resetting old time-ins:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to reset old time-ins",
+      error: error.message
+    });
+  }
+});

@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./Reports.css";
+import {
+  Search,
+  X,
+  Calendar,
+  User,
+  DoorOpen,
+  Download,
+  Eye,
+  Filter,
+  Users,
+  Clock,
+  TrendingUp,
+  FileText,
+} from "lucide-react";
 
 interface User {
   id: string;
@@ -110,7 +124,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
 
   // Unique options for filters
   const [instructorOptions, setInstructorOptions] = useState<string[]>([]);
@@ -120,6 +133,11 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [totalClassrooms, setTotalClassrooms] = useState(0);
   const [avgTimeIn, setAvgTimeIn] = useState<string>("");
+
+  // Determine what the search is targeting
+  const [searchTarget, setSearchTarget] = useState<
+    "student" | "instructor" | "both" | "none"
+  >("none");
 
   useEffect(() => {
     fetchTimeins();
@@ -138,7 +156,37 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   useEffect(() => {
     extractFilterOptions();
     calculateStats();
-  }, [allTimeins]);
+    detectSearchTarget();
+  }, [allTimeins, searchQuery]);
+
+  const detectSearchTarget = () => {
+    if (!searchQuery.trim()) {
+      setSearchTarget("none");
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+
+    const matchesInstructor = instructorOptions.some((instructor) =>
+      instructor.toLowerCase().includes(query),
+    );
+
+    const matchesStudent = allTimeins.some((t) => {
+      const studentName =
+        `${t.student?.firstName || ""} ${t.student?.lastName || ""}`.toLowerCase();
+      return studentName.includes(query);
+    });
+
+    if (matchesInstructor && !matchesStudent) {
+      setSearchTarget("instructor");
+    } else if (matchesStudent && !matchesInstructor) {
+      setSearchTarget("student");
+    } else if (matchesInstructor && matchesStudent) {
+      setSearchTarget("both");
+    } else {
+      setSearchTarget("none");
+    }
+  };
 
   const fetchTimeins = async () => {
     try {
@@ -148,8 +196,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       if (!token) throw new Error("No auth token");
 
       const params: any = {
-        page,
-        limit: 1000, // Get large limit for filtering on client
+        limit: 1000,
       };
 
       if (selectedMonth) {
@@ -161,13 +208,10 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         params,
       });
 
-      // Handle paginated response
       if (response.data.data) {
         setAllTimeins(response.data.data);
-        setTotalRecords(response.data.pagination?.total || 0);
       } else {
         setAllTimeins(response.data || []);
-        setTotalRecords(response.data?.length || 0);
       }
     } catch (err: any) {
       console.error("Error fetching time-ins:", err);
@@ -180,7 +224,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   const filterTimeins = () => {
     let filtered = [...allTimeins];
 
-    // Apply month filter
     if (selectedMonth) {
       const [year, monthNum] = selectedMonth.split("-");
       filtered = filtered.filter((t) => {
@@ -192,7 +235,6 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       });
     }
 
-    // Apply search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((t) => {
@@ -203,14 +245,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       });
     }
 
-    // Apply instructor filter
     if (selectedInstructor) {
       filtered = filtered.filter(
         (t) => t.instructorName === selectedInstructor,
       );
     }
 
-    // Apply classroom filter
     if (selectedClassroom) {
       filtered = filtered.filter(
         (t) => t.classroom?.name === selectedClassroom,
@@ -223,14 +263,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   };
 
   const extractFilterOptions = () => {
-    // Extract unique instructors
     const instructors = new Set<string>();
     allTimeins.forEach((t) => {
       if (t.instructorName) instructors.add(t.instructorName);
     });
     setInstructorOptions(Array.from(instructors).sort());
 
-    // Extract unique classrooms
     const classrooms = new Set<string>();
     allTimeins.forEach((t) => {
       if (t.classroom?.name) classrooms.add(t.classroom.name);
@@ -239,21 +277,18 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
   };
 
   const calculateStats = () => {
-    // Total unique students
     const students = new Set<string>();
     allTimeins.forEach((t) => {
       if (t.student?.email) students.add(t.student.email);
     });
     setTotalStudents(students.size);
 
-    // Total unique classrooms
     const classrooms = new Set<string>();
     allTimeins.forEach((t) => {
       if (t.classroom?.name) classrooms.add(t.classroom.name);
     });
     setTotalClassrooms(classrooms.size);
 
-    // Average time-in
     if (allTimeins.length > 0) {
       const morningCount = allTimeins.filter((t) => {
         const hour = new Date(t.timeIn).getHours();
@@ -324,21 +359,18 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     try {
       const token = localStorage.getItem("token");
 
-      // If no data to export
       if (filteredTimeins.length === 0) {
         setError("No data to export");
         setTimeout(() => setError(""), 3000);
         return;
       }
 
-      // Show loading state
       setLoading(true);
 
-      // Create PDF from the CURRENTLY FILTERED DATA (what user sees)
       const response = await axios.post(
         "/api/reports/timein/export-pdf",
         {
-          transactions: filteredTimeins, // Send the exact filtered data from UI
+          transactions: filteredTimeins,
           month: selectedMonth,
           searchQuery: searchQuery,
           instructorFilter: selectedInstructor,
@@ -354,16 +386,16 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         },
       );
 
-      // Create download link
       const blobUrl = window.URL.createObjectURL(
         new Blob([response.data], { type: "application/pdf" }),
       );
 
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = selectedMonth
+      const fileName = selectedMonth
         ? `timein-${selectedMonth}${searchQuery ? `-${searchQuery}` : ""}.pdf`
         : `timein-transactions-${new Date().toISOString().split("T")[0]}.pdf`;
+      a.download = fileName;
 
       document.body.appendChild(a);
       a.click();
@@ -408,6 +440,279 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
     return parts.length > 0 ? parts.join(" ") : "N/A";
   };
 
+  const getStudentDisplay = (student?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  }) => {
+    if (!student) return "N/A";
+    const name = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+    return name || student.email || "N/A";
+  };
+
+  const isFilteringByInstructor = selectedInstructor !== "";
+  const isFilteringByClassroom = selectedClassroom !== "";
+  const isSearchingForInstructor =
+    searchTarget === "instructor" || searchTarget === "both";
+  const isSearchingForStudent =
+    searchTarget === "student" || searchTarget === "both";
+  const hasActiveFilters =
+    selectedInstructor !== "" ||
+    selectedClassroom !== "" ||
+    selectedMonth !== "" ||
+    searchQuery !== "";
+
+  const getTableHeaders = () => {
+    const headers = ["Date", "Time"];
+
+    if (isFilteringByInstructor) {
+      headers.push("Instructor");
+      headers.push("Student");
+    } else if (isFilteringByClassroom) {
+      headers.push("Classroom");
+      headers.push("Student");
+      headers.push("Instructor");
+    } else if (isSearchingForInstructor) {
+      headers.push("Instructor");
+      headers.push("Student");
+    } else if (isSearchingForStudent) {
+      headers.push("Student");
+      headers.push("Instructor");
+    } else {
+      headers.push("Student");
+      headers.push("Instructor");
+      headers.push("Classroom");
+    }
+
+    headers.push("Evidence");
+    return headers;
+  };
+
+  const renderTableRow = (t: TimeInRecord) => {
+    const { date, time } = formatDateTime(t.timeIn);
+    const isHighlightedInstructor =
+      (selectedInstructor && t.instructorName === selectedInstructor) ||
+      (isSearchingForInstructor &&
+        t.instructorName?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const isHighlightedStudent =
+      isSearchingForStudent &&
+      `${t.student?.firstName || ""} ${t.student?.lastName || ""}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+    if (
+      isFilteringByInstructor ||
+      (isSearchingForInstructor && !isFilteringByClassroom)
+    ) {
+      return (
+        <tr key={t._id}>
+          <td className="date-cell">
+            <span className="date-text">{date}</span>
+          </td>
+          <td className="time-cell">
+            <span className="time-text">{time}</span>
+          </td>
+          <td className="instructor-cell">
+            <span
+              className={`instructor-badge ${isHighlightedInstructor ? "highlighted" : ""}`}
+            >
+              {t.instructorName || "—"}
+            </span>
+          </td>
+          <td className="student-cell">
+            <div className="student-avatar">
+              {t.student?.firstName?.charAt(0) || "?"}
+              {t.student?.lastName?.charAt(0) || ""}
+            </div>
+            <div className="student-info">
+              <span
+                className={`student-name ${isHighlightedStudent ? "highlighted-text" : ""}`}
+              >
+                {getStudentDisplay(t.student)}
+              </span>
+              <span className="student-email">{t.student?.email || ""}</span>
+            </div>
+          </td>
+          <td className="classroom-cell">
+            <span className="classroom-badge">
+              {getClassroomDisplay(t.classroom)}
+            </span>
+          </td>
+          <td className="evidence-cell">
+            {t.evidence?.filename ? (
+              <button
+                className="btn-view-evidence"
+                onClick={() => handleViewEvidence(t.evidence!.filename!)}
+                disabled={evidenceLoading}
+              >
+                <Eye size={14} color="#0ec0d4" />
+                View
+              </button>
+            ) : (
+              <span className="no-evidence">—</span>
+            )}
+          </td>
+        </tr>
+      );
+    } else if (
+      isFilteringByClassroom ||
+      (isSearchingForStudent && !isSearchingForInstructor)
+    ) {
+      if (isFilteringByClassroom) {
+        return (
+          <tr key={t._id}>
+            <td className="date-cell">
+              <span className="date-text">{date}</span>
+            </td>
+            <td className="time-cell">
+              <span className="time-text">{time}</span>
+            </td>
+            <td className="classroom-cell">
+              <span className="classroom-badge highlighted">
+                {getClassroomDisplay(t.classroom)}
+              </span>
+            </td>
+            <td className="student-cell">
+              <div className="student-avatar">
+                {t.student?.firstName?.charAt(0) || "?"}
+                {t.student?.lastName?.charAt(0) || ""}
+              </div>
+              <div className="student-info">
+                <span
+                  className={`student-name ${isHighlightedStudent ? "highlighted-text" : ""}`}
+                >
+                  {getStudentDisplay(t.student)}
+                </span>
+                <span className="student-email">{t.student?.email || ""}</span>
+              </div>
+            </td>
+            <td className="instructor-cell">
+              <span className="instructor-badge">
+                {t.instructorName || "—"}
+              </span>
+            </td>
+            <td className="evidence-cell">
+              {t.evidence?.filename ? (
+                <button
+                  className="btn-view-evidence"
+                  onClick={() => handleViewEvidence(t.evidence!.filename!)}
+                  disabled={evidenceLoading}
+                >
+                  <Eye size={14} color="#0ec0d4" />
+                  View
+                </button>
+              ) : (
+                <span className="no-evidence">—</span>
+              )}
+            </td>
+          </tr>
+        );
+      } else {
+        return (
+          <tr key={t._id}>
+            <td className="date-cell">
+              <span className="date-text">{date}</span>
+            </td>
+            <td className="time-cell">
+              <span className="time-text">{time}</span>
+            </td>
+            <td className="student-cell">
+              <div className="student-avatar">
+                {t.student?.firstName?.charAt(0) || "?"}
+                {t.student?.lastName?.charAt(0) || ""}
+              </div>
+              <div className="student-info">
+                <span
+                  className={`student-name ${isHighlightedStudent ? "highlighted-text" : ""}`}
+                >
+                  {getStudentDisplay(t.student)}
+                </span>
+                <span className="student-email">{t.student?.email || ""}</span>
+              </div>
+            </td>
+            <td className="instructor-cell">
+              <span
+                className={`instructor-badge ${isHighlightedInstructor ? "highlighted" : ""}`}
+              >
+                {t.instructorName || "—"}
+              </span>
+            </td>
+            <td className="classroom-cell">
+              <span className="classroom-badge">
+                {getClassroomDisplay(t.classroom)}
+              </span>
+            </td>
+            <td className="evidence-cell">
+              {t.evidence?.filename ? (
+                <button
+                  className="btn-view-evidence"
+                  onClick={() => handleViewEvidence(t.evidence!.filename!)}
+                  disabled={evidenceLoading}
+                >
+                  <Eye size={14} color="#0ec0d4" />
+                  View
+                </button>
+              ) : (
+                <span className="no-evidence">—</span>
+              )}
+            </td>
+          </tr>
+        );
+      }
+    } else {
+      return (
+        <tr key={t._id}>
+          <td className="date-cell">
+            <span className="date-text">{date}</span>
+          </td>
+          <td className="time-cell">
+            <span className="time-text">{time}</span>
+          </td>
+          <td className="student-cell">
+            <div className="student-avatar">
+              {t.student?.firstName?.charAt(0) || "?"}
+              {t.student?.lastName?.charAt(0) || ""}
+            </div>
+            <div className="student-info">
+              <span
+                className={`student-name ${isHighlightedStudent ? "highlighted-text" : ""}`}
+              >
+                {getStudentDisplay(t.student)}
+              </span>
+              <span className="student-email">{t.student?.email || ""}</span>
+            </div>
+          </td>
+          <td className="instructor-cell">
+            <span
+              className={`instructor-badge ${isHighlightedInstructor ? "highlighted" : ""}`}
+            >
+              {t.instructorName || "—"}
+            </span>
+          </td>
+          <td className="classroom-cell">
+            <span className="classroom-badge">
+              {getClassroomDisplay(t.classroom)}
+            </span>
+          </td>
+          <td className="evidence-cell">
+            {t.evidence?.filename ? (
+              <button
+                className="btn-view-evidence"
+                onClick={() => handleViewEvidence(t.evidence!.filename!)}
+                disabled={evidenceLoading}
+              >
+                <Eye size={14} color="#0ec0d4" />
+                View
+              </button>
+            ) : (
+              <span className="no-evidence">—</span>
+            )}
+          </td>
+        </tr>
+      );
+    }
+  };
+
   return (
     <div className="reports">
       <div className="page-header">
@@ -420,7 +725,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
         <div className="header-stats">
           <div className="stat-chip">
             <span className="stat-label">Total Records</span>
-            <span className="stat-value">{totalRecords}</span>
+            <span className="stat-value">{allTimeins.length}</span>
           </div>
           <div className="stat-chip">
             <span className="stat-label">Students</span>
@@ -443,12 +748,13 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       {/* Filters Card */}
       <div className="filters-card">
         <div className="filters-header">
-          <h3>Filter Transactions</h3>
-          {(searchQuery ||
-            selectedMonth ||
-            selectedInstructor ||
-            selectedClassroom) && (
+          <h3>
+            <Filter size={18} color="#0ec0d4" style={{ marginRight: "8px" }} />
+            Filter Transactions
+          </h3>
+          {hasActiveFilters && (
             <button className="btn-clear-filters" onClick={handleClearFilters}>
+              <X size={14} />
               Clear All Filters
             </button>
           )}
@@ -456,9 +762,12 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
 
         <div className="filters-grid">
           <div className="filter-group">
-            <label>🔍 Search</label>
+            <label>
+              <Search size={14} style={{ marginRight: "4px" }} />
+              Search
+            </label>
             <div className="search-wrapper">
-              <span className="search-icon">🔍</span>
+              <Search size={16} color="#0ec0d4" className="search-icon" />
               <input
                 type="text"
                 className="search-input"
@@ -471,14 +780,17 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                   className="search-clear"
                   onClick={() => setSearchQuery("")}
                 >
-                  ✕
+                  <X size={14} color="#dc3545" />
                 </button>
               )}
             </div>
           </div>
 
           <div className="filter-group">
-            <label>📅 Month</label>
+            <label>
+              <Calendar size={14} style={{ marginRight: "4px" }} />
+              Month
+            </label>
             <div className="month-input-wrapper">
               <input
                 type="month"
@@ -492,14 +804,17 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
                   onClick={() => setSelectedMonth("")}
                   title="Clear month"
                 >
-                  ✕
+                  <X size={14} color="#dc3545" />
                 </button>
               )}
             </div>
           </div>
 
           <div className="filter-group">
-            <label>👨‍🏫 Instructor</label>
+            <label>
+              <User size={14} style={{ marginRight: "4px" }} />
+              Instructor
+            </label>
             <select
               className="filter-select"
               value={selectedInstructor}
@@ -515,7 +830,10 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </div>
 
           <div className="filter-group">
-            <label>🏛️ Classroom</label>
+            <label>
+              <DoorOpen size={14} style={{ marginRight: "4px" }} />
+              Classroom
+            </label>
             <select
               className="filter-select"
               value={selectedClassroom}
@@ -536,7 +854,14 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
       <div className="results-card">
         <div className="results-header">
           <div className="results-title">
-            <h2>Time-In Transactions</h2>
+            <h2>
+              <FileText
+                size={20}
+                color="#0ec0d4"
+                style={{ marginRight: "8px" }}
+              />
+              Time-In Transactions
+            </h2>
             <span className="results-count">
               {filteredTimeins.length} records found
             </span>
@@ -546,10 +871,43 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             onClick={handleDownloadPDF}
             disabled={filteredTimeins.length === 0}
           >
-            <span className="btn-icon">📥</span>
+            <Download size={16} />
             Export PDF
           </button>
         </div>
+
+        {/* Active Filters Banner */}
+        {hasActiveFilters && (
+          <div className="active-filters-banner">
+            <span className="filter-label">Active Filters:</span>
+            <div className="filter-tags">
+              {selectedInstructor && (
+                <span className="filter-tag instructor-tag">
+                  <User size={12} /> Instructor: {selectedInstructor}
+                </span>
+              )}
+              {selectedClassroom && (
+                <span className="filter-tag classroom-tag">
+                  <DoorOpen size={12} /> Classroom: {selectedClassroom}
+                </span>
+              )}
+              {selectedMonth && (
+                <span className="filter-tag month-tag">
+                  <Calendar size={12} /> Month:{" "}
+                  {new Date(selectedMonth + "-01").toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              )}
+              {searchQuery && (
+                <span className="filter-tag search-tag">
+                  <Search size={12} /> Search: "{searchQuery}"
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="loading-container">
@@ -558,20 +916,16 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
           </div>
         ) : filteredTimeins.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📊</div>
+            <div className="empty-state-icon">
+              <FileText size={48} color="rgba(255,255,255,0.3)" />
+            </div>
             <h3>No Transactions Found</h3>
             <p>
-              {searchQuery ||
-              selectedMonth ||
-              selectedInstructor ||
-              selectedClassroom
+              {hasActiveFilters
                 ? "Try adjusting your filters to see more results."
                 : "Time-in records will appear here."}
             </p>
-            {(searchQuery ||
-              selectedMonth ||
-              selectedInstructor ||
-              selectedClassroom) && (
+            {hasActiveFilters && (
               <button className="btn btn-outline" onClick={handleClearFilters}>
                 Clear Filters
               </button>
@@ -583,68 +937,13 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
               <table className="reports-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Student</th>
-                    <th>Instructor</th>
-                    <th>Classroom</th>
-                    <th>Evidence</th>
+                    {getTableHeaders().map((header, index) => (
+                      <th key={index}>{header}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {getPaginatedData().map((t) => {
-                    const { date, time } = formatDateTime(t.timeIn);
-                    return (
-                      <tr key={t._id}>
-                        <td className="date-cell">
-                          <span className="date-text">{date}</span>
-                        </td>
-                        <td className="time-cell">
-                          <span className="time-text">{time}</span>
-                        </td>
-                        <td className="student-cell">
-                          <div className="student-avatar">
-                            {t.student?.firstName?.charAt(0)}
-                            {t.student?.lastName?.charAt(0)}
-                          </div>
-                          <div className="student-info">
-                            <span className="student-name">
-                              {t.student?.firstName} {t.student?.lastName}
-                            </span>
-                            <span className="student-email">
-                              {t.student?.email || ""}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="instructor-badge">
-                            {t.instructorName || "—"}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="classroom-badge">
-                            {getClassroomDisplay(t.classroom)}
-                          </span>
-                        </td>
-                        <td>
-                          {t.evidence?.filename ? (
-                            <button
-                              className="btn-view-evidence"
-                              onClick={() =>
-                                handleViewEvidence(t.evidence!.filename!)
-                              }
-                              disabled={evidenceLoading}
-                            >
-                              <span className="btn-icon">👁️</span>
-                              View
-                            </button>
-                          ) : (
-                            <span className="no-evidence">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {getPaginatedData().map((t) => renderTableRow(t))}
                 </tbody>
               </table>
             </div>
@@ -721,7 +1020,7 @@ const Reports: React.FC<ReportsProps> = ({ user }) => {
             <div className="modal-header">
               <h2>Evidence Preview</h2>
               <button className="modal-close" onClick={closeEvidenceModal}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body evidence-preview">

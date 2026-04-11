@@ -2,6 +2,21 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./InstructorManagement.css";
 
+import {
+  AlertTriangle,
+  CheckCircle,
+  Plus,
+  Archive,
+  User,
+  Eye,
+  Pencil,
+  RotateCcw,
+  PauseCircle,
+  X,
+  Search,
+  Users,
+} from "lucide-react";
+
 interface Instructor {
   _id: string;
   name: string;
@@ -75,18 +90,21 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
   // Fetch all data on mount and when filters change
   useEffect(() => {
     fetchAllData();
+    // eslint-disable-next-line
   }, []);
 
   // Filter active instructors whenever search query changes
   useEffect(() => {
     filterActiveInstructors();
     setActivePage(1);
+    // eslint-disable-next-line
   }, [searchQuery, allActiveInstructors]);
 
   // Filter archived instructors whenever archived search query changes
   useEffect(() => {
     filterArchivedInstructors();
     setArchivedPage(1);
+    // eslint-disable-next-line
   }, [archivedSearchQuery, allArchivedInstructors]);
 
   const fetchAllData = async () => {
@@ -262,12 +280,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
     setShowUnavailableModal(true);
   };
 
-  const handleSaveUnavailable = async () => {
+  const handleSaveUnavailable = async (markAsUnavailable: boolean) => {
     try {
-      const isUnavailable = unavailableModalData.reason.trim().length > 0;
       const payload: any = {
-        unavailable: isUnavailable,
-        unavailableReason: isUnavailable
+        unavailable: markAsUnavailable,
+        unavailableReason: markAsUnavailable
           ? unavailableModalData.reason.trim()
           : null,
       };
@@ -280,7 +297,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
       await fetchAllData();
       setSuccess(
         `Instructor ${
-          isUnavailable ? "marked as unavailable" : "marked as available"
+          markAsUnavailable ? "marked as unavailable" : "marked as available"
         } successfully!`,
       );
       setTimeout(() => setSuccess(""), 3000);
@@ -395,14 +412,14 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
     if (instructor.unavailable) {
       return (
         <span className="badge badge-unavailable">
-          <span className="badge-icon">⚠️</span>
+          <AlertTriangle size={14} color="#ffc107" className="badge-icon" />
           Unavailable
         </span>
       );
     }
     return (
       <span className="badge badge-available">
-        <span className="badge-icon">✅</span>
+        <CheckCircle size={14} color="#27ae60" className="badge-icon" />
         Available
       </span>
     );
@@ -453,7 +470,13 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         <div className="card-header">
           <h2>
             <span className="header-icon">
-              {showInstructorForm ? "➕" : showArchivedList ? "📦" : "👨‍🏫"}
+              {showInstructorForm ? (
+                <Plus size={20} color="#ffffff" />
+              ) : showArchivedList ? (
+                <Archive size={20} color="#ffffff" />
+              ) : (
+                <User size={20} color="#ffffff" />
+              )}
             </span>
             {showInstructorForm
               ? "Add New Instructor"
@@ -473,7 +496,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                     setShowInstructorForm(true);
                   }}
                 >
-                  <span className="btn-icon">➕</span>
+                  <Plus size={16} color="#ffffff" className="btn-icon" />
                   Add Instructor
                 </button>
               )}
@@ -484,7 +507,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                 }
               >
                 <span className="btn-icon">
-                  {showArchivedList ? "👁️" : "📦"}
+                  {showArchivedList ? (
+                    <Eye size={16} color="#0ec0d4" />
+                  ) : (
+                    <Archive size={16} color="#ffffff" />
+                  )}
                 </span>
                 {showArchivedList
                   ? "View Active"
@@ -538,7 +565,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         {!showInstructorForm && (
           <div className="search-bar">
             <div className="search-input-wrapper">
-              <span className="search-icon">🔍</span>
+              <Search size={18} color="#0ec0d4" className="search-icon" />
               <input
                 type="text"
                 className="search-input"
@@ -556,7 +583,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                   onClick={handleClearSearch}
                   title="Clear search"
                 >
-                  ✕
+                  <X size={14} color="#dc3545" />
                 </button>
               )}
             </div>
@@ -568,7 +595,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
           <div className="instructors-list">
             {filteredActiveInstructors.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">👨‍🏫</div>
+                <Users
+                  size={48}
+                  color="rgba(255,255,255,0.4)"
+                  className="empty-state-icon"
+                />
                 <h3>No Instructors Found</h3>
                 <p>
                   {searchQuery
@@ -609,14 +640,14 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                                   className="btn-icon-only success"
                                   title="Save"
                                 >
-                                  ✅
+                                  <CheckCircle size={16} color="#27ae60" />
                                 </button>
                                 <button
                                   onClick={handleCancelEdit}
                                   className="btn-icon-only danger"
                                   title="Cancel"
                                 >
-                                  ❌
+                                  <X size={16} color="#dc3545" />
                                 </button>
                               </div>
                             </div>
@@ -657,7 +688,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                               }
                               title="Edit name"
                             >
-                              <span className="btn-icon">✏️</span>
+                              <Pencil
+                                size={14}
+                                color="#0ec0d4"
+                                className="btn-icon"
+                              />
                               Edit
                             </button>
                             <button
@@ -672,7 +707,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                               }
                             >
                               <span className="btn-icon">
-                                {instructor.unavailable ? "✅" : "⏸️"}
+                                {instructor.unavailable ? (
+                                  <CheckCircle size={14} color="#27ae60" />
+                                ) : (
+                                  <PauseCircle size={14} color="#ffc107" />
+                                )}
                               </span>
                               {instructor.unavailable
                                 ? "Available"
@@ -683,7 +722,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                               onClick={() => handleArchiveClick(instructor)}
                               title="Archive instructor"
                             >
-                              <span className="btn-icon">📦</span>
+                              <Archive
+                                size={14}
+                                color="#ffffff"
+                                className="btn-icon"
+                              />
                               Archive
                             </button>
                           </>
@@ -770,7 +813,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
           <div className="instructors-list">
             {filteredArchivedInstructors.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-state-icon">📦</div>
+                <Archive
+                  size={48}
+                  color="rgba(255,255,255,0.4)"
+                  className="empty-state-icon"
+                />
                 <h3>No Archived Instructors</h3>
                 <p>
                   {archivedSearchQuery
@@ -793,7 +840,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                         <div className="instructor-info">
                           <h3 className="instructor-name">{instructor.name}</h3>
                           <span className="badge badge-archived">
-                            <span className="badge-icon">📦</span>
+                            <Archive
+                              size={12}
+                              color="#ffffff"
+                              className="badge-icon"
+                            />
                             Archived
                           </span>
                         </div>
@@ -804,7 +855,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                           onClick={() => handleRestoreClick(instructor)}
                           title="Restore instructor"
                         >
-                          <span className="btn-icon">♻️</span>
+                          <RotateCcw
+                            size={14}
+                            color="#27ae60"
+                            className="btn-icon"
+                          />
                           Restore
                         </button>
                       </div>
@@ -893,7 +948,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
             <div className="modal-header">
               <h3>
                 <span className="modal-icon">
-                  {confirmAction.type === "archive" ? "📦" : "♻️"}
+                  {confirmAction.type === "archive" ? (
+                    <Archive size={20} color="#ffffff" />
+                  ) : (
+                    <RotateCcw size={20} color="#27ae60" />
+                  )}
                 </span>
                 {confirmAction.type === "archive"
                   ? "Archive Instructor"
@@ -906,7 +965,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                   setConfirmAction(null);
                 }}
               >
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -941,13 +1000,15 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
         </div>
       )}
 
-      {/* Unavailable Modal */}
+      {/* Unavailable Modal - BOTH BUTTONS WITH PROPER DISABLE LOGIC */}
       {showUnavailableModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">⏸️</span>
+                <span className="modal-icon">
+                  <PauseCircle size={20} color="#ffc107" />
+                </span>
                 Instructor Availability
               </h3>
               <button
@@ -957,7 +1018,7 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                   setUnavailableModalData({ id: "", name: "", reason: "" });
                 }}
               >
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -966,7 +1027,8 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
               </p>
               <div className="form-group">
                 <label htmlFor="unavailableReason">
-                  Reason (leave empty to mark as available):
+                  Reason (required to mark as unavailable, clear to mark as
+                  available):
                 </label>
                 <textarea
                   id="unavailableReason"
@@ -994,16 +1056,28 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                 Cancel
               </button>
               <button
-                onClick={handleSaveUnavailable}
-                className={`btn ${
-                  unavailableModalData.reason.trim()
-                    ? "btn-warning"
-                    : "btn-success"
-                }`}
+                onClick={() => handleSaveUnavailable(true)}
+                className="btn btn-warning"
+                disabled={!unavailableModalData.reason.trim()}
+                title={
+                  !unavailableModalData.reason.trim()
+                    ? "Please enter a reason to mark as unavailable"
+                    : ""
+                }
               >
-                {unavailableModalData.reason.trim()
-                  ? "Mark as Unavailable"
-                  : "Mark as Available"}
+                Mark as Unavailable
+              </button>
+              <button
+                onClick={() => handleSaveUnavailable(false)}
+                className="btn btn-success"
+                disabled={unavailableModalData.reason.trim().length > 0}
+                title={
+                  unavailableModalData.reason.trim().length > 0
+                    ? "Clear the reason to mark as available"
+                    : ""
+                }
+              >
+                Mark as Available
               </button>
             </div>
           </div>

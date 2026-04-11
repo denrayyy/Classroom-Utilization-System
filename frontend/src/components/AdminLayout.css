@@ -1,8 +1,13 @@
+/* ===== ADMIN LAYOUT - COLOR PALETTE ===== */
+/* Primary/Background: #184354 */
+/* Accent/Highlight: #0ec0d4 */
+/* Text/Light: #ffffff */
+
 .admin-layout {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #d6dedb;
+  background: #184354;
 }
 
 /* Topbar Styles */
@@ -12,14 +17,14 @@
   left: 0;
   right: 0;
   height: 70px;
-  background: #1c2529;
+  background: #123341;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 40px;
   z-index: 999;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .topbar-left {
@@ -51,13 +56,13 @@
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid #0ec0d4;
 }
 
 .profile-photo-placeholder {
   width: 40px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.2);
+  background: #0ec0d4;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -67,14 +72,14 @@
 
 .profile-photo-placeholder svg circle,
 .profile-photo-placeholder svg path {
-  stroke: #ffffff;
+  stroke: #184354;
 }
 
 /* Sidebar Styles */
 .admin-sidebar {
   width: 280px;
-  background: #2e3a43;
-  color: #fff;
+  background: #123341;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -83,7 +88,8 @@
   left: 0;
   top: 70px;
   z-index: 1000;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .admin-sidebar.closed {
@@ -99,9 +105,9 @@
 }
 
 .sidebar-toggle {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   border-radius: 6px;
   width: 32px;
   height: 32px;
@@ -109,11 +115,13 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #0ec0d4;
+  border-color: #0ec0d4;
+  color: #184354;
 }
 
 .logo-container {
@@ -125,12 +133,14 @@
 .logo {
   width: 40px;
   height: 40px;
-  background: #d8ebe9;
+  background: #0ec0d4;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: #184354;
+  font-weight: 700;
 }
 
 .brand-text {
@@ -145,12 +155,14 @@
   font-weight: 800;
   white-space: nowrap;
   line-height: 1.2;
+  color: #ffffff;
 }
 
 .brand-text .subtitle {
   font-size: 11px;
-  opacity: 0.85;
+  opacity: 0.7;
   white-space: nowrap;
+  color: #ffffff;
 }
 
 .sidebar-nav {
@@ -176,14 +188,14 @@
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: rgba(14, 192, 212, 0.12);
+  color: #ffffff;
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border-left: 3px solid #d8ebe9;
+  background: rgba(14, 192, 212, 0.18);
+  color: #ffffff;
+  border-left: 3px solid #0ec0d4;
 }
 
 .nav-icon {
@@ -191,6 +203,7 @@
   height: 24px;
   object-fit: contain;
   flex-shrink: 0;
+  color: #0ec0d4;
 }
 
 .nav-label {
@@ -241,6 +254,7 @@
   margin-top: 70px;
   transition: margin-left 0.3s ease;
   min-height: calc(100vh - 70px);
+  background: #184354;
 }
 
 .admin-sidebar.closed ~ .admin-main-content {
@@ -447,12 +461,12 @@
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: #0ec0d4;
   border-radius: 3px;
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #3ecfdf;
 }
 
 /* Logout Confirmation Modal */
@@ -462,7 +476,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -480,13 +494,14 @@
 }
 
 .logout-confirm-modal {
-  background: white;
+  background: #123341;
   border-radius: 12px;
   padding: 32px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   max-width: 400px;
   width: 90%;
   animation: slideUp 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @keyframes slideUp {
@@ -503,13 +518,13 @@
 .logout-confirm-modal h3 {
   font-size: 24px;
   font-weight: 700;
-  color: #1c2f3a;
+  color: #ffffff;
   margin: 0 0 12px 0;
 }
 
 .logout-confirm-modal p {
   font-size: 15px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0 0 24px 0;
 }
 
@@ -533,14 +548,14 @@
 }
 
 .btn-cancel {
-  background: #e1e5e9;
-  color: #333;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .btn-cancel:hover {
-  background: #d0d4d8;
+  background: rgba(255, 255, 255, 0.18);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .btn-confirm {
@@ -551,6 +566,5 @@
 .btn-confirm:hover {
   background: #c82333;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
-

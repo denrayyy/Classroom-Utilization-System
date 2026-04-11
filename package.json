@@ -1,47 +1,13 @@
 {
-  "name": "classroom-utilization-mern",
+  "name": "classroom-utilization-system",
   "version": "1.0.0",
-  "description": "Classroom Utilization System using MERN Stack",
-  "type": "module",
   "scripts": {
-    "start": "node backend/server.js",
-    "server": "nodemon backend/server.js",
-    "client": "npm start --prefix frontend",
+    "server": "cd backend && npm run server",
+    "client": "cd frontend && npm start",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "build": "npm run build --prefix frontend",
-    "build:server": "npm run build && npm start",
-    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix frontend && npm run build --prefix frontend",
-    "fix-google-oauth": "node scripts/fixGoogleOAuth.js",
-    "seed-instructors": "node scripts/seedInstructors.js"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "blob-stream": "^0.1.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-validator": "^7.0.1",
-    "google-auth-library": "^10.5.0",
-    "googleapis": "^166.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^7.5.0",
-    "multer": "^2.0.2",
-    "node-cron": "^4.2.1",
-    "nodemailer": "^7.0.10",
-    "pdfkit": "^0.17.2"
+    "install-all": "cd backend && npm install && cd ../frontend && npm install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0",
-    "nodemon": "^3.0.1"
-  },
-  "keywords": [
-    "mern",
-    "classroom",
-    "utilization",
-    "mongodb",
-    "express",
-    "react",
-    "node"
-  ],
-  "license": "MIT"
+    "concurrently": "^8.2.0"
+  }
 }

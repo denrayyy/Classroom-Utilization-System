@@ -1,9 +1,13 @@
-/* Profile.css - Enhanced Version */
+/* ===== PROFILE STYLES - COLOR PALETTE ===== */
+/* Primary/Background: #184354 */
+/* Cards/Secondary: #123341 */
+/* Accent/Highlight: #0ec0d4 */
+/* Text: #ffffff */
 
 .profile-page {
   padding: 2rem;
   min-height: 100vh;
-  background: #f5f7fb;
+  background: #184354;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -22,10 +26,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: white;
-  border: 1px solid #e5e9f0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  color: #2c3e50;
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -34,26 +38,23 @@
 }
 
 .back-btn:hover {
-  background: #f8fafd;
-  border-color: #94a3b8;
+  background: #0ec0d4;
+  border-color: #0ec0d4;
+  color: #184354;
   transform: translateX(-2px);
-}
-
-.back-btn svg {
-  stroke: currentColor;
 }
 
 .profile-header h1 {
   font-size: 2rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #0ec0d4;
   margin: 0 0 0.5rem 0;
   letter-spacing: -0.02em;
 }
 
 .profile-subtitle {
   font-size: 1rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0;
 }
 
@@ -70,20 +71,15 @@
 }
 
 .alert.success {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  color: #166534;
+  background: rgba(39, 174, 96, 0.15);
+  border-left: 4px solid #27ae60;
+  color: #ffffff;
 }
 
 .alert.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-}
-
-.alert svg {
-  stroke: currentColor;
-  flex-shrink: 0;
+  background: rgba(220, 53, 69, 0.15);
+  border-left: 4px solid #dc3545;
+  color: #ffffff;
 }
 
 /* Profile Content Layout */
@@ -95,10 +91,10 @@
 
 /* Sidebar Styles */
 .profile-sidebar {
-  background: white;
+  background: #123341;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-  border: 1px solid #eef2f6;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   overflow: hidden;
   height: fit-content;
 }
@@ -106,7 +102,7 @@
 .profile-avatar-section {
   padding: 2rem;
   text-align: center;
-  border-bottom: 1px solid #eef2f6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .avatar-large {
@@ -115,9 +111,9 @@
   margin: 0 auto 1.5rem;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  border: 4px solid white;
-  background: #f8fafc;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  border: 4px solid #0ec0d4;
+  background: #0e2e3a;
 }
 
 .avatar-image {
@@ -129,13 +125,13 @@
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #4f6f8f, #2c3e50);
+  background: #0ec0d4;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3rem;
   font-weight: 600;
-  color: white;
+  color: #184354;
 }
 
 /* Profile Info */
@@ -146,25 +142,25 @@
 .profile-name {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #ffffff;
   margin: 0 0 0.25rem 0;
 }
 
 .profile-role {
   display: inline-block;
   padding: 0.25rem 1rem;
-  background: #eef2ff;
+  background: rgba(14, 192, 212, 0.15);
   border-radius: 100px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #4f46e5;
+  color: #0ec0d4;
   text-transform: capitalize;
   margin-bottom: 0.75rem;
 }
 
 .profile-email {
   font-size: 0.9rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.7);
   margin: 0 0 0.75rem 0;
   word-break: break-all;
 }
@@ -172,12 +168,12 @@
 .profile-department,
 .profile-member-since {
   font-size: 0.85rem;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0.5rem 0;
 }
 
 .info-label {
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.5);
   font-weight: 500;
 }
 
@@ -195,10 +191,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  background: white;
-  border: 2px dashed #e2e8f0;
+  background: transparent;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
   border-radius: 100px;
-  color: #1e293b;
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -207,17 +203,13 @@
 }
 
 .upload-label:hover {
-  border-color: #4f6f8f;
-  background: #f8fafc;
-}
-
-.upload-label svg {
-  stroke: currentColor;
+  border-color: #0ec0d4;
+  background: rgba(14, 192, 212, 0.08);
 }
 
 .upload-hint {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.5);
   margin: 0;
 }
 
@@ -246,39 +238,34 @@
 }
 
 .btn-edit {
-  background: #2c3e50;
-  color: white;
+  background: #0ec0d4;
+  color: #184354;
 }
 
 .btn-edit:hover {
-  background: #1e2b37;
+  background: #3ecfdf;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(44, 62, 80, 0.15);
+  box-shadow: 0 8px 20px rgba(14, 192, 212, 0.2);
 }
 
 .btn-password {
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .btn-password:hover {
-  background: #f8fafc;
-  border-color: #2c3e50;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #0ec0d4;
   transform: translateY(-2px);
-}
-
-.btn-edit svg,
-.btn-password svg {
-  stroke: currentColor;
 }
 
 /* Main Content */
 .profile-main {
-  background: white;
+  background: #123341;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-  border: 1px solid #eef2f6;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 2rem;
 }
 
@@ -290,13 +277,13 @@
 .view-header h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #ffffff;
   margin: 0 0 0.25rem 0;
 }
 
 .view-header p {
   font-size: 0.9rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.7);
   margin: 0;
 }
 
@@ -310,22 +297,22 @@
   display: flex;
   align-items: baseline;
   padding: 1rem;
-  background: #f8fafc;
+  background: #0e2e3a;
   border-radius: 12px;
-  border: 1px solid #eef2f6;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .info-item .info-label {
   width: 140px;
   font-size: 0.85rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
 }
 
 .info-item .info-value {
   flex: 1;
   font-size: 1rem;
-  color: #1e293b;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -356,13 +343,13 @@
 .form-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #ffffff;
   margin: 0 0 0.25rem 0;
 }
 
 .form-header p {
   font-size: 0.9rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.7);
   margin: 0;
 }
 
@@ -386,28 +373,29 @@
 .form-group label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #ffffff;
 }
 
 .form-group input {
   padding: 0.75rem 1rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
-  background: white;
+  background: #0e2e3a;
+  color: #ffffff;
   width: 100%;
   box-sizing: border-box;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #2c3e50;
-  box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+  border-color: #0ec0d4;
+  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.2);
 }
 
 .form-group input::placeholder {
-  color: #a0b3c2;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Form Actions */
@@ -417,7 +405,7 @@
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #eef2f6;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-cancel,
@@ -437,14 +425,14 @@
 }
 
 .btn-save {
-  background: #2c3e50;
-  color: white;
+  background: #0ec0d4;
+  color: #184354;
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #1e2b37;
+  background: #3ecfdf;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(44, 62, 80, 0.15);
+  box-shadow: 0 8px 20px rgba(14, 192, 212, 0.2);
 }
 
 .btn-save:disabled {
@@ -452,27 +440,23 @@
   cursor: not-allowed;
 }
 
-.btn-save svg {
-  stroke: currentColor;
-}
-
 .btn-cancel {
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* Spinner */
 .spinner-small {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border: 2px solid rgba(24, 67, 84, 0.3);
+  border-top-color: #184354;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;

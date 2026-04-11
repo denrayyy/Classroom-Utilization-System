@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./AdminDashboard.css";
+import { Clock, Users, DoorOpen, TrendingUp } from "lucide-react";
 
 interface AdminDashboardProps {
   fullName: string;
@@ -68,8 +69,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     instructors: [],
   });
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
   /**
-   * ✅ FIXED: Get today's date in Manila timezone (Asia/Manila)
+   * Get today's date in Manila timezone (Asia/Manila)
    */
   const getManilaTodayString = () => {
     const now = new Date();
@@ -83,7 +89,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   };
 
   /**
-   * ✅ FIXED: Convert UTC date to Manila date string for comparison
+   * Convert UTC date to Manila date string for comparison
    */
   const convertToManilaDateString = (utcDateString: string) => {
     const date = new Date(utcDateString);
@@ -100,7 +106,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     try {
       const token = localStorage.getItem("token");
 
-      // ✅ FIXED: Get today's date in Manila timezone
+      // Get today's date in Manila timezone
       const todayStr = getManilaTodayString();
 
       console.log("📅 Fetching Manila date:", todayStr);
@@ -111,7 +117,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
       console.log(`📊 API returned ${response.data.length} records`);
 
-      // ✅ FIXED: Filter using Manila date comparison
+      // Filter using Manila date comparison
       const todayRecords = response.data.filter((record: ActivityRecord) => {
         const recordManilaDate = convertToManilaDateString(record.date);
         const isToday = recordManilaDate === todayStr;
@@ -132,6 +138,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       setActivities(todayRecords);
       calculateStats(todayRecords);
       setLoading(false);
+      // Reset to first page when new data arrives
+      setCurrentPage(1);
     } catch (error: any) {
       console.error("Error fetching activities:", error);
       if (error.response?.status === 400) {
@@ -221,13 +229,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   useEffect(() => {
     fetchRecentActivities();
 
-    // ✅ Refresh every 30 seconds for real-time updates
+    // Refresh every 30 seconds for real-time updates
     const interval = setInterval(() => {
       fetchRecentActivities();
     }, 30000);
 
     return () => clearInterval(interval);
   }, []);
+
+  // Update total pages when filtered activities change
+  useEffect(() => {
+    const validActivities = activities.filter(
+      (activity) => activity.student && activity.classroom,
+    );
+    const filteredActivities = filterActivities(validActivities);
+    setTotalPages(Math.ceil(filteredActivities.length / pageSize));
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  }, [activities, searchName, selectedInstructor, pageSize]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -241,7 +260,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
-        timeZone: "Asia/Manila", // ✅ Show time in Manila
+        timeZone: "Asia/Manila",
       }),
     };
   };
@@ -252,7 +271,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
-      timeZone: "Asia/Manila", // ✅ Show time in Manila
+      timeZone: "Asia/Manila",
     });
   };
 
@@ -337,7 +356,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     };
   }, [evidenceModal.url, evidenceModal.isBlob]);
 
-  // Get gender icon/color
+  // Get paginated data
+  const getPaginatedData = () => {
+    const validActivities = activities.filter(
+      (activity) => activity.student && activity.classroom,
+    );
+    const filteredActivities = filterActivities(validActivities);
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredActivities.slice(start, end);
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of the table
+    const tableContainer = document.querySelector(
+      ".activities-table-container",
+    );
+    if (tableContainer) {
+      tableContainer.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  // Get gender badge
   const getGenderBadge = (gender: string) => {
     if (gender === "male") {
       return <span className="badge badge-male">♂ Male</span>;
@@ -346,6 +388,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     }
     return null;
   };
+
+  // Get current paginated data
+  const currentActivities = getPaginatedData();
+  const validActivities = activities.filter(
+    (activity) => activity.student && activity.classroom,
+  );
+  const filteredActivities = filterActivities(validActivities);
+  const totalFilteredCount = filteredActivities.length;
 
   return (
     <div className="admin-dashboard">
@@ -359,35 +409,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
               year: "numeric",
               month: "long",
               day: "numeric",
-              timeZone: "Asia/Manila", // ✅ Show Manila date
+              timeZone: "Asia/Manila",
             })}
           </p>
         </div>
       </div>
 
-      {success && <div className="success-message">{success}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
       {/* Statistics Cards */}
       <div className="stats-grid">
-        <div className="stat-card total">
-          <div className="stat-icon">⏱️</div>
+        <div className="stat-card stat-primary">
+          <div className="stat-icon">
+            <Clock size={32} color="#0ec0d4" />
+          </div>
           <div className="stat-content">
             <h3>Total Time-Ins</h3>
             <p className="stat-number">{stats.totalToday}</p>
             <p className="stat-label">today</p>
           </div>
         </div>
-        <div className="stat-card male">
-          <div className="stat-icon">👨‍🏫</div>
+        <div className="stat-card stat-accent">
+          <div className="stat-icon">
+            <Users size={32} color="#0ec0d4" />
+          </div>
           <div className="stat-content">
             <h3>Active Instructors</h3>
             <p className="stat-number">{stats.totalInstructors}</p>
             <p className="stat-label">taught today</p>
           </div>
         </div>
-        <div className="stat-card female">
-          <div className="stat-icon">🏛️</div>
+        <div className="stat-card stat-secondary">
+          <div className="stat-icon">
+            <DoorOpen size={32} color="#0ec0d4" />
+          </div>
           <div className="stat-content">
             <h3>Classrooms Used</h3>
             <p className="stat-number">{stats.totalClassrooms}</p>
@@ -399,7 +455,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       {/* Instructor Statistics */}
       {stats.instructors.length > 0 && (
         <div className="department-stats-section">
-          <h2>Instructor Activity Today</h2>
+          <h2>
+            <TrendingUp
+              size={20}
+              color="#0ec0d4"
+              style={{ marginRight: "8px" }}
+            />
+            Instructor Activity Today
+          </h2>
           <div className="department-stats-grid">
             {stats.instructors.map((instructor) => (
               <div
@@ -513,64 +576,142 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                 <p>No time-in records found for today.</p>
               </div>
             ) : (
-              <div className="activities-table-container">
-                <table className="activities-table">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Student Name</th>
-                      {/* <th>Gender</th> */}
-                      <th>Department</th>
-                      <th>Instructor</th>
-                      <th>Classroom</th>
-                      <th>Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredActivities.map((activity) => {
-                      const { time } = formatDateTime(activity.timeIn);
-                      return (
-                        <tr key={activity._id}>
-                          <td>{time}</td>
-                          <td className="student-name">
-                            {activity.student?.firstName}{" "}
-                            {activity.student?.lastName}
-                          </td>
-                          {/* <td>{getGenderBadge(activity.student?.gender)}</td> */}
-                          <td>
-                            <span className="department-badge">
-                              {activity.student?.department || "N/A"}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="instructor-badge">
-                              {activity.instructorName || "N/A"}
-                            </span>
-                          </td>
-                          <td>{activity.classroom?.name}</td>
-                          <td>
-                            {activity.evidence?.filename ? (
-                              <button
-                                className="btn-view-evidence"
-                                onClick={() =>
-                                  handleViewEvidence(
-                                    activity.evidence!.filename!,
-                                  )
-                                }
-                                disabled={evidenceLoading}
-                              >
-                                {evidenceLoading ? "Loading..." : "View"}
-                              </button>
-                            ) : (
-                              <span className="no-evidence">No evidence</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="activities-table-container">
+                  <table className="activities-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Student Name</th>
+                        <th>Department</th>
+                        <th>Instructor</th>
+                        <th>Classroom</th>
+                        <th>Evidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentActivities.map((activity) => {
+                        const { time } = formatDateTime(activity.timeIn);
+                        return (
+                          <tr key={activity._id}>
+                            <td>{time}</td>
+                            <td className="student-name">
+                              {activity.student?.firstName}{" "}
+                              {activity.student?.lastName}
+                            </td>
+                            <td>
+                              <span className="department-badge">
+                                {activity.student?.department || "N/A"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="instructor-badge">
+                                {activity.instructorName || "N/A"}
+                              </span>
+                            </td>
+                            <td>{activity.classroom?.name}</td>
+                            <td>
+                              {activity.evidence?.filename ? (
+                                <button
+                                  className="btn-view-evidence"
+                                  onClick={() =>
+                                    handleViewEvidence(
+                                      activity.evidence!.filename!,
+                                    )
+                                  }
+                                  disabled={evidenceLoading}
+                                >
+                                  {evidenceLoading ? "Loading..." : "View"}
+                                </button>
+                              ) : (
+                                <span className="no-evidence">No evidence</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="pagination-section">
+                    <div className="pagination-info">
+                      Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                      {Math.min(currentPage * pageSize, totalFilteredCount)} of{" "}
+                      {totalFilteredCount} records
+                    </div>
+                    <div className="pagination-controls">
+                      <button
+                        className="btn-pagination"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        ← Previous
+                      </button>
+
+                      <div className="page-numbers">
+                        {(() => {
+                          const pages: number[] = [];
+                          if (totalPages <= 5) {
+                            for (let i = 1; i <= totalPages; i++) {
+                              pages.push(i);
+                            }
+                          } else if (currentPage <= 3) {
+                            for (let i = 1; i <= 5; i++) {
+                              pages.push(i);
+                            }
+                          } else if (currentPage >= totalPages - 2) {
+                            for (let i = totalPages - 4; i <= totalPages; i++) {
+                              pages.push(i);
+                            }
+                          } else {
+                            for (
+                              let i = currentPage - 2;
+                              i <= currentPage + 2;
+                              i++
+                            ) {
+                              pages.push(i);
+                            }
+                          }
+                          return pages.map((pageNum) => (
+                            <button
+                              key={pageNum}
+                              className={`btn-page ${currentPage === pageNum ? "active" : ""}`}
+                              onClick={() => handlePageChange(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          ));
+                        })()}
+                      </div>
+
+                      <button
+                        className="btn-pagination"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next →
+                      </button>
+
+                      <select
+                        className="page-size-select"
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value={10}>10 per page</option>
+                        <option value={25}>25 per page</option>
+                        <option value={50}>50 per page</option>
+                        <option value={100}>100 per page</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </>
             );
           })()
         )}

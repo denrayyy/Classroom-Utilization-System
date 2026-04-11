@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./TimeTracker.css";
 import TimeIn from "./TimeIn";
+import { CheckCircle, LogOut } from "lucide-react";
 
 interface TimeTrackerProps {
   user: {
@@ -62,18 +63,18 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
               >
                 <path
                   d="M24 56h16"
-                  stroke="#11303b"
+                  stroke="#0ec0d4"
                   strokeWidth="4"
                   strokeLinecap="round"
                 />
                 <path
                   d="M32 8c-9.389 0-17 7.611-17 17 0 6.06 3.087 11.382 7.78 14.5 1.689 1.114 2.22 2.654 2.22 4.5v2h16v-2c0-1.846.531-3.386 2.22-4.5C45.913 36.382 49 31.06 49 25c0-9.389-7.611-17-17-17Z"
-                  stroke="#11303b"
+                  stroke="#0ec0d4"
                   strokeWidth="3"
                 />
                 <path
                   d="M26 42h12"
-                  stroke="#11303b"
+                  stroke="#0ec0d4"
                   strokeWidth="3"
                   strokeLinecap="round"
                 />
@@ -81,7 +82,14 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
             </div>
             <h1 className="logout-title">ClaUSys</h1>
             <p className="logout-subtitle">Classroom Utilization System</p>
-            <p className="logout-message">Successfully Logged Out!</p>
+            <p className="logout-message">
+              <CheckCircle
+                size={20}
+                color="#27ae60"
+                style={{ marginRight: "8px" }}
+              />
+              Successfully Logged Out!
+            </p>
             <button className="btn-login-again" onClick={handleLoginAgain}>
               Login Again
             </button>
@@ -96,14 +104,13 @@ const TimeTracker: React.FC<TimeTrackerProps> = ({ user, onLogout }) => {
       <div className="time-content">
         <div className="time-actions">
           <button className="btn-time btn-in" onClick={handleTimeIn}>
-            <span className="icon" aria-hidden>
-              ✔
-            </span>
+            <CheckCircle size={24} />
             <span>Time In</span>
           </button>
         </div>
 
         <button className="btn-logout" onClick={handleLogoutClick}>
+          <LogOut size={20} />
           Logout
         </button>
 

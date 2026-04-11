@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './Monitoring.css';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "./Monitoring.css";
 
 interface User {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
-  role: 'student' | 'admin' | 'teacher'; // 'teacher' kept for backward compatibility
+  role: "student" | "admin" | "teacher"; // 'teacher' kept for backward compatibility
   employeeId: string;
   department: string;
 }
@@ -41,7 +41,10 @@ const Monitoring: React.FC<MonitoringProps> = ({ user }) => {
 
       <div className="card">
         <h2>Monitoring Dashboard</h2>
-        <p>This feature will provide administrators with real-time monitoring capabilities.</p>
+        <p>
+          This feature will provide administrators with real-time monitoring
+          capabilities.
+        </p>
         <p>Features include:</p>
         <ul>
           <li>Daily classroom usage monitoring</li>

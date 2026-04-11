@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./UserManagement.css";
+import {
+  Search,
+  X,
+  Eye,
+  Archive,
+  Plus,
+  Pencil,
+  RotateCcw,
+  Users,
+  Crown,
+  User as UserIcon,
+  GraduationCap,
+  CheckCircle,
+  Package,
+} from "lucide-react";
 
 interface User {
   id: string;
@@ -27,7 +42,7 @@ interface RegisteredUser {
 }
 
 interface UserManagementProps {
-  user?: User; // Make user optional
+  user?: User;
   defaultTab?: "users";
 }
 
@@ -126,9 +141,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
 
-      // Fetch ALL users (no pagination for filtering)
       const params: any = {
-        limit: 1000, // Get a large limit for client-side filtering
+        limit: 1000,
         page: 1,
         isActive: showArchived ? "false" : "true",
       };
@@ -164,7 +178,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const filterUsers = () => {
     let filtered = [...allUsers];
 
-    // Apply search filter (client-side like Reports component)
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((user) => {
@@ -416,12 +429,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const getRoleBadge = (role: string) => {
-    const badges: Record<string, { class: string; icon: string }> = {
-      admin: { class: "role-admin", icon: "👑" },
-      teacher: { class: "role-teacher", icon: "👨‍🏫" },
-      student: { class: "role-student", icon: "👨‍🎓" },
+    const badges: Record<string, { class: string; icon: React.ReactNode }> = {
+      admin: { class: "role-admin", icon: <Crown size={12} /> },
+      teacher: { class: "role-teacher", icon: <UserIcon size={12} /> },
+      student: { class: "role-student", icon: <GraduationCap size={12} /> },
     };
-    const badge = badges[role] || { class: "role-default", icon: "👤" };
+    const badge = badges[role] || {
+      class: "role-default",
+      icon: <UserIcon size={12} />,
+    };
 
     return (
       <span className={`role-badge ${badge.class}`}>
@@ -435,13 +451,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (isActive) {
       return (
         <span className="status-badge status-active">
-          <span className="status-text">✅ Active</span>
+          <CheckCircle size={12} />
+          <span className="status-text">Active</span>
         </span>
       );
     }
     return (
       <span className="status-badge status-archived">
-        <span className="status-icon">📦</span>
+        <Archive size={12} />
         <span className="status-text">Archived</span>
       </span>
     );
@@ -461,7 +478,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     return date.toLocaleDateString();
   };
 
-  // Get paginated data for current page
   const getPaginatedUsers = () => {
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
@@ -523,13 +539,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
         <div className="card-header">
           <h2>
             <span className="header-icon">
-              {showUserForm || showEditUserForm
-                ? showEditUserForm
-                  ? "✏️"
-                  : "➕"
-                : showArchived
-                  ? "📦"
-                  : "👥"}
+              {showUserForm || showEditUserForm ? (
+                showEditUserForm ? (
+                  <Pencil size={20} color="#ffffff" />
+                ) : (
+                  <Plus size={20} color="#ffffff" />
+                )
+              ) : showArchived ? (
+                <Archive size={20} color="#ffffff" />
+              ) : (
+                <Users size={20} color="#ffffff" />
+              )}
             </span>
             {showUserForm || showEditUserForm
               ? showEditUserForm
@@ -546,7 +566,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
                 onClick={() => setShowArchived(!showArchived)}
               >
-                <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
+                <span className="btn-icon">
+                  {showArchived ? (
+                    <Eye size={16} color="#0ec0d4" />
+                  ) : (
+                    <Archive size={16} color="#ffffff" />
+                  )}
+                </span>
                 {showArchived
                   ? "Show Active"
                   : `View Archived (${totalArchived})`}
@@ -559,7 +585,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     setShowEditUserForm(false);
                   }}
                 >
-                  <span className="btn-icon">➕</span>
+                  <Plus size={16} color="#184354" />
                   Add User
                 </button>
               )}
@@ -649,7 +675,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     Default: DefaultPassword123
                   </small>
 
-                  {/* Checkbox placed right after password hint */}
                   <div
                     className="checkbox-wrapper"
                     style={{ marginTop: "16px" }}
@@ -792,7 +817,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <>
             <div className="filters-section">
               <div className="search-wrapper">
-                <span className="search-icon">🔍</span>
+                <Search size={16} color="#0ec0d4" className="search-icon" />
                 <input
                   type="text"
                   className="search-input"
@@ -805,7 +830,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     className="search-clear"
                     onClick={() => setSearchQuery("")}
                   >
-                    ✕
+                    <X size={14} color="#dc3545" />
                   </button>
                 )}
               </div>
@@ -847,6 +872,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     setDepartmentFilter("");
                   }}
                 >
+                  <X size={14} />
                   Clear Filters
                 </button>
               )}
@@ -856,7 +882,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
               {filteredUsers.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">
-                    {showArchived ? "📦" : "👥"}
+                    {showArchived ? (
+                      <Archive size={48} color="rgba(255,255,255,0.3)" />
+                    ) : (
+                      <Users size={48} color="rgba(255,255,255,0.3)" />
+                    )}
                   </div>
                   <h3>No Users Found</h3>
                   <p>
@@ -931,7 +961,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   onClick={() => handleRestoreUser(userItem)}
                                   title="Restore user"
                                 >
-                                  <span className="btn-icon">♻️</span>
+                                  <RotateCcw size={14} color="#27ae60" />
                                   Restore
                                 </button>
                               ) : (
@@ -944,7 +974,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                     }}
                                     title="Edit user"
                                   >
-                                    <span className="btn-icon">✏️</span>
+                                    <Pencil size={14} color="#0ec0d4" />
                                     Edit
                                   </button>
                                   {userItem._id !== user.id && (
@@ -955,7 +985,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                       }
                                       title="Archive user"
                                     >
-                                      <span className="btn-icon">📦</span>
+                                      <Archive size={14} color="#ffffff" />
                                       Archive
                                     </button>
                                   )}
@@ -1039,11 +1069,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">📦</span>
+                <Archive size={20} color="#ffffff" />
                 Archive User
               </h3>
               <button className="modal-close" onClick={handleArchiveCancel}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -1080,11 +1110,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">♻️</span>
+                <RotateCcw size={20} color="#27ae60" />
                 Restore User
               </h3>
               <button className="modal-close" onClick={handleRestoreCancel}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">

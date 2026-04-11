@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./ClassroomManagement.css";
+import {
+  Plus,
+  Archive,
+  Eye,
+  Pencil,
+  RotateCcw,
+  Calendar,
+  Save,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Monitor,
+  Building,
+  MapPin,
+  Users,
+  Clock,
+  X,
+  ChevronDown,
+  Trash2,
+  Hourglass,
+} from "lucide-react";
 
 interface User {
   id: string;
@@ -111,54 +132,29 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   const [versionConflict, setVersionConflict] = useState(false);
 
   // ============ SCHEDULE CONFLICT DETECTION FUNCTIONS ============
-
-  /**
-   * Helper function to check for schedule conflicts
-   * Returns true if duplicate schedules exist
-   */
   const hasScheduleConflict = (schedules: Schedule[] = []): boolean => {
     const seen = new Set<string>();
-
     for (const schedule of schedules) {
-      // Create a unique key based on all schedule fields
       const key = `${schedule.day}|${schedule.time}|${schedule.section}|${schedule.subjectCode}|${schedule.instructor}`;
-
-      if (seen.has(key)) {
-        return true; // Conflict found
-      }
+      if (seen.has(key)) return true;
       seen.add(key);
     }
-
-    return false; // No conflicts
+    return false;
   };
 
-  /**
-   * Helper function to get all conflicting schedules
-   * Returns array of schedules that are duplicates
-   */
   const getConflictingSchedules = (schedules: Schedule[] = []): Schedule[] => {
     const seen = new Map<string, number>();
     const conflicts: Schedule[] = [];
-
     schedules.forEach((schedule) => {
       const key = `${schedule.day}|${schedule.time}|${schedule.section}|${schedule.subjectCode}|${schedule.instructor}`;
-
-      if (seen.has(key)) {
-        conflicts.push(schedule);
-      } else {
-        seen.set(key, 1);
-      }
+      if (seen.has(key)) conflicts.push(schedule);
+      else seen.set(key, 1);
     });
-
     return conflicts;
   };
 
-  /**
-   * Check if a specific schedule is a duplicate
-   */
   const isScheduleDuplicate = (schedule: Schedule, index?: number): boolean => {
     if (!viewingClassroom?.schedules) return false;
-
     return viewingClassroom.schedules.some((s, i) => {
       if (index !== undefined && i === index) return false;
       return (
@@ -170,7 +166,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       );
     });
   };
-
   // ============ END SCHEDULE CONFLICT FUNCTIONS ============
 
   useEffect(() => {
@@ -188,7 +183,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       (c) => /comlab/i.test(c.name) || /comlab/i.test(c.location),
     ).length;
     const capacity = classrooms.reduce((sum, c) => sum + (c.capacity || 0), 0);
-
     setTotalActive(active);
     setTotalArchived(archived);
     setTotalComlabs(comlabs);
@@ -199,27 +193,19 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     try {
       setLoading(true);
       setError("");
-
       const token = localStorage.getItem("token");
       if (!token) {
         setError("Authentication required. Please log in again.");
         setLoading(false);
         return;
       }
-
       if (!axios.defaults.headers.common["Authorization"]) {
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
-
-      // Fetch classrooms with showArchived parameter
       const response = await axios.get("/api/classrooms", {
-        params: {
-          showArchived: showArchived ? "true" : "false",
-        },
+        params: { showArchived: showArchived ? "true" : "false" },
       });
       setClassrooms(response.data);
-
-      // Fetch active time-ins (records without timeOut)
       try {
         const timeInResponse = await axios.get("/api/timein");
         const activeRecords = timeInResponse.data.filter(
@@ -246,32 +232,24 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     }
   };
 
-  // Helper function to check if classroom is in use (only ACTIVE sessions within 2.5h)
   const isClassroomInUse = (classroomId: string) => {
     const now = new Date();
     const twoPointFiveHoursAgo = new Date(now.getTime() - 2.5 * 60 * 60 * 1000);
-
     return activeTimeIns.some((record: any) => {
-      // Check if this record belongs to the classroom we're checking
       if (!record.classroom || record.classroom._id !== classroomId)
         return false;
-
       const timeIn = new Date(record.timeIn);
       const hasNoTimeOut = !record.timeOut;
       const isWithinLast2_5Hours = timeIn > twoPointFiveHoursAgo;
-
-      // Only active if: within last 2.5h AND no timeout
       return hasNoTimeOut && isWithinLast2_5Hours;
     });
   };
 
-  // Classroom handlers
   const handleClassroomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setVersionConflict(false);
     setSuccess("");
-
     try {
       const classroomData: any = {
         name: classroomFormData.name,
@@ -279,19 +257,15 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         description: classroomFormData.description,
         isAvailable: classroomFormData.isAvailable,
       };
-
-      // Add optional fields
       if (classroomFormData.capacity) {
         classroomData.capacity = parseInt(classroomFormData.capacity);
       }
-
       if (classroomFormData.equipment) {
         classroomData.equipment = classroomFormData.equipment
           .split(",")
           .map((item) => item.trim())
           .filter((item) => item);
       }
-
       if (editingClassroom) {
         classroomData.version = editingClassroom.version;
         await axios.put(
@@ -303,7 +277,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         await axios.post("/api/classrooms", classroomData);
         setSuccess("Classroom created successfully!");
       }
-
       setShowClassroomForm(false);
       setEditingClassroom(null);
       setClassroomFormData({
@@ -319,7 +292,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     } catch (error: any) {
       const statusCode = error.response?.status;
       const responseData = error.response?.data;
-
       if (statusCode === 409) {
         const conflictMessage =
           responseData?.message ||
@@ -328,7 +300,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         setError("⚠️ CONFLICT DETECTED:\n\n" + conflictMessage);
         return;
       }
-
       setError(
         error.response?.data?.message ||
           error.response?.data?.msg ||
@@ -351,16 +322,12 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   };
 
   const handleArchiveClick = (classroom: Classroom) => {
-    // Check if classroom is in use
     const inUse = isClassroomInUse(classroom._id);
-
     if (inUse) {
-      // Find the active time-in record for this classroom
       const activeRecord = activeTimeIns.find(
         (record: any) =>
           record.classroom && record.classroom._id === classroom._id,
       );
-
       setInUseClassroom({
         name: classroom.name,
         instructorName: activeRecord?.instructorName || "An instructor",
@@ -381,34 +348,27 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
 
   const handleArchiveConfirm = async () => {
     if (!classroomToArchive) return;
-
     try {
-      // Try to archive with current version
       await axios.patch(`/api/classrooms/${classroomToArchive.id}/archive`, {
         version: classroomToArchive.version,
       });
-
       setSuccess(
         `Classroom "${classroomToArchive.name}" archived successfully!`,
       );
       fetchData();
     } catch (error: any) {
       if (error.response?.status === 409) {
-        // Version conflict - get latest version and retry automatically
         try {
           const response = await axios.get(
             `/api/classrooms/${classroomToArchive.id}`,
           );
           const latestVersion = response.data.version;
-
-          // Retry with correct version
           await axios.patch(
             `/api/classrooms/${classroomToArchive.id}/archive`,
             {
               version: latestVersion,
             },
           );
-
           setSuccess(
             `Classroom "${classroomToArchive.name}" archived successfully!`,
           );
@@ -449,7 +409,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setClassroomToRestore(null);
       return;
     }
-
     try {
       await axios.patch(`/api/classrooms/${classroomToRestore.id}/restore`, {
         version: classroomToRestore.version,
@@ -461,7 +420,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setSuccess(""), 3000);
     } catch (error: any) {
       const statusCode = error.response?.status;
-
       if (statusCode === 409) {
         setVersionConflict(true);
         setError(
@@ -530,8 +488,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
 
   const handleSaveSchedules = async () => {
     if (!viewingClassroom) return;
-
-    // Check for conflicts before saving
     if (hasScheduleConflict(viewingClassroom.schedules)) {
       const conflicts = getConflictingSchedules(viewingClassroom.schedules);
       setError(
@@ -540,7 +496,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setError(""), 4000);
       return;
     }
-
     try {
       setVersionConflict(false);
       const response = await axios.put(
@@ -559,7 +514,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     } catch (error: any) {
       const statusCode = error.response?.status;
       const responseData = error.response?.data;
-
       if (statusCode === 409) {
         const conflictMessage =
           responseData?.message ||
@@ -568,7 +522,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         setError("⚠️ CONFLICT DETECTED:\n\n" + conflictMessage);
         return;
       }
-
       setError(
         error.response?.data?.message ||
           error.response?.data?.msg ||
@@ -589,7 +542,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setError(""), 3000);
       return;
     }
-
     const newSchedule = {
       day: scheduleFormData.day,
       time: scheduleFormData.time,
@@ -597,8 +549,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       subjectCode: scheduleFormData.subjectCode,
       instructor: scheduleFormData.instructor,
     };
-
-    // Check for duplicate with existing schedules
     const existingSchedules = viewingClassroom.schedules || [];
     const isDuplicate = existingSchedules.some(
       (schedule) =>
@@ -608,7 +558,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         schedule.subjectCode === newSchedule.subjectCode &&
         schedule.instructor === newSchedule.instructor,
     );
-
     if (isDuplicate) {
       setError(
         "⚠️ Cannot add duplicate schedule. This schedule already exists.",
@@ -616,12 +565,10 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setError(""), 3000);
       return;
     }
-
     setViewingClassroom({
       ...viewingClassroom,
       schedules: [...existingSchedules, newSchedule],
     });
-
     setScheduleFormData({
       day: "Monday",
       time: "",
@@ -634,7 +581,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
 
   const handleEditSchedule = (index: number) => {
     if (!viewingClassroom || !viewingClassroom.schedules) return;
-
     const schedule = viewingClassroom.schedules[index];
     setScheduleFormData({
       day: schedule.day,
@@ -658,7 +604,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setError(""), 3000);
       return;
     }
-
     const updatedSchedule = {
       day: scheduleFormData.day,
       time: scheduleFormData.time,
@@ -666,8 +611,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       subjectCode: scheduleFormData.subjectCode,
       instructor: scheduleFormData.instructor,
     };
-
-    // Check for duplicate with other schedules (excluding the current one)
     const existingSchedules = viewingClassroom.schedules || [];
     const isDuplicate = existingSchedules.some(
       (schedule, index) =>
@@ -678,7 +621,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         schedule.subjectCode === updatedSchedule.subjectCode &&
         schedule.instructor === updatedSchedule.instructor,
     );
-
     if (isDuplicate) {
       setError(
         "⚠️ Cannot update to a duplicate schedule. This schedule already exists.",
@@ -686,15 +628,12 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       setTimeout(() => setError(""), 3000);
       return;
     }
-
     const updatedSchedules = [...existingSchedules];
     updatedSchedules[editingScheduleIndex] = updatedSchedule;
-
     setViewingClassroom({
       ...viewingClassroom,
       schedules: updatedSchedules,
     });
-
     setEditingScheduleIndex(null);
     setScheduleFormData({
       day: "Monday",
@@ -720,7 +659,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
 
   const handleDeleteSchedule = (index: number) => {
     if (!viewingClassroom) return;
-
     const updatedSchedules =
       viewingClassroom.schedules?.filter((_, i) => i !== index) || [];
     setViewingClassroom({
@@ -736,20 +674,31 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
 
   const getStatusBadge = (isAvailable: boolean, isArchived: boolean) => {
     if (isArchived) {
-      return <span className="badge badge-archived">📦 Archived</span>;
+      return (
+        <span className="badge badge-archived">
+          <Archive size={12} color="#ffffff" />
+          Archived
+        </span>
+      );
     }
     return isAvailable ? (
-      <span className="badge badge-available">✅ Available</span>
+      <span className="badge badge-available">
+        <CheckCircle size={12} color="#27ae60" />
+        Available
+      </span>
     ) : (
-      <span className="badge badge-unavailable">⛔ Not Available</span>
+      <span className="badge badge-unavailable">
+        <XCircle size={12} color="#dc3545" />
+        Not Available
+      </span>
     );
   };
 
   const getRoomTypeIcon = (room: Classroom) => {
     if (/comlab/i.test(room.name) || /comlab/i.test(room.location)) {
-      return "🖥️";
+      return <Monitor size={24} color="#0ec0d4" />;
     }
-    return "🏛️";
+    return <Building size={24} color="#0ec0d4" />;
   };
 
   if (loading) {
@@ -787,7 +736,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
             <span className="stat-value">{totalComlabs}</span>
           </div>
           <div className="stat-chip">
-            <span className="stat-label">Capacity</span>
+            <span className="stat-label">Student Capacity</span>
             <span className="stat-value">{totalCapacity}</span>
           </div>
           <div className="stat-chip">
@@ -803,9 +752,12 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
       {versionConflict && (
         <div className="alert alert-warning">
           <div className="alert-content">
-            <strong>⚠️ Data was updated elsewhere:</strong> The classroom data
-            has been modified by another user. Please click "Refresh" to reload
-            the latest data and try your changes again.
+            <strong>
+              <AlertTriangle size={16} style={{ marginRight: "8px" }} />
+              Data was updated elsewhere:
+            </strong>{" "}
+            The classroom data has been modified by another user. Please click
+            "Refresh" to reload the latest data and try your changes again.
           </div>
           <button className="btn btn-secondary" onClick={handleRefresh}>
             Refresh
@@ -817,13 +769,17 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         <div className="card-header">
           <h2>
             <span className="header-icon">
-              {showClassroomForm
-                ? editingClassroom
-                  ? "✏️"
-                  : "➕"
-                : showArchived
-                  ? "📦"
-                  : "🏛️"}
+              {showClassroomForm ? (
+                editingClassroom ? (
+                  <Pencil size={20} color="#ffffff" />
+                ) : (
+                  <Plus size={20} color="#ffffff" />
+                )
+              ) : showArchived ? (
+                <Archive size={20} color="#ffffff" />
+              ) : (
+                <Building size={20} color="#ffffff" />
+              )}
             </span>
             {showClassroomForm
               ? editingClassroom
@@ -834,7 +790,6 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 : "Active Classrooms"}
           </h2>
 
-          {/* Only show header actions when NOT in form mode */}
           {!showClassroomForm && (
             <div className="header-actions">
               <div className="filter-group">
@@ -858,7 +813,13 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
                 onClick={() => setShowArchived(!showArchived)}
               >
-                <span className="btn-icon">{showArchived ? "👁️" : "📦"}</span>
+                <span className="btn-icon">
+                  {showArchived ? (
+                    <Eye size={16} color="#0ec0d4" />
+                  ) : (
+                    <Archive size={16} color="#ffffff" />
+                  )}
+                </span>
                 {showArchived
                   ? "Show Active"
                   : `View Archived (${totalArchived})`}
@@ -880,7 +841,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                     setShowClassroomForm(true);
                   }}
                 >
-                  <span className="btn-icon">➕</span>
+                  <Plus size={16} color="#184354" />
                   Add Classroom
                 </button>
               )}
@@ -931,7 +892,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="capacity">Capacity</label>
+                  <label htmlFor="capacity">Student Capacity</label>
                   <input
                     type="number"
                     id="capacity"
@@ -980,9 +941,10 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 </div>
 
                 <div className="form-group checkbox-group">
-                  <label className="checkbox-label">
+                  <div className="checkbox-wrapper">
                     <input
                       type="checkbox"
+                      id="isAvailable"
                       checked={classroomFormData.isAvailable}
                       onChange={(e) =>
                         setClassroomFormData({
@@ -991,8 +953,13 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                         })
                       }
                     />
-                    <span className="checkbox-text">Available for booking</span>
-                  </label>
+                    <label
+                      htmlFor="isAvailable"
+                      className="checkbox-label-text"
+                    >
+                      Available for booking
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -1017,7 +984,11 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
             {filteredClassrooms.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon">
-                  {showArchived ? "📦" : "🏛️"}
+                  {showArchived ? (
+                    <Archive size={48} color="rgba(255,255,255,0.3)" />
+                  ) : (
+                    <Building size={48} color="rgba(255,255,255,0.3)" />
+                  )}
                 </div>
                 <h3>No Classrooms Found</h3>
                 <p>
@@ -1066,11 +1037,19 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                           <h3>{classroom.name}</h3>
                           <div className="room-meta">
                             <span className="room-location">
-                              📍 {classroom.location}
+                              <MapPin
+                                size={12}
+                                style={{ marginRight: "4px" }}
+                              />
+                              {classroom.location}
                             </span>
                             {classroom.capacity > 0 && (
                               <span className="room-capacity">
-                                👥 {classroom.capacity} seats
+                                <Users
+                                  size={12}
+                                  style={{ marginRight: "4px" }}
+                                />
+                                {classroom.capacity} seats
                               </span>
                             )}
                           </div>
@@ -1080,7 +1059,8 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                             className="in-use-badge"
                             title="Currently in use"
                           >
-                            ⏳ In Use
+                            <Clock size={12} style={{ marginRight: "4px" }} />
+                            In Use
                           </span>
                         )}
                       </div>
@@ -1123,7 +1103,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                             onClick={() => handleViewSchedules(classroom)}
                             title="View schedules"
                           >
-                            <span className="btn-icon">📅</span>
+                            <Calendar size={14} color="#0ec0d4" />
                             Schedule
                           </button>
 
@@ -1133,7 +1113,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                               onClick={() => handleRestoreClick(classroom)}
                               title="Restore classroom"
                             >
-                              <span className="btn-icon">♻️</span>
+                              <RotateCcw size={14} color="#27ae60" />
                               Restore
                             </button>
                           ) : (
@@ -1143,7 +1123,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                                 onClick={() => handleEditClassroom(classroom)}
                                 title="Edit classroom"
                               >
-                                <span className="btn-icon">✏️</span>
+                                <Pencil size={14} color="#0ec0d4" />
                                 Edit
                               </button>
                               <button
@@ -1155,7 +1135,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                                     : "Archive classroom"
                                 }
                               >
-                                <span className="btn-icon">📦</span>
+                                <Archive size={14} color="#ffffff" />
                                 Archive
                               </button>
                             </>
@@ -1177,11 +1157,15 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
           <div className="modal-content schedule-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">📅</span>
+                <Calendar
+                  size={20}
+                  color="#0ec0d4"
+                  style={{ marginRight: "8px" }}
+                />
                 {viewingClassroom.name} - Schedule
               </h3>
               <button className="modal-close" onClick={handleCloseScheduleView}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
 
@@ -1195,7 +1179,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                     className="btn btn-primary"
                     onClick={() => setIsEditingSchedules(true)}
                   >
-                    <span className="btn-icon">✏️</span>
+                    <Pencil size={16} />
                     Edit Schedules
                   </button>
                 ) : (
@@ -1203,7 +1187,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                     className="btn btn-success"
                     onClick={handleSaveSchedules}
                   >
-                    <span className="btn-icon">💾</span>
+                    <Save size={16} />
                     Save Changes
                   </button>
                 )}
@@ -1315,7 +1299,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                         className="btn btn-outline"
                         onClick={handleAddSchedule}
                       >
-                        <span className="btn-icon">➕</span>
+                        <Plus size={16} />
                         Add Schedule
                       </button>
                     )}
@@ -1354,7 +1338,11 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                               </span>
                               {isDuplicate && (
                                 <span className="conflict-badge">
-                                  ⚠️ Duplicate
+                                  <AlertTriangle
+                                    size={10}
+                                    style={{ marginRight: "4px" }}
+                                  />
+                                  Duplicate
                                 </span>
                               )}
                             </td>
@@ -1377,14 +1365,14 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                                   onClick={() => handleEditSchedule(index)}
                                   title="Edit schedule"
                                 >
-                                  ✏️
+                                  <Pencil size={14} />
                                 </button>
                                 <button
                                   className="btn-icon-only danger"
                                   onClick={() => handleDeleteSchedule(index)}
                                   title="Delete schedule"
                                 >
-                                  🗑️
+                                  <Trash2 size={14} />
                                 </button>
                               </td>
                             )}
@@ -1395,7 +1383,9 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                   </table>
                 ) : (
                   <div className="empty-state small">
-                    <div className="empty-state-icon">📅</div>
+                    <div className="empty-state-icon">
+                      <Calendar size={48} color="rgba(255,255,255,0.3)" />
+                    </div>
                     <p>No schedules assigned to this classroom.</p>
                     {isEditingSchedules && (
                       <button
@@ -1454,11 +1444,15 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">📦</span>
+                <Archive
+                  size={20}
+                  color="#ffffff"
+                  style={{ marginRight: "8px" }}
+                />
                 Archive Classroom
               </h3>
               <button className="modal-close" onClick={handleArchiveCancel}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -1495,11 +1489,15 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">♻️</span>
+                <RotateCcw
+                  size={20}
+                  color="#27ae60"
+                  style={{ marginRight: "8px" }}
+                />
                 Restore Classroom
               </h3>
               <button className="modal-close" onClick={handleRestoreCancel}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -1529,13 +1527,17 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         </div>
       )}
 
-      {/* In Use Warning Modal - Now showing TEACHER instead of student */}
+      {/* In Use Warning Modal */}
       {showInUseWarning && inUseClassroom && (
         <div className="modal-overlay">
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <span className="modal-icon">⏳</span>
+                <Hourglass
+                  size={20}
+                  color="#ffc107"
+                  style={{ marginRight: "8px" }}
+                />
                 Classroom In Use
               </h3>
               <button
@@ -1545,7 +1547,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                   setInUseClassroom(null);
                 }}
               >
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
             <div className="modal-body">
@@ -1553,52 +1555,22 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 <strong>{inUseClassroom.name}</strong> is currently in use.
               </p>
 
-              <div
-                className="in-use-details"
-                style={{
-                  background: "#f8fafc",
-                  padding: "16px",
-                  borderRadius: "8px",
-                  marginBottom: "16px",
-                  border: "1px solid #e1e5e9",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "8px 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <span style={{ fontSize: "18px" }}>👨‍🏫</span>
+              <div className="in-use-details">
+                <p>
+                  <Users size={16} style={{ marginRight: "8px" }} />
                   <strong>Instructor:</strong> {inUseClassroom.instructorName}
                 </p>
                 {inUseClassroom.timeIn && (
-                  <p
-                    style={{
-                      margin: "8px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <span style={{ fontSize: "18px" }}>⏰</span>
+                  <p>
+                    <Clock size={16} style={{ marginRight: "8px" }} />
                     <strong>Since:</strong> {inUseClassroom.timeIn}
                   </p>
                 )}
               </div>
 
-              <p
-                className="warning-text"
-                style={{
-                  background: "#fff3cd",
-                  borderLeft: "4px solid #ffc107",
-                  padding: "12px",
-                  borderRadius: "4px",
-                }}
-              >
-                ⚠️ You can only archive this classroom after the current session
+              <p className="warning-text">
+                <AlertTriangle size={14} style={{ marginRight: "8px" }} />
+                You can only archive this classroom after the current session
                 ends (automatically after 2.5 hours or when the instructor times
                 out).
               </p>

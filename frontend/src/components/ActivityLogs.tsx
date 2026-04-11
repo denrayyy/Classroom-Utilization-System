@@ -1,6 +1,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./ActivityLogs.css";
+import {
+  Search,
+  Filter,
+  X,
+  Plus,
+  Pencil,
+  Trash2,
+  Archive,
+  RotateCcw,
+  ClipboardList,
+  User,
+  Building,
+  Users,
+  Calendar,
+  Clock,
+  FileText,
+  Eye,
+  ChevronRight,
+  Mail,
+  MapPin,
+} from "lucide-react";
 
 interface User {
   _id: string;
@@ -91,7 +112,6 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
         params,
       });
 
-      // Handle paginated response
       if (response.data.logs) {
         setLogs(response.data.logs);
         setTotalPages(response.data.pagination?.pages || 1);
@@ -130,7 +150,6 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
     dateRange.end,
   ]);
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery !== undefined) {
@@ -138,7 +157,6 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
         fetchLogs();
       }
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -161,14 +179,17 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
   };
 
   const getActionBadge = (action: string) => {
-    const badges: Record<string, { class: string; icon: string }> = {
-      create: { class: "badge-create", icon: "➕" },
-      update: { class: "badge-update", icon: "✏️" },
-      delete: { class: "badge-delete", icon: "🗑️" },
-      archive: { class: "badge-archive", icon: "📦" },
-      restore: { class: "badge-restore", icon: "♻️" },
+    const badges: Record<string, { class: string; icon: React.ReactNode }> = {
+      create: { class: "badge-create", icon: <Plus size={12} /> },
+      update: { class: "badge-update", icon: <Pencil size={12} /> },
+      delete: { class: "badge-delete", icon: <Trash2 size={12} /> },
+      archive: { class: "badge-archive", icon: <Archive size={12} /> },
+      restore: { class: "badge-restore", icon: <RotateCcw size={12} /> },
     };
-    const badge = badges[action] || { class: "badge-default", icon: "📋" };
+    const badge = badges[action] || {
+      class: "badge-default",
+      icon: <ClipboardList size={12} />,
+    };
 
     return (
       <span className={`badge-action ${badge.class}`}>
@@ -179,15 +200,15 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
   };
 
   const getEntityIcon = (entityType: string) => {
-    const icons: Record<string, string> = {
-      User: "👤",
-      Classroom: "🏛️",
-      Instructor: "👨‍🏫",
-      Schedule: "📅",
-      TimeIn: "⏱️",
-      Report: "📊",
+    const icons: Record<string, React.ReactNode> = {
+      User: <User size={14} />,
+      Classroom: <Building size={14} />,
+      Instructor: <Users size={14} />,
+      Schedule: <Calendar size={14} />,
+      TimeIn: <Clock size={14} />,
+      Report: <FileText size={14} />,
     };
-    return icons[entityType] || "📋";
+    return icons[entityType] || <ClipboardList size={14} />;
   };
 
   const formatDateTime = (dateString: string) => {
@@ -217,7 +238,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
           <span className="change-old">
             {value.old !== undefined ? String(value.old) : "—"}
           </span>
-          <span className="change-arrow">→</span>
+          <ChevronRight size={14} className="change-arrow" />
           <span className="change-new">
             {value.new !== undefined ? String(value.new) : "—"}
           </span>
@@ -255,15 +276,22 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
       {/* Filters Section */}
       <div className="filters-card">
         <div className="filters-header">
-          <h3>Filter Logs</h3>
+          <h3>
+            <Filter size={18} color="#0ec0d4" style={{ marginRight: "8px" }} />
+            Filter Logs
+          </h3>
           <button className="btn-clear-filters" onClick={clearFilters}>
+            <X size={14} />
             Clear All Filters
           </button>
         </div>
 
         <div className="filters-grid">
           <div className="filter-group">
-            <label>🔍 Search</label>
+            <label>
+              <Search size={14} style={{ marginRight: "4px" }} />
+              Search
+            </label>
             <input
               type="text"
               className="filter-input"
@@ -274,7 +302,10 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
           </div>
 
           <div className="filter-group">
-            <label>🎯 Action</label>
+            <label>
+              <Filter size={14} style={{ marginRight: "4px" }} />
+              Action
+            </label>
             <select
               className="filter-select"
               value={selectedAction}
@@ -290,7 +321,10 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
           </div>
 
           <div className="filter-group">
-            <label>📁 Module</label>
+            <label>
+              <ClipboardList size={14} style={{ marginRight: "4px" }} />
+              Module
+            </label>
             <select
               className="filter-select"
               value={selectedEntity}
@@ -305,7 +339,10 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
           </div>
 
           <div className="filter-group">
-            <label>📅 Date Range</label>
+            <label>
+              <Calendar size={14} style={{ marginRight: "4px" }} />
+              Date Range
+            </label>
             <div className="date-range">
               <input
                 type="date"
@@ -316,7 +353,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                 }
                 placeholder="Start"
               />
-              <span className="date-separator">→</span>
+              <ChevronRight size={14} className="date-separator" />
               <input
                 type="date"
                 className="filter-input"
@@ -341,7 +378,9 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
         <div className="logs-card">
           {logs.length === 0 ? (
             <div className="no-data">
-              <div className="no-data-icon">📭</div>
+              <div className="no-data-icon">
+                <ClipboardList size={48} color="rgba(255,255,255,0.3)" />
+              </div>
               <h3>No Activity Logs Found</h3>
               <p>
                 {searchQuery ||
@@ -372,7 +411,6 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                       <th>Module</th>
                       <th>Entity</th>
                       <th>Changes</th>
-                      {/* <th>IP Address</th> */}
                     </tr>
                   </thead>
                   <tbody>
@@ -393,7 +431,13 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                               <div className="user-name">
                                 {log.user.firstName} {log.user.lastName}
                               </div>
-                              <div className="user-email">{log.user.email}</div>
+                              <div className="user-email">
+                                <Mail
+                                  size={10}
+                                  style={{ marginRight: "4px" }}
+                                />
+                                {log.user.email}
+                              </div>
                             </div>
                           </td>
                           <td>{getActionBadge(log.action)}</td>
@@ -422,18 +466,13 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                                 onClick={() => openModal(log)}
                                 title="View detailed changes"
                               >
-                                <span className="btn-icon">👁️</span>
+                                <Eye size={14} color="#0ec0d4" />
                                 View
                               </button>
                             ) : (
                               <span className="no-changes">—</span>
                             )}
                           </td>
-                          {/* <td className="ip-cell">
-                            <span className="ip-address">
-                              {log.ipAddress || "N/A"}
-                            </span>
-                          </td> */}
                         </tr>
                       );
                     })}
@@ -517,7 +556,7 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
             <div className="modal-header">
               <h2>Detailed Changes</h2>
               <button className="modal-close-btn" onClick={closeModal}>
-                ×
+                <X size={20} color="#dc3545" />
               </button>
             </div>
 
@@ -552,7 +591,10 @@ const ActivityLogs: React.FC<ActivityLogsProps> = ({ user }) => {
                 </div>
                 {selectedLog.ipAddress && (
                   <div className="summary-item">
-                    <span className="summary-label">IP Address</span>
+                    <span className="summary-label">
+                      <MapPin size={12} style={{ marginRight: "4px" }} />
+                      IP Address
+                    </span>
                     <span className="summary-value">
                       {selectedLog.ipAddress}
                     </span>

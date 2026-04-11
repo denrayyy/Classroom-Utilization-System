@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./AdminSettings.css";
+import { User, Lock, Camera, Save, CheckCircle, Circle } from "lucide-react";
 
 interface AdminSettingsProps {
   user: {
@@ -198,14 +199,14 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
             className={`tab-btn ${activeTab === "profile" ? "active" : ""}`}
             onClick={() => setActiveTab("profile")}
           >
-            <span className="tab-icon">👤</span>
+            <User size={18} className="tab-icon" />
             Profile Information
           </button>
           <button
             className={`tab-btn ${activeTab === "password" ? "active" : ""}`}
             onClick={() => setActiveTab("password")}
           >
-            <span className="tab-icon">🔒</span>
+            <Lock size={18} className="tab-icon" />
             Security & Password
           </button>
         </div>
@@ -237,7 +238,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                   className="file-input"
                 />
                 <label htmlFor="profilePhoto" className="upload-label">
-                  <span className="btn-icon">📸</span>
+                  <Camera size={16} />
                   Change Photo
                 </label>
                 <p className="upload-hint">JPG, PNG or GIF. Max 5MB.</p>
@@ -303,7 +304,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                   </>
                 ) : (
                   <>
-                    <span className="btn-icon">💾</span>
+                    <Save size={16} />
                     Save Changes
                   </>
                 )}
@@ -367,7 +368,11 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <ul className="requirements-list">
                   <li className={newPassword.length >= 6 ? "met" : ""}>
                     <span className="requirement-icon">
-                      {newPassword.length >= 6 ? "✅" : "○"}
+                      {newPassword.length >= 6 ? (
+                        <CheckCircle size={14} color="#27ae60" />
+                      ) : (
+                        <Circle size={14} color="rgba(255,255,255,0.3)" />
+                      )}
                     </span>
                     At least 6 characters
                   </li>
@@ -379,9 +384,11 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                     }
                   >
                     <span className="requirement-icon">
-                      {newPassword !== "" && newPassword === confirmPassword
-                        ? "✅"
-                        : "○"}
+                      {newPassword !== "" && newPassword === confirmPassword ? (
+                        <CheckCircle size={14} color="#27ae60" />
+                      ) : (
+                        <Circle size={14} color="rgba(255,255,255,0.3)" />
+                      )}
                     </span>
                     Passwords match
                   </li>
@@ -393,9 +400,12 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                     }
                   >
                     <span className="requirement-icon">
-                      {currentPassword !== "" && currentPassword !== newPassword
-                        ? "✅"
-                        : "○"}
+                      {currentPassword !== "" &&
+                      currentPassword !== newPassword ? (
+                        <CheckCircle size={14} color="#27ae60" />
+                      ) : (
+                        <Circle size={14} color="rgba(255,255,255,0.3)" />
+                      )}
                     </span>
                     Different from current password
                   </li>
@@ -423,7 +433,7 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                   </>
                 ) : (
                   <>
-                    <span className="btn-icon">🔒</span>
+                    <Lock size={16} />
                     Update Password
                   </>
                 )}

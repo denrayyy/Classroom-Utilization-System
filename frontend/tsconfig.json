@@ -4,7 +4,7 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "es6"
+      "es2017"  // ← Changed from "es6" to "es2017"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -14,15 +14,14 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["node"]  // ← Added this line
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "build",

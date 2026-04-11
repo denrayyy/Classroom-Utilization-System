@@ -16,7 +16,7 @@
 
 .page-header p {
   font-size: 16px;
-  color: #666;
+  color: #ffffff;
 }
 
 .card-header {
@@ -51,7 +51,7 @@
 }
 
 .schedule-form {
-  background: #f8f9fa;
+  background: #0e2e3a;
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./TimeIn.css";
+import { Upload, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
 
 interface TimeInProps {
   user: { firstName: string; lastName: string; email: string };
@@ -79,7 +80,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  // FIXED: Handle paginated response from instructors endpoint
   const fetchInstructors = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -94,19 +94,15 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Instructors API response:", data); // Debug log
+        console.log("Instructors API response:", data);
 
-        // Handle both paginated and non-paginated responses
         let instructorArray: Instructor[] = [];
 
         if (Array.isArray(data)) {
-          // Direct array response
           instructorArray = data;
         } else if (data && data.data && Array.isArray(data.data)) {
-          // Paginated response { data: [...], pagination: {...} }
           instructorArray = data.data;
         } else if (data && typeof data === "object") {
-          // Try to find any array property in the response
           const possibleArray = Object.values(data).find((val) =>
             Array.isArray(val),
           );
@@ -119,19 +115,17 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       }
     } catch (error) {
       console.error("Error fetching instructors:", error);
-      setInstructors([]); // Set empty array on error
+      setInstructors([]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         setError("Please select an image file");
         return;
       }
-      // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError("File size must be less than 5MB");
         return;
@@ -188,18 +182,15 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       if (response.ok) {
         setTimeInData(data.timeInRecord);
         setSuccess(true);
-        // Reset form
         setSelectedClassroom("");
         setEvidence(null);
         setInstructorName("");
         setRemarks("");
-        // Reset file input
         const fileInput = document.getElementById(
           "evidence",
         ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
 
-        // Redirect to dashboard after 2 seconds
         setTimeout(() => {
           onBack();
         }, 2000);
@@ -220,9 +211,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  // Show time-in success screen - will redirect to dashboard after 2 seconds
   if (success) {
-    // Get the time-in time from the record if available, otherwise use current time
     let displayTime = formattedTime;
     if (timeInData && timeInData.timeIn) {
       const timeInDate = new Date(timeInData.timeIn);
@@ -237,7 +226,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       <div className="status-page">
         <div className="status-box">
           <div className="status-content">
-            <div className="status-icon-check">✓</div>
+            <div className="status-icon-check">
+              <CheckCircle size={80} color="#27ae60" />
+            </div>
             <h2 className="status-title">
               Successfully Timed In at {displayTime}
             </h2>
@@ -265,7 +256,8 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       <div className="timein-container">
         <div className="timein-header">
           <button className="back-btn" onClick={onBack}>
-            ← Proof of Timed-in
+            <ArrowLeft size={20} />
+            Proof of Timed-in
           </button>
         </div>
 
@@ -274,35 +266,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             <div className="upload-section">
               <div className="upload-area">
                 <div className="upload-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="48"
-                    height="48"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M12 2L2 7l10 5 10-5-10-5z"
-                      stroke="#666"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M2 17l10 5 10-5"
-                      stroke="#666"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M2 12l10 5 10-5"
-                      stroke="#666"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <Upload size={48} color="#0ec0d4" />
                 </div>
                 <input
                   type="file"
@@ -325,8 +289,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             </div>
 
             <div className="form-fields">
-              {/* Name and Email fields hidden as per requirement */}
-
               <div className="field-group">
                 <label>Time-In:</label>
                 <input
@@ -398,19 +360,10 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                     );
                     if (selectedInstructor?.unavailable) {
                       return (
-                        <div
-                          style={{
-                            marginTop: "8px",
-                            padding: "10px",
-                            backgroundColor: "#fff3cd",
-                            border: "1px solid #ffc107",
-                            borderRadius: "4px",
-                            color: "#856404",
-                            fontSize: "14px",
-                          }}
-                        >
-                          <strong>⚠️ Warning:</strong> This instructor is
-                          currently unavailable.
+                        <div className="warning-box">
+                          <AlertTriangle size={16} color="#ffc107" />
+                          <strong>Warning:</strong> This instructor is currently
+                          unavailable.
                           <br />
                           <strong>Reason:</strong>{" "}
                           {selectedInstructor.unavailableReason}
