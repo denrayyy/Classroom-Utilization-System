@@ -843,7 +843,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <option value="">All Roles</option>
                   <option value="student">Student</option>
-                  <option value="teacher">Teacher</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

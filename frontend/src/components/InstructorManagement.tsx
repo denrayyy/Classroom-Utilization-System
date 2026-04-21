@@ -640,14 +640,14 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
                                   className="btn-icon-only success"
                                   title="Save"
                                 >
-                                  <CheckCircle size={16} color="#27ae60" />
+                                  <CheckCircle size={16} color="#ffffff" />
                                 </button>
                                 <button
                                   onClick={handleCancelEdit}
                                   className="btn-icon-only danger"
                                   title="Cancel"
                                 >
-                                  <X size={16} color="#dc3545" />
+                                  <X size={16} color="#ffffff" />
                                 </button>
                               </div>
                             </div>
