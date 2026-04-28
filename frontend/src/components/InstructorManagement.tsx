@@ -471,11 +471,11 @@ const InstructorManagement: React.FC<InstructorManagementProps> = ({
           <h2>
             <span className="header-icon">
               {showInstructorForm ? (
-                <Plus size={20} color="#ffffff" />
+                <Plus size={20} color="#2E3944" />
               ) : showArchivedList ? (
-                <Archive size={20} color="#ffffff" />
+                <Archive size={20} color="#2E3944" />
               ) : (
-                <User size={20} color="#ffffff" />
+                <User size={20} color="#2E3944" />
               )}
             </span>
             {showInstructorForm

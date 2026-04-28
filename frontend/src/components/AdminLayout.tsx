@@ -1,6 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./AdminLayout.css";
+import NotificationBell from "./NotificationBell";
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  Building,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  User,
+} from "lucide-react";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -29,14 +41,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const menuItems = [
-    { path: "/", label: "Dashboard", icon: "/dashboard.png" },
-    { path: "/reports", label: "Reports", icon: "/reports.png" },
-    { path: "/users", label: "Manage Users", icon: "/users.png" },
-    { path: "/classrooms", label: "Manage Classroom", icon: "/classroom.png" },
+    { path: "/", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/reports", label: "Reports", icon: FileText },
+    { path: "/users", label: "Manage Users", icon: Users },
+    { path: "/classrooms", label: "Manage Classroom", icon: Building },
     {
       path: "/settings",
       label: "Settings",
-      icon: "/settings.png",
+      icon: Settings,
       onClick: onSettingsClick,
     },
   ];
@@ -57,12 +69,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   };
 
   const isActive = (path: string, hasCustomHandler?: boolean) => {
-    // If Settings is active, only highlight Settings
     if (isSettingsActive && !hasCustomHandler) {
       return false;
     }
     if (hasCustomHandler) {
-      // Settings is active based on isSettingsActive prop
       return isSettingsActive || false;
     }
     if (path === "/") {
@@ -92,32 +102,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
           <h1 className="page-title">{getPageTitle()}</h1>
         </div>
         <div className="topbar-right">
+          <NotificationBell />
           <span className="admin-name">{fullName}</span>
           {profilePhoto ? (
             <img src={profilePhoto} alt="Profile" className="profile-photo" />
           ) : (
             <div className="profile-photo-placeholder">
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-              >
-                <circle
-                  cx="12"
-                  cy="8"
-                  r="3.5"
-                  stroke="#102a36"
-                  strokeWidth="1.8"
-                />
-                <path
-                  d="M4 20c1.8-4 5-6 8-6s6.2 2 8 6"
-                  stroke="#102a36"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <User size={20} />
             </div>
           )}
         </div>
@@ -132,7 +123,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
-            {isSidebarOpen ? "◀" : "▶"}
+            {isSidebarOpen ? (
+              <ChevronLeft size={18} />
+            ) : (
+              <ChevronRight size={18} />
+            )}
           </button>
           <div className="logo-container">
             {isSidebarOpen && (
@@ -145,27 +140,34 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         </div>
 
         <nav className="sidebar-nav">
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              className={`nav-item ${isActive(item.path, !!item.onClick) ? "active" : ""}`}
-              onClick={() => {
-                if (item.onClick) {
-                  item.onClick();
-                } else {
-                  onSettingsClose?.();
-                  navigate(item.path);
-                }
-              }}
-            >
-              <img src={item.icon} alt={item.label} className="nav-icon" />
-              {isSidebarOpen && <span className="nav-label">{item.label}</span>}
-            </button>
-          ))}
+          {menuItems.map((item, index) => {
+            const Icon = item.icon;
+            const active = isActive(item.path, !!item.onClick);
+            return (
+              <button
+                key={index}
+                className={`nav-item ${active ? "active" : ""}`}
+                onClick={() => {
+                  if (item.onClick) {
+                    item.onClick();
+                  } else {
+                    onSettingsClose?.();
+                    navigate(item.path);
+                  }
+                }}
+              >
+                <Icon size={22} className="nav-icon" />
+                {isSidebarOpen && (
+                  <span className="nav-label">{item.label}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">
           <button className="logout-btn" onClick={handleLogoutClick}>
+            <LogOut size={20} />
             {isSidebarOpen && <span>Logout</span>}
           </button>
         </div>

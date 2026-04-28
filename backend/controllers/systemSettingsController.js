@@ -1,4 +1,5 @@
 import SystemSetting from "../models/SystemSetting.js";
+import SystemSettings from "../models/SystemSettings.js";
 
 const REPORT_HEADER_KEY = "report_header";
 const DEFAULT_REPORT_HEADER = {
@@ -60,4 +61,30 @@ export const updateReportHeaderSettings = async (req, res) => {
     message: "Report settings updated successfully.",
     reportHeader,
   });
+};
+
+export const getSettings = async (_req, res) => {
+  try {
+    const settings = await SystemSettings.getSettings();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateSettings = async (req, res) => {
+  try {
+    const { documentCode, revisionNo, issueDate } = req.body;
+    const settings = await SystemSettings.getSettings();
+
+    if (documentCode) settings.documentCode = documentCode;
+    if (revisionNo !== undefined) settings.revisionNo = revisionNo;
+    if (issueDate) settings.issueDate = new Date(issueDate);
+    settings.updatedBy = req.user._id;
+
+    await settings.save();
+    res.json({ message: "Settings updated", settings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

@@ -9,12 +9,12 @@
 }
 
 .header h1 {
-  color: #0ec0d4;
+  color: #124E66;
   margin-bottom: 5px;
 }
 
 .header p {
-  color: #7f8c8d;
+  color: #5C7378;
   margin: 0;
 }
 
@@ -24,8 +24,9 @@
   align-items: end;
   margin-bottom: 30px;
   padding: 20px;
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 8px;
+  border: 1px solid #D3D9D4;
 }
 
 .filter-group {
@@ -36,19 +37,21 @@
 
 .filter-group label {
   font-weight: 500;
-  color: white;
+  color: #2E3944;
 }
 
 .filter-group select {
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid #748D92;
   border-radius: 4px;
   font-size: 14px;
+  background: #FFFFFF;
+  color: #2E3944;
 }
 
 .btn-primary {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
@@ -59,14 +62,14 @@
 }
 
 .btn-primary:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(14, 192, 212, 0.4);
+  box-shadow: 0 4px 12px rgba(18, 78, 102, 0.3);
 }
 
 .btn-secondary {
-  background: #184354;
-  color: #ffffff;
+  background: #748D92;
+  color: #FFFFFF;
   border: none;
   padding: 10px 20px;
   border-radius: 6px;
@@ -77,18 +80,18 @@
 }
 
 .btn-secondary:hover {
-  background: #123341;
+  background: #5C7378;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(24, 67, 84, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .error-message {
-  background: #fee;
-  color: #c0392b;
+  background: rgba(192, 57, 43, 0.08);
+  color: #C0392B;
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 20px;
-  border: 1px solid #f5c6cb;
+  border-left: 4px solid #C0392B;
 }
 
 .modal-overlay {
@@ -97,7 +100,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(24, 67, 84, 0.9);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,15 +110,15 @@
 }
 
 .modal-content {
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 20px;
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border: 1px solid #D3D9D4;
 }
 
 .modal-header {
@@ -123,15 +126,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: #0e2e3a;
-  border-bottom: 1px solid #e1e5e9;
+  background: #D3D9D4;
+  border-bottom: 1px solid #D3D9D4;
   border-radius: 20px 20px 0 0;
 }
 
 .modal-header h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #333;
+  color: #2E3944;
   margin: 0;
 }
 
@@ -142,23 +145,23 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid #e1e5e9;
+  border: 1px solid #748D92;
   border-radius: 8px;
-  color: #666;
+  color: #5C7378;
   font-size: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .modal-close:hover {
-  background: #dc3545;
-  border-color: #dc3545;
+  background: #C0392B;
+  border-color: #C0392B;
   color: white;
 }
 
 .modal-body {
   padding: 24px;
-  color: #333;
+  color: #2E3944;
 }
 
 @keyframes fadeIn {
@@ -189,7 +192,7 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
-  color: white;
+  color: #2E3944;
   font-size: 14px;
 }
 
@@ -198,26 +201,27 @@
 .form-group textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #e1e5e9;
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
-  background: transparent;
-  color: white;
+  background: #FFFFFF;
+  color: #2E3944;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.1);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group input::placeholder,
 .form-group select::placeholder,
 .form-group textarea::placeholder {
-  color: #999;
+  color: #748D92;
 }
 
 .form-group textarea {
@@ -232,29 +236,12 @@
   margin-top: 30px;
 }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background: #545b62;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
-}
-
 .holidays-table {
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  border: 1px solid #D3D9D4;
 }
 
 .holidays-table table {
@@ -266,13 +253,17 @@
 .holidays-table td {
   padding: 12px 15px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #D3D9D4;
 }
 
 .holidays-table th {
-  background: #0e2e3a;
+  background: #D3D9D4;
   font-weight: 600;
-  color: #0ec0d4;
+  color: #2E3944;
+}
+
+.holidays-table td {
+  color: #2E3944;
 }
 
 .type-badge {
@@ -284,18 +275,18 @@
 }
 
 .type-badge.regular {
-  background: #e8f5e8;
+  background: rgba(39, 174, 96, 0.1);
   color: #27ae60;
 }
 
 .type-badge.special {
-  background: #fff3cd;
-  color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+  color: #F39C12;
 }
 
 .type-badge.non-working {
-  background: #f8d7da;
-  color: #e74c3c;
+  background: rgba(192, 57, 43, 0.1);
+  color: #C0392B;
 }
 
 .status-badge {
@@ -306,46 +297,46 @@
 }
 
 .status-badge.active {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(39, 174, 96, 0.1);
+  color: #27AE60;
 }
 
 .status-badge.inactive {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(192, 57, 43, 0.1);
+  color: #C0392B;
 }
 
 .btn-edit,
 .btn-delete {
   background: none;
   border: none;
-  color: #3498db;
+  color: #124E66;
   cursor: pointer;
   font-size: 14px;
   margin-right: 10px;
 }
 
 .btn-edit:hover {
-  color: #2980b9;
+  color: #1A6B85;
 }
 
 .btn-delete {
-  color: #e74c3c;
+  color: #C0392B;
 }
 
 .btn-delete:hover {
-  color: #c0392b;
+  color: #a93226;
 }
 
 .no-data {
   text-align: center;
   padding: 40px;
-  color: #7f8c8d;
+  color: #748D92;
   font-style: italic;
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #7f8c8d;
+  color: #5C7378;
 }

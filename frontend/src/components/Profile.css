@@ -1,13 +1,13 @@
 /* ===== PROFILE STYLES - COLOR PALETTE ===== */
-/* Primary/Background: #184354 */
-/* Cards/Secondary: #123341 */
-/* Accent/Highlight: #0ec0d4 */
-/* Text: #ffffff */
+/* Primary/Background: #D3D9D4 */
+/* Cards/Secondary: #FFFFFF */
+/* Accent/Highlight: #124E66 */
+/* Text: #2E3944 */
 
 .profile-page {
   padding: 2rem;
   min-height: 100vh;
-  background: #184354;
+  background: #D3D9D4;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -27,9 +27,9 @@
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #748D92;
   border-radius: 8px;
-  color: #ffffff;
+  color: #2E3944;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -38,23 +38,23 @@
 }
 
 .back-btn:hover {
-  background: #0ec0d4;
-  border-color: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  border-color: #124E66;
+  color: #FFFFFF;
   transform: translateX(-2px);
 }
 
 .profile-header h1 {
   font-size: 2rem;
   font-weight: 600;
-  color: #0ec0d4;
+  color: #124E66;
   margin: 0 0 0.5rem 0;
   letter-spacing: -0.02em;
 }
 
 .profile-subtitle {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #5C7378;
   margin: 0;
 }
 
@@ -71,15 +71,15 @@
 }
 
 .alert.success {
-  background: rgba(39, 174, 96, 0.15);
+  background: rgba(39, 174, 96, 0.08);
   border-left: 4px solid #27ae60;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .alert.error {
-  background: rgba(220, 53, 69, 0.15);
-  border-left: 4px solid #dc3545;
-  color: #ffffff;
+  background: rgba(220, 53, 69, 0.08);
+  border-left: 4px solid #C0392B;
+  color: #2E3944;
 }
 
 /* Profile Content Layout */
@@ -91,10 +91,10 @@
 
 /* Sidebar Styles */
 .profile-sidebar {
-  background: #123341;
+  background: #FFFFFF;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #D3D9D4;
   overflow: hidden;
   height: fit-content;
 }
@@ -102,7 +102,7 @@
 .profile-avatar-section {
   padding: 2rem;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #D3D9D4;
 }
 
 .avatar-large {
@@ -111,9 +111,9 @@
   margin: 0 auto 1.5rem;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  border: 4px solid #0ec0d4;
-  background: #0e2e3a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 4px solid #124E66;
+  background: #FFFFFF;
 }
 
 .avatar-image {
@@ -125,13 +125,13 @@
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: #0ec0d4;
+  background: #124E66;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3rem;
   font-weight: 600;
-  color: #184354;
+  color: #FFFFFF;
 }
 
 /* Profile Info */
@@ -142,25 +142,25 @@
 .profile-name {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
   margin: 0 0 0.25rem 0;
 }
 
 .profile-role {
   display: inline-block;
   padding: 0.25rem 1rem;
-  background: rgba(14, 192, 212, 0.15);
+  background: rgba(18, 78, 102, 0.1);
   border-radius: 100px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #0ec0d4;
+  color: #124E66;
   text-transform: capitalize;
   margin-bottom: 0.75rem;
 }
 
 .profile-email {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #5C7378;
   margin: 0 0 0.75rem 0;
   word-break: break-all;
 }
@@ -168,12 +168,12 @@
 .profile-department,
 .profile-member-since {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: #2E3944;
   margin: 0.5rem 0;
 }
 
 .info-label {
-  color: rgba(255, 255, 255, 0.5);
+  color: #5C7378;
   font-weight: 500;
 }
 
@@ -192,9 +192,9 @@
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
   background: transparent;
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed #748D92;
   border-radius: 100px;
-  color: #ffffff;
+  color: #2E3944;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -203,13 +203,13 @@
 }
 
 .upload-label:hover {
-  border-color: #0ec0d4;
-  background: rgba(14, 192, 212, 0.08);
+  border-color: #124E66;
+  background: rgba(18, 78, 102, 0.05);
 }
 
 .upload-hint {
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: #748D92;
   margin: 0;
 }
 
@@ -238,34 +238,34 @@
 }
 
 .btn-edit {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
 }
 
 .btn-edit:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 192, 212, 0.2);
+  box-shadow: 0 8px 20px rgba(18, 78, 102, 0.2);
 }
 
 .btn-password {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  border: 1px solid #748D92;
+  color: #2E3944;
 }
 
 .btn-password:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #0ec0d4;
+  background: rgba(18, 78, 102, 0.05);
+  border-color: #124E66;
   transform: translateY(-2px);
 }
 
 /* Main Content */
 .profile-main {
-  background: #123341;
+  background: #FFFFFF;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #D3D9D4;
   padding: 2rem;
 }
 
@@ -277,13 +277,13 @@
 .view-header h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
   margin: 0 0 0.25rem 0;
 }
 
 .view-header p {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #5C7378;
   margin: 0;
 }
 
@@ -297,22 +297,22 @@
   display: flex;
   align-items: baseline;
   padding: 1rem;
-  background: #0e2e3a;
+  background: #D3D9D4;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #D3D9D4;
 }
 
 .info-item .info-label {
   width: 140px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #5C7378;
   font-weight: 500;
 }
 
 .info-item .info-value {
   flex: 1;
   font-size: 1rem;
-  color: #ffffff;
+  color: #2E3944;
   font-weight: 500;
 }
 
@@ -343,13 +343,13 @@
 .form-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
   margin: 0 0 0.25rem 0;
 }
 
 .form-header p {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: #5C7378;
   margin: 0;
 }
 
@@ -373,29 +373,29 @@
 .form-group label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .form-group input {
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 10px;
   font-size: 0.95rem;
   transition: all 0.2s ease;
-  background: #0e2e3a;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
   width: 100%;
   box-sizing: border-box;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.2);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: #748D92;
 }
 
 /* Form Actions */
@@ -405,7 +405,7 @@
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid #D3D9D4;
 }
 
 .btn-cancel,
@@ -425,14 +425,14 @@
 }
 
 .btn-save {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 192, 212, 0.2);
+  box-shadow: 0 8px 20px rgba(18, 78, 102, 0.2);
 }
 
 .btn-save:disabled {
@@ -442,21 +442,21 @@
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  border: 1px solid #748D92;
+  color: #2E3944;
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: #D3D9D4;
+  border-color: #5C7378;
 }
 
 /* Spinner */
 .spinner-small {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(24, 67, 84, 0.3);
-  border-top-color: #184354;
+  border: 2px solid #D3D9D4;
+  border-top-color: #124E66;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;

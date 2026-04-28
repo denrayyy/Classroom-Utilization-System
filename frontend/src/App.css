@@ -3,19 +3,19 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #184354;
+  background: #D3D9D4;
 }
 
 .main-content {
   flex: 1;
-  background: #184354;
+  background: #D3D9D4;
 }
 
 /* ===== 2. TABS ===== */
 .tabs {
   display: flex;
   margin-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid #D3D9D4;
 }
 
 .tab {
@@ -24,22 +24,22 @@
   padding: 12px 24px;
   cursor: pointer;
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.6);
+  color: #5C7378;
   border-bottom: 3px solid transparent;
   font-weight: 500;
   transition: all 0.3s;
 }
 
 .tab:hover {
-  color: #0ec0d4;
-  background: rgba(14, 192, 212, 0.08);
+  color: #124E66;
+  background: rgba(18, 78, 102, 0.05);
 }
 
 .tab.active {
-  color: #0ec0d4;
-  border-bottom-color: #0ec0d4;
+  color: #124E66;
+  border-bottom-color: #124E66;
   font-weight: 700;
-  background: rgba(14, 192, 212, 0.12);
+  background: rgba(18, 78, 102, 0.08);
 }
 
 /* ===== 3. HEADER ===== */
@@ -48,17 +48,17 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 /* ===== 4. FORMS ===== */
 .form {
-  background: #123341;
+  background: #FFFFFF;
   padding: 24px;
   border-radius: 12px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #D3D9D4;
 }
 
 .form-group {
@@ -70,7 +70,7 @@
 .form-group label {
   margin-bottom: 6px;
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
   font-size: 14px;
 }
 
@@ -78,27 +78,27 @@
 .form-group select,
 .form-group textarea {
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
-  background: #0e2e3a;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
   transition: all 0.2s ease;
 }
 
 .form-group input::placeholder,
 .form-group select::placeholder,
 .form-group textarea::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: #748D92;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 4px rgba(14, 192, 212, 0.2);
-  background: #0e2e3a;
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
+  background: #FFFFFF;
 }
 
 /* ===== 5. BUTTONS & ACTIONS ===== */
@@ -124,24 +124,24 @@
 }
 
 .btn-primary {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   font-weight: 700;
 }
 
 .btn-primary:hover {
-  background: #3ecfdf;
-  box-shadow: 0 4px 12px rgba(14, 192, 212, 0.4);
+  background: #1A6B85;
+  box-shadow: 0 4px 12px rgba(18, 78, 102, 0.25);
   transform: translateY(-2px);
 }
 
 .status-select {
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 6px;
   font-size: 13px;
-  background: #0e2e3a;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
   cursor: pointer;
 }
 
@@ -150,16 +150,16 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .table th {
-  background-color: #123341;
+  background-color: #D3D9D4;
   font-weight: 700;
   text-align: left;
   padding: 16px;
-  border-bottom: 3px solid #0ec0d4;
-  color: #ffffff;
+  border-bottom: 2px solid #124E66;
+  color: #2E3944;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -167,19 +167,19 @@
 
 .table td {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #D3D9D4;
   vertical-align: middle;
 }
 
 .table tr:hover {
-  background-color: rgba(14, 192, 212, 0.12);
+  background-color: rgba(18, 78, 102, 0.04);
 }
 
 /* ===== 7. STATUS BADGES ===== */
 .status-pending {
-  color: #ffc107;
+  color: #F39C12;
   font-weight: 700;
-  background: rgba(255, 193, 7, 0.12);
+  background: rgba(243, 156, 18, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
   display: inline-block;
@@ -188,34 +188,34 @@
 .status-approved {
   color: #27ae60;
   font-weight: 700;
-  background: rgba(39, 174, 96, 0.12);
+  background: rgba(39, 174, 96, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
   display: inline-block;
 }
 
 .status-rejected {
-  color: #dc3545;
+  color: #C0392B;
   font-weight: 700;
-  background: rgba(220, 53, 69, 0.12);
+  background: rgba(192, 57, 43, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
   display: inline-block;
 }
 
 .status-in-use {
-  color: #dc3545;
+  color: #C0392B;
   font-weight: 700;
-  background: rgba(220, 53, 69, 0.12);
+  background: rgba(192, 57, 43, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
   display: inline-block;
 }
 
 .status-cancelled {
-  color: #6c757d;
+  color: #5C7378;
   font-weight: 700;
-  background: rgba(108, 117, 125, 0.12);
+  background: rgba(92, 115, 120, 0.1);
   padding: 4px 12px;
   border-radius: 20px;
   display: inline-block;
@@ -384,4 +384,3 @@
     width: 100%;
   }
 }
-

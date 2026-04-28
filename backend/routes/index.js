@@ -15,6 +15,7 @@ import holidayRoutes from "./holidays.js";
 import apiRoutes from "./api.js";
 import activityLogsRoutes from "./activityLogs.js";
 import systemSettingsRoutes from "./systemSettings.js";
+import notificationRoutes from "./notifications.js";
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ router.use("/instructors", instructorRoutes);
 router.use("/holidays", holidayRoutes);
 router.use("/activity-logs", activityLogsRoutes);
 router.use("/system-settings", systemSettingsRoutes);
+router.use("/notifications", notificationRoutes);
 router.use("/", apiRoutes);
 
 export default router;

@@ -20,6 +20,7 @@ interface AdminSettingsProps {
     lastName: string;
     email: string;
     profilePhoto?: string;
+    role?: string;
   };
   onBack: () => void;
   onUpdate: (updatedUser: any) => void;
@@ -43,6 +44,12 @@ interface ReportHeaderSettings {
   academicYearStart: string;
   academicYearEnd: string;
   label?: string;
+}
+
+interface DocumentControlSettings {
+  documentCode: string;
+  revisionNo: number;
+  issueDate: string;
 }
 
 const AdminSettings: React.FC<AdminSettingsProps> = ({
@@ -79,6 +86,12 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
     academicYearStart: "2025",
     academicYearEnd: "2026",
   });
+  const [documentControl, setDocumentControl] =
+    useState<DocumentControlSettings>({
+      documentCode: "OVPAA-F-INS-068",
+      revisionNo: 0,
+      issueDate: "2024-10-09",
+    });
 
   useEffect(() => {
     const backendUrl = "http://localhost:5000";
@@ -102,6 +115,9 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   useEffect(() => {
     fetchReportHeaderSettings();
+    if (user.role === "admin") {
+      fetchDocumentControlSettings();
+    }
   }, []);
 
   const fetchActivityLogs = async () => {
@@ -187,6 +203,54 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
       setError(
         error.response?.data?.message ||
           "Failed to update report header settings.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDocumentControlSettings = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/system-settings", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const parsedIssueDate = response.data?.issueDate
+        ? new Date(response.data.issueDate).toISOString().split("T")[0]
+        : "2024-10-09";
+
+      setDocumentControl({
+        documentCode: response.data?.documentCode || "OVPAA-F-INS-068",
+        revisionNo:
+          typeof response.data?.revisionNo === "number"
+            ? response.data.revisionNo
+            : 0,
+        issueDate: parsedIssueDate,
+      });
+    } catch (error) {
+      console.error("Failed to fetch document control settings:", error);
+    }
+  };
+
+  const handleDocumentControlSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put("/api/system-settings", documentControl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setSuccess("Document control settings updated successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error: any) {
+      setError(
+        error.response?.data?.message ||
+          "Failed to update document control settings.",
       );
     } finally {
       setLoading(false);
@@ -715,7 +779,8 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
           </div>
         )}
         {activeTab === "reports" && (
-          <form onSubmit={handleReportHeaderSubmit}>
+          <div>
+            <form onSubmit={handleReportHeaderSubmit}>
             <div className="password-section">
               <h3>Report Header</h3>
               <p className="section-description">
@@ -810,7 +875,98 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                 )}
               </button>
             </div>
-          </form>
+            </form>
+
+            {user.role === "admin" && (
+              <form onSubmit={handleDocumentControlSubmit}>
+                <div className="password-section" style={{ marginTop: "24px" }}>
+                  <h3>Document Control Metadata</h3>
+                  <p className="section-description">
+                    Manage footer metadata used in DOCX exports.
+                  </p>
+
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Document Code</label>
+                      <input
+                        type="text"
+                        value={documentControl.documentCode}
+                        onChange={(e) =>
+                          setDocumentControl((prev) => ({
+                            ...prev,
+                            documentCode: e.target.value,
+                          }))
+                        }
+                        placeholder="OVPAA-F-INS-068"
+                        disabled={loading}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Revision No.</label>
+                      <input
+                        type="number"
+                        value={documentControl.revisionNo}
+                        onChange={(e) =>
+                          setDocumentControl((prev) => ({
+                            ...prev,
+                            revisionNo: Number(e.target.value),
+                          }))
+                        }
+                        min={0}
+                        disabled={loading}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Issue Date</label>
+                      <input
+                        type="date"
+                        value={documentControl.issueDate}
+                        onChange={(e) =>
+                          setDocumentControl((prev) => ({
+                            ...prev,
+                            issueDate: e.target.value,
+                          }))
+                        }
+                        disabled={loading}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={onBack}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="loading-spinner-small"></span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Save Document Control
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
       </div>
     </div>

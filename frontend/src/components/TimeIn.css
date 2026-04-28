@@ -2,13 +2,13 @@
   display: block;
   margin-top: 5px;
   font-size: 12px;
-  color: #0ec0d4;
+  color: #124E66;
   font-style: italic;
 }
 
 .timein-page {
   min-height: 100vh;
-  background: #184354;
+  background: #D3D9D4;
   padding: 20px;
   display: flex;
   align-items: center;
@@ -16,13 +16,13 @@
 }
 
 .timein-container {
-  background: #123341;
+  background: #FFFFFF;
   border-radius: 12px;
   padding: 30px;
   max-width: 800px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #D3D9D4;
 }
 
 .timein-header {
@@ -33,7 +33,7 @@
 .back-btn {
   background: none;
   border: none;
-  color: #ffffff;
+  color: #2E3944;
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
@@ -45,15 +45,15 @@
 }
 
 .back-btn:hover {
-  color: #0ec0d4;
+  color: #124E66;
 }
 
 .timein-form {
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 8px;
   padding: 30px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #D3D9D4;
 }
 
 .form-content {
@@ -73,9 +73,9 @@
 .upload-area {
   text-align: center;
   padding: 40px 20px;
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed #748D92;
   border-radius: 8px;
-  background: #0a1e28;
+  background: #D3D9D4;
   transition: all 0.2s;
   cursor: pointer;
   min-height: 200px;
@@ -86,8 +86,8 @@
 }
 
 .upload-area:hover {
-  border-color: #0ec0d4;
-  background: rgba(14, 192, 212, 0.08);
+  border-color: #124E66;
+  background: rgba(18, 78, 102, 0.05);
 }
 
 .upload-icon {
@@ -100,8 +100,8 @@
 }
 
 .upload-btn {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   border: none;
   padding: 12px 24px;
   border-radius: 6px;
@@ -111,7 +111,7 @@
 }
 
 .upload-btn:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
 }
 
 .file-info {
@@ -135,35 +135,35 @@
 
 .field-group label {
   font-weight: 600;
-  color: #ffffff;
+  color: #2E3944;
   font-size: 14px;
 }
 
 .form-field,
 .readonly-field {
   padding: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 6px;
   font-size: 14px;
   transition: border-color 0.2s;
-  background: #0a1e28;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
 }
 
 .form-field:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.2);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .readonly-field {
-  background: #0a1e28;
-  color: rgba(255, 255, 255, 0.6);
+  background: #D3D9D4;
+  color: #5C7378;
   cursor: not-allowed;
 }
 
 .form-field::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: #748D92;
 }
 
 textarea.form-field {
@@ -173,16 +173,16 @@ textarea.form-field {
 
 .form-field option,
 .form-field optgroup {
-  background: #123341;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
 }
 
 .error-message {
-  background: rgba(220, 53, 69, 0.15);
-  color: #ffffff;
+  background: rgba(192, 57, 43, 0.08);
+  color: #2E3944;
   padding: 12px 16px;
   border-radius: 6px;
-  border-left: 4px solid #dc3545;
+  border-left: 4px solid #C0392B;
   margin-bottom: 20px;
   font-size: 14px;
 }
@@ -190,11 +190,11 @@ textarea.form-field {
 .warning-box {
   margin-top: 8px;
   padding: 10px;
-  background: rgba(255, 193, 7, 0.15);
-  border: 1px solid rgba(255, 193, 7, 0.3);
-  border-left: 4px solid #ffc107;
+  background: rgba(243, 156, 18, 0.08);
+  border: 1px solid rgba(243, 156, 18, 0.2);
+  border-left: 4px solid #F39C12;
   border-radius: 4px;
-  color: #ffc107;
+  color: #F39C12;
   font-size: 14px;
   display: flex;
   align-items: flex-start;
@@ -204,7 +204,7 @@ textarea.form-field {
 /* Status Pages (Time In/Out Success) */
 .status-page {
   min-height: 100vh;
-  background: #184354;
+  background: #D3D9D4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,21 +212,21 @@ textarea.form-field {
 }
 
 .status-box {
-  background: #123341;
+  background: #FFFFFF;
   border-radius: 16px;
   padding: 30px;
   max-width: 700px;
   width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #D3D9D4;
 }
 
 .status-content {
-  background: #0e2e3a;
+  background: #D3D9D4;
   border-radius: 12px;
   padding: 60px 40px;
   text-align: center;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .status-icon-check {
@@ -243,13 +243,13 @@ textarea.form-field {
 .status-title {
   font-size: 36px;
   font-weight: 700;
-  color: #ffffff;
+  color: #2E3944;
   margin: 0 0 16px 0;
 }
 
 .status-message {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.8);
+  color: #5C7378;
   margin: 0 0 30px 0;
 }
 
@@ -261,8 +261,8 @@ textarea.form-field {
 }
 
 .btn-timein {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   border: none;
   padding: 14px 32px;
   border-radius: 6px;
@@ -274,12 +274,12 @@ textarea.form-field {
 }
 
 .btn-timein:hover:not(:disabled) {
-  background: #3ecfdf;
+  background: #1A6B85;
 }
 
 .btn-timein:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  background: #D3D9D4;
+  color: #748D92;
   cursor: not-allowed;
 }
 

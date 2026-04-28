@@ -1,5 +1,6 @@
 import React from "react";
 import "./Topbar.css";
+import NotificationBell from "./NotificationBell";
 
 interface TopbarProps {
   fullName: string;
@@ -49,46 +50,51 @@ const Topbar: React.FC<TopbarProps> = ({
         </div>
       </div>
       <div
-        className="user"
-        onClick={onProfileClick}
-        style={{ cursor: onProfileClick ? "pointer" : "default" }}
+        className="topbar-actions"
       >
-        <span className="name">{fullName}</span>
-        <div className="avatar" aria-label="Profile">
-          {profilePhoto ? (
-            <img
-              src={profilePhoto}
-              alt="Profile"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: "50%",
-              }}
-            />
-          ) : (
-            <svg
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-            >
-              <circle
-                cx="12"
-                cy="8"
-                r="3.5"
-                stroke="#102a36"
-                strokeWidth="1.8"
+        <NotificationBell />
+        <div
+          className="user"
+          onClick={onProfileClick}
+          style={{ cursor: onProfileClick ? "pointer" : "default" }}
+        >
+          <span className="name">{fullName}</span>
+          <div className="avatar" aria-label="Profile">
+            {profilePhoto ? (
+              <img
+                src={profilePhoto}
+                alt="Profile"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: "50%",
+                }}
               />
-              <path
-                d="M4 20c1.8-4 5-6 8-6s6.2 2 8 6"
-                stroke="#102a36"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-          )}
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="8"
+                  r="3.5"
+                  stroke="#102a36"
+                  strokeWidth="1.8"
+                />
+                <path
+                  d="M4 20c1.8-4 5-6 8-6s6.2 2 8 6"
+                  stroke="#102a36"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+          </div>
         </div>
       </div>
     </header>

@@ -678,29 +678,23 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
     if (isArchived) {
       return (
         <span className="badge badge-archived">
-          <Archive size={12} color="#ffffff" />
+          <Archive size={12} color="#5C7378" />
           Archived
         </span>
       );
     }
     return isAvailable ? (
-      <span className="badge badge-available">
-        <CheckCircle size={12} color="#27ae60" />
-        Available
-      </span>
+      <span className="badge badge-available">Available</span>
     ) : (
-      <span className="badge badge-unavailable">
-        <XCircle size={12} color="#dc3545" />
-        Not Available
-      </span>
+      <span className="badge badge-unavailable">Not Available</span>
     );
   };
 
   const getRoomTypeIcon = (room: Classroom) => {
     if (/comlab/i.test(room.name) || /comlab/i.test(room.location)) {
-      return <Monitor size={24} color="#0ec0d4" />;
+      return <Monitor size={24} className="icon-accent" />;
     }
-    return <Building size={24} color="#0ec0d4" />;
+    return <Building size={24} className="icon-accent" />;
   };
 
   if (loading) {
@@ -773,14 +767,14 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
             <span className="header-icon">
               {showClassroomForm ? (
                 editingClassroom ? (
-                  <Pencil size={20} color="#ffffff" />
+                  <Pencil size={20} color="#2E3944" />
                 ) : (
-                  <Plus size={20} color="#ffffff" />
+                  <Plus size={20} color="#2E3944" />
                 )
               ) : showArchived ? (
-                <Archive size={20} color="#ffffff" />
+                <Archive size={20} color="#2E3944" />
               ) : (
-                <Building size={20} color="#ffffff" />
+                <Building size={20} color="#2E3944" />
               )}
             </span>
             {showClassroomForm
@@ -819,9 +813,9 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
               >
                 <span className="btn-icon">
                   {showArchived ? (
-                    <Eye size={16} color="#0ec0d4" />
+                    <Eye size={16} className="icon-accent" />
                   ) : (
-                    <Archive size={16} color="#ffffff" />
+                    <Archive size={16} className="icon-muted" />
                   )}
                 </span>
                 {showArchived
@@ -845,7 +839,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                     setShowClassroomForm(true);
                   }}
                 >
-                  <Plus size={16} color="#184354" />
+                  <Plus size={16} className="icon-light" />
                   Add Classroom
                 </button>
               )}
@@ -989,9 +983,9 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
               <div className="empty-state">
                 <div className="empty-state-icon">
                   {showArchived ? (
-                    <Archive size={48} color="rgba(255,255,255,0.3)" />
+                    <Archive size={48} className="icon-subtle" />
                   ) : (
-                    <Building size={48} color="rgba(255,255,255,0.3)" />
+                    <Building size={48} className="icon-subtle" />
                   )}
                 </div>
                 <h3>No Classrooms Found</h3>
@@ -1107,7 +1101,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                             onClick={() => handleViewSchedules(classroom)}
                             title="View schedules"
                           >
-                            <Calendar size={14} color="#0ec0d4" />
+                            <Calendar size={14} className="icon-accent" />
                             Schedule
                           </button>
 
@@ -1127,7 +1121,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                                 onClick={() => handleEditClassroom(classroom)}
                                 title="Edit classroom"
                               >
-                                <Pencil size={14} color="#0ec0d4" />
+                                <Pencil size={14} className="icon-accent" />
                                 Edit
                               </button>
                               <button
@@ -1139,7 +1133,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                                     : "Archive classroom"
                                 }
                               >
-                                <Archive size={14} color="#ffffff" />
+                                <Archive size={14} className="icon-muted" />
                                 Archive
                               </button>
                             </>
@@ -1211,7 +1205,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
               <h3>
                 <Calendar
                   size={20}
-                  color="#0ec0d4"
+                  className="icon-accent"
                   style={{ marginRight: "8px" }}
                 />
                 {viewingClassroom.name} - Schedule
@@ -1455,7 +1449,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 ) : (
                   <div className="empty-state small">
                     <div className="empty-state-icon">
-                      <Calendar size={48} color="rgba(255,255,255,0.3)" />
+                      <Calendar size={48} className="icon-subtle" />
                     </div>
                     <p>No schedules assigned to this classroom.</p>
                     <div
@@ -1538,7 +1532,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
               <h3>
                 <Archive
                   size={20}
-                  color="#ffffff"
+                  className="icon-muted"
                   style={{ marginRight: "8px" }}
                 />
                 Archive Classroom

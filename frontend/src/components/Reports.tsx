@@ -37,16 +37,6 @@ interface ReportHeaderSettings {
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const ROOMS = [
-  "ComLab 1",
-  "ComLab 2",
-  "ComLab 3",
-  "ComLab 4",
-  "ComLab 5",
-  "ComLab 6",
-  "ComLab 7",
-  "ComLab 8",
-];
 
 const formatRangeLabel = (totalMinutes: number) => {
   const hour24 = Math.floor(totalMinutes / 60);
@@ -152,9 +142,14 @@ const formatInclusiveDates = (records: TimeInRecord[]) => {
 };
 
 const Reports: React.FC<ReportsProps> = () => {
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  const defaultSelectedDay = DAYS.includes(today) ? today : "Monday";
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [rooms, setRooms] = useState<string[]>([]);
   const [allTimeins, setAllTimeins] = useState<TimeInRecord[]>([]);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [error, setError] = useState("");
   const [reportHeader, setReportHeader] = useState<ReportHeaderSettings>({
     semester: "2nd Semester",
@@ -162,6 +157,28 @@ const Reports: React.FC<ReportsProps> = () => {
     academicYearEnd: "2026",
     label: "2nd Semester AY: 2025 - 2026",
   });
+  const [selectedDay, setSelectedDay] = useState<string>(defaultSelectedDay);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      const token = localStorage.getItem("token");
+      const res = await axios.get("/api/classrooms", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { showArchived: "false" },
+      });
+      const names = res.data
+        .filter((c: any) => /comlab/i.test(c.name))
+        .map((c: any) => c.name)
+        .sort(
+          (a: string, b: string) =>
+            parseInt(a.match(/\d+/)?.[0] || "0", 10) -
+            parseInt(b.match(/\d+/)?.[0] || "0", 10),
+        );
+      setRooms(names);
+    };
+
+    fetchRooms();
+  }, []);
 
   useEffect(() => {
     fetchReportHeader();
@@ -246,6 +263,17 @@ const Reports: React.FC<ReportsProps> = () => {
   const normalizeRoom = (roomName?: string) =>
     roomName?.trim().toLowerCase() || "";
 
+  const filteredTimeins = useMemo(() => {
+    if (!startDate && !endDate) return allTimeins;
+
+    return allTimeins.filter((t) => {
+      const recordDate = new Date(t.date || t.timeIn).toISOString().split("T")[0];
+      if (startDate && recordDate < startDate) return false;
+      if (endDate && recordDate > endDate) return false;
+      return true;
+    });
+  }, [allTimeins, startDate, endDate]);
+
   const parseRecordBounds = (record: TimeInRecord) => {
     const timeInDate = new Date(record.timeIn || record.date);
     const actualStartMinutes =
@@ -285,7 +313,7 @@ const Reports: React.FC<ReportsProps> = () => {
     const grid: Record<
       string,
       Array<{ record: TimeInRecord | null; rowSpan: number; skip: boolean }>
-    > = ROOMS.reduce(
+    > = rooms.reduce(
       (acc, room) => ({
         ...acc,
         [room]: TIME_BLOCKS.map(() => ({
@@ -300,9 +328,9 @@ const Reports: React.FC<ReportsProps> = () => {
       >,
     );
 
-    if (!Array.isArray(allTimeins)) return grid;
+    if (!Array.isArray(filteredTimeins)) return grid;
 
-    allTimeins.forEach((record) => {
+    filteredTimeins.forEach((record) => {
       try {
         const recordDay = new Date(
           record.date || record.timeIn,
@@ -310,7 +338,7 @@ const Reports: React.FC<ReportsProps> = () => {
         if (recordDay !== day) return;
 
         const roomName = normalizeRoom(record.classroom?.name);
-        const roomKey = ROOMS.find((room) => normalizeRoom(room) === roomName);
+        const roomKey = rooms.find((room) => normalizeRoom(room) === roomName);
         if (!roomKey) return;
 
         const { startMinutes, endMinutes } = parseRecordBounds(record);
@@ -367,21 +395,33 @@ const Reports: React.FC<ReportsProps> = () => {
           >
         >,
       ),
-    [allTimeins],
+    [filteredTimeins, rooms],
   );
 
   const inclusiveDates = useMemo(
-    () => formatInclusiveDates(allTimeins),
-    [allTimeins],
+    () => formatInclusiveDates(filteredTimeins),
+    [filteredTimeins],
   );
 
   // ✅ DOCX Download
   const handleDownloadDOCX = async () => {
     try {
       const token = localStorage.getItem("token");
+      const exportTransactions = filteredTimeins.filter((record) => {
+        const day = new Date(record.date || record.timeIn).toLocaleDateString(
+          "en-US",
+          { weekday: "long" },
+        );
+        return DAYS.includes(day);
+      });
       const response = await axios.post(
         "/api/reports/timein/export-docx",
-        { transactions: allTimeins, reportHeader },
+        {
+          transactions: exportTransactions,
+          rooms,
+          startDate,
+          endDate,
+        },
         { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" },
       );
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -396,164 +436,214 @@ const Reports: React.FC<ReportsProps> = () => {
   };
 
   return (
-    <div className="reports">
-      {/* Header */}
+    <div className="reports-page">
+      {/* Page Header (outside card) */}
       <div className="page-header">
         <div className="header-content">
           <h1>Schedule Reports</h1>
-          <p>Room utilization and class attendance monitoring log</p>
+          <p className="header-description">Room utilization and class attendance monitoring log</p>
         </div>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button
-            className="btn btn-outline"
-            onClick={() => fetchTimeins()}
-            disabled={loading || refreshing}
-          >
-            <RefreshCw
-              size={16}
-              className={refreshing ? "spin-icon" : undefined}
-            />{" "}
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-          <button className="btn btn-primary" onClick={handleDownloadDOCX}>
-            <FileText size={16} /> Export DOCX
-          </button>
-        </div>
-      </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-
-      <div className="report-paper-header">
-        <p className="paper-office">
-          OFFICE OF THE VICE PRESIDENT FOR ACADEMIC AFFAIRS
-        </p>
-        <p className="paper-title">
-          DAILY ROOM UTILIZATION AND CLASS ATTENDANCE MONITORING LOG
-        </p>
-        <p className="paper-subtitle">{reportHeader.label}</p>
-      </div>
-      <div className="report-meta-line">
-        College/Department:{" "}
-        <strong>COLLEGE OF TECHNOLOGIES- INFORMATION TECHNOLOGY</strong>
-        <span className="report-meta-separator">Inclusive Dates:</span>
-        <strong>{inclusiveDates || " "}</strong>
-      </div>
-
-      {/* Grid Table */}
-      {loading ? (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Loading schedule data...</p>
-        </div>
-      ) : (
-        <div className="docx-grid-container">
-          <div className="docx-table-wrapper">
-            <table className="docx-grid-table">
-              <thead>
-                <tr>
-                  <th className="corner-header">CLASS SCHEDULE</th>
-                  {ROOMS.map((room) => (
-                    <th
-                      key={room}
-                      className="room-header room-group-header"
-                      colSpan={2}
-                    >
-                      <div className="room-name">{room}</div>
-                    </th>
-                  ))}
-                </tr>
-                <tr>
-                  <th className="corner-header room-sub-header"></th>
-                  {ROOMS.map((room) => (
-                    <React.Fragment key={`${room}-subheaders`}>
-                      <th className="room-header room-sub-header">
-                        Course Code/ Instructor
-                      </th>
-                      <th className="room-header room-sub-header remarks-header">
-                        Remarks & Signature of Monitoring Incharge
-                      </th>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DAYS.map((day) => (
-                  <React.Fragment key={day}>
-                    <tr className="day-row">
-                      <td className="day-cell">{day}</td>
-                      {ROOMS.map((room) => (
-                        <React.Fragment key={`${day}-${room}-day-empty`}>
-                          <td className="day-empty-cell"></td>
-                          <td className="day-empty-cell"></td>
-                        </React.Fragment>
-                      ))}
-                    </tr>
-                    {TIME_BLOCKS.map((block, blockIndex) => (
-                      <tr key={`${day}-${block.label}`}>
-                        <td className="time-cell">
-                          <span className="time-label">{block.label}</span>
-                        </td>
-                        {ROOMS.map((room) => {
-                          const cell = weeklyGrid[day][room][blockIndex];
-                          if (cell?.skip) {
-                            return (
-                              <React.Fragment
-                                key={`${day}-${room}-${blockIndex}`}
-                              />
-                            );
-                          }
-
-                          if (cell?.record) {
-                            return (
-                              <React.Fragment key={`${day}-${room}`}>
-                                <td
-                                  rowSpan={cell.rowSpan}
-                                  className="data-cell has-data"
-                                >
-                                  <div className="cell-content">
-                                    <span className="cell-section">
-                                      {cell.record.section || " "}
-                                    </span>
-                                    <span className="cell-subject">
-                                      {cell.record.subjectCode || " "}
-                                    </span>
-                                    <span className="cell-instructor">
-                                      {cell.record.instructorName || " "}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td
-                                  rowSpan={cell.rowSpan}
-                                  className="data-cell remarks-cell has-data"
-                                >
-                                  <div className="cell-content">
-                                    <span className="cell-instructor">
-                                      {cell.record.remarks?.trim() || " "}
-                                    </span>
-                                  </div>
-                                </td>
-                              </React.Fragment>
-                            );
-                          }
-
-                          return (
-                            <React.Fragment
-                              key={`${day}-${room}-${blockIndex}`}
-                            >
-                              <td className="data-cell empty"></td>
-                              <td className="data-cell remarks-cell empty"></td>
-                            </React.Fragment>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+        <div className="header-stats">
+          <div className="stat-chip">
+            <button
+              className="btn btn-outline"
+              onClick={() => fetchTimeins()}
+              disabled={loading || refreshing}
+            >
+              <RefreshCw
+                size={16}
+                className={refreshing ? "spin-icon" : undefined}
+              />{" "}
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+          <div className="stat-chip">
+            <button className="btn btn-primary" onClick={handleDownloadDOCX}>
+              <FileText size={16} /> Export All
+            </button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Card wrapper for content */}
+      <div className="card">
+        <div className="date-filter-bar">
+          <div className="date-filter-group">
+            <label>From:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="date-input"
+            />
+          </div>
+          <div className="date-filter-group">
+            <label>To:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="date-input"
+            />
+          </div>
+          {(startDate || endDate) && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+              }}
+            >
+              Clear Filter
+            </button>
+          )}
+          <span className="filter-count">
+            Showing {filteredTimeins.length} of {allTimeins.length} records
+          </span>
+        </div>
+
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="report-paper-header">
+          <p className="paper-office">
+            OFFICE OF THE VICE PRESIDENT FOR ACADEMIC AFFAIRS
+          </p>
+          <p className="paper-title">
+            DAILY ROOM UTILIZATION AND CLASS ATTENDANCE MONITORING LOG
+          </p>
+          <p className="paper-subtitle">{reportHeader.label}</p>
+        </div>
+        <div className="report-meta-line">
+          College/Department:{" "}
+          <strong>COLLEGE OF TECHNOLOGIES- INFORMATION TECHNOLOGY</strong>
+          <span className="report-meta-separator">Inclusive Dates:</span>
+          <strong>{inclusiveDates || " "}</strong>
+        </div>
+
+        {/* Grid Table */}
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <p>Loading schedule data...</p>
+          </div>
+        ) : (
+          <div className="docx-grid-container">
+            <div className="day-tabs">
+              {DAYS.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={`day-tab-btn ${selectedDay === day ? "active" : ""}`}
+                  onClick={() => setSelectedDay(day)}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+            <div className="docx-table-wrapper">
+              <table className="docx-grid-table">
+                <thead>
+                  <tr>
+                    <th className="corner-header">CLASS SCHEDULE</th>
+                    {rooms.map((room) => (
+                      <th
+                        key={room}
+                        className="room-header room-group-header"
+                        colSpan={2}
+                      >
+                        <div className="room-name">{room}</div>
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    <th className="corner-header room-sub-header"></th>
+                    {rooms.map((room) => (
+                      <React.Fragment key={`${room}-subheaders`}>
+                        <th className="room-header room-sub-header">
+                          Course Code/ Instructor
+                        </th>
+                        <th className="room-header room-sub-header remarks-header">
+                          Remarks & Signature of Monitoring Incharge
+                        </th>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="day-row">
+                    <td className="day-cell">{selectedDay}</td>
+                    {rooms.map((room) => (
+                      <React.Fragment key={`${selectedDay}-${room}-day-empty`}>
+                        <td className="day-empty-cell"></td>
+                        <td className="day-empty-cell"></td>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                  {TIME_BLOCKS.map((block, blockIndex) => (
+                    <tr key={`${selectedDay}-${block.label}`}>
+                      <td className="time-cell">
+                        <span className="time-label">{block.label}</span>
+                      </td>
+                      {rooms.map((room) => {
+                        const cell = weeklyGrid[selectedDay]?.[room]?.[blockIndex];
+                        if (cell?.skip) {
+                          return (
+                            <React.Fragment
+                              key={`${selectedDay}-${room}-${blockIndex}`}
+                            />
+                          );
+                        }
+
+                        if (cell?.record) {
+                          return (
+                            <React.Fragment key={`${selectedDay}-${room}`}>
+                              <td
+                                rowSpan={cell.rowSpan}
+                                className="data-cell has-data"
+                              >
+                                <div className="cell-content">
+                                  <span className="cell-section">
+                                    {cell.record.section || " "}
+                                  </span>
+                                  <span className="cell-subject">
+                                    {cell.record.subjectCode || " "}
+                                  </span>
+                                  <span className="cell-instructor">
+                                    {cell.record.instructorName || " "}
+                                  </span>
+                                </div>
+                              </td>
+                              <td
+                                rowSpan={cell.rowSpan}
+                                className="data-cell remarks-cell has-data"
+                              >
+                                <div className="cell-content">
+                                  <span className="cell-instructor">
+                                    {cell.record.remarks?.trim() || " "}
+                                  </span>
+                                </div>
+                              </td>
+                            </React.Fragment>
+                          );
+                        }
+
+                        return (
+                          <React.Fragment
+                            key={`${selectedDay}-${room}-${blockIndex}`}
+                          >
+                            <td className="data-cell empty"></td>
+                            <td className="data-cell remarks-cell empty"></td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

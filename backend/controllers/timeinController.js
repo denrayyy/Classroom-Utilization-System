@@ -10,6 +10,8 @@ import TimeIn from "../models/TimeIn.js";
 import Classroom from "../models/Classroom.js";
 import Instructor from "../models/Instructor.js";
 import Holiday from "../models/Holiday.js";
+import User from "../models/User.js";
+import { createNotification } from "../utils/notifications.js";
 import {
   requireVersion,
   buildVersionedUpdateDoc,
@@ -495,6 +497,36 @@ export const create = asyncHandler(async (req, res) => {
     { path: "student", select: "firstName lastName email employeeId department gender" },
     { path: "classroom", select: "name location capacity" }
   ]);
+
+  try {
+    const recipients = await User.find({
+      role: { $in: ["admin", "monitor"] },
+      isActive: true,
+    })
+      .select("_id")
+      .lean();
+
+    const studentFullName = `${timeInRecord.student?.firstName || ""} ${timeInRecord.student?.lastName || ""}`.trim() || "Unknown User";
+    const sectionLabel = finalSection || "Unknown Section";
+    const subjectLabel = finalSubjectCode || "Unknown Subject";
+    const roomLabel = timeInRecord.classroom?.name || "Unknown Classroom";
+    const timeLabel = new Date(actualTimeIn).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const title = "New Time-In";
+    const message = `${sectionLabel} - ${subjectLabel} time-in at ${roomLabel} by ${studentFullName} (${timeLabel})`;
+    const link = "/monitoring";
+
+    await Promise.all(
+      recipients.map((recipient) =>
+        createNotification(recipient._id, title, message, link),
+      ),
+    );
+  } catch (notificationError) {
+    console.error("Failed to create time-in notifications:", notificationError);
+  }
 
   // ✅ Build response with warnings
   const warnings = [];

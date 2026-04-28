@@ -1,15 +1,15 @@
 /* ===== TIME TRACKER STYLES - COLOR PALETTE ===== */
-/* Primary/Background: #184354 */
-/* Cards/Secondary: #123341 */
-/* Accent/Highlight: #0ec0d4 */
-/* Text: #ffffff */
+/* Primary/Background: #D3D9D4 */
+/* Cards/Secondary: #FFFFFF */
+/* Accent/Highlight: #124E66 */
+/* Text: #2E3944 */
 
 .time-page {
   min-height: 100vh;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #184354;
+  background: #D3D9D4;
   margin-top: -70px;
   padding-top: 70px;
 }
@@ -35,14 +35,14 @@
   display: inline-flex;
   align-items: center;
   gap: 16px;
-  color: #ffffff;
+  color: #FFFFFF;
   font-weight: 800;
   font-size: 32px;
   border: 0;
   border-radius: 12px;
   padding: 32px 64px;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
@@ -51,48 +51,48 @@
 }
 
 .btn-in {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
 }
 
 .btn-in:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(14, 192, 212, 0.35);
+  box-shadow: 0 12px 28px rgba(18, 78, 102, 0.3);
 }
 
 .btn-out {
-  background: #dc3545;
+  background: #C0392B;
 }
 
 .btn-out:hover {
-  background: #c82333;
+  background: #a93226;
   transform: translateY(-2px);
-  box-shadow: 0 14px 28px rgba(220, 53, 69, 0.35);
+  box-shadow: 0 12px 28px rgba(192, 57, 43, 0.3);
 }
 
 .btn-out:disabled {
-  background: #666;
+  background: #748D92;
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .btn-out:disabled:hover {
   transform: none;
-  background: #666;
+  background: #748D92;
 }
 
 .btn-logout {
   margin-top: 20px;
   background: transparent;
-  color: #ffffff;
+  color: #2E3944;
   font-weight: 700;
   font-size: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid #748D92;
   border-radius: 10px;
   padding: 20px 50px;
   cursor: pointer;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -100,16 +100,16 @@
 }
 
 .btn-logout:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #0ec0d4;
-  color: #0ec0d4;
+  background: rgba(18, 78, 102, 0.05);
+  border-color: #124E66;
+  color: #124E66;
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .timeout-success {
   text-align: center;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .success-icon-large {
@@ -123,38 +123,28 @@
   font-size: 36px;
   margin-bottom: 30px;
   font-weight: 700;
-  color: #ffffff;
+  color: #2E3944;
 }
 
 .error-message {
-  background: rgba(220, 53, 69, 0.9);
-  color: #ffffff;
+  background: rgba(192, 57, 43, 0.9);
+  color: #FFFFFF;
   padding: 15px 25px;
   border-radius: 8px;
   margin-top: 20px;
   font-weight: 600;
   font-size: 16px;
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  box-shadow: 0 4px 12px rgba(192, 57, 43, 0.3);
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Logout Confirmation Modal */
@@ -164,7 +154,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(24, 67, 84, 0.9);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,27 +164,27 @@
 }
 
 .logout-confirm-modal {
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 20px;
   padding: 50px 60px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   text-align: center;
   max-width: 500px;
   width: 90%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #D3D9D4;
   animation: slideUp 0.3s ease;
 }
 
 .logout-confirm-text {
   font-size: 24px;
-  color: #ffffff;
+  color: #2E3944;
   margin-bottom: 40px;
   font-weight: 500;
 }
 
 .logout-confirm-text strong {
   font-weight: 700;
-  color: #0ec0d4;
+  color: #124E66;
 }
 
 .logout-confirm-buttons {
@@ -212,31 +202,32 @@
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   min-width: 120px;
 }
 
 .btn-confirm-yes {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
 }
 
 .btn-confirm-yes:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(14, 192, 212, 0.3);
+  box-shadow: 0 6px 16px rgba(18, 78, 102, 0.25);
 }
 
 .btn-confirm-no {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #D3D9D4;
+  color: #2E3944;
+  border: 1px solid #748D92;
 }
 
 .btn-confirm-no:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: #748D92;
+  color: #FFFFFF;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 /* Logout Success Page */
@@ -245,7 +236,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #184354;
+  background: #D3D9D4;
   padding: 20px;
 }
 
@@ -255,12 +246,12 @@
 }
 
 .logout-content {
-  background: #123341;
+  background: #FFFFFF;
   border-radius: 24px;
   padding: 80px 60px;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid #D3D9D4;
 }
 
 .logout-logo {
@@ -269,21 +260,17 @@
   margin-bottom: 30px;
 }
 
-.logout-logo svg {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-}
-
 .logout-title {
   font-size: 48px;
   font-weight: 800;
-  color: #ffffff;
+  color: #2E3944;
   margin: 0 0 8px 0;
   letter-spacing: -0.5px;
 }
 
 .logout-subtitle {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #5C7378;
   margin: 0 0 40px 0;
   font-weight: 500;
 }
@@ -299,8 +286,8 @@
 }
 
 .btn-login-again {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   font-size: 22px;
   font-weight: 700;
   padding: 20px 60px;
@@ -308,13 +295,13 @@
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 8px 20px rgba(14, 192, 212, 0.3);
+  box-shadow: 0 4px 16px rgba(18, 78, 102, 0.25);
 }
 
 .btn-login-again:hover {
-  background: #3ecfdf;
+  background: #1A6B85;
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(14, 192, 212, 0.4);
+  box-shadow: 0 8px 24px rgba(18, 78, 102, 0.35);
 }
 
 /* Responsive */

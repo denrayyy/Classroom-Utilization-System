@@ -10,13 +10,13 @@
 .page-header h1 {
   font-size: 32px;
   font-weight: 700;
-  color: #333;
+  color: #2E3944;
   margin-bottom: 8px;
 }
 
 .page-header p {
   font-size: 16px;
-  color: #666;
+  color: #5C7378;
 }
 
 .card-header {
@@ -25,7 +25,7 @@
   justify-content: space-between;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid #D3D9D4;
   flex-wrap: wrap;
   gap: 16px;
 }
@@ -38,34 +38,35 @@
 
 .filter-select {
   padding: 8px 12px;
-  border: 2px solid #e1e5e9;
+  border: 2px solid #748D92;
   border-radius: 6px;
   font-size: 14px;
   background: white;
   cursor: pointer;
+  color: #2E3944;
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #124E66;
 }
 
 .schedule-form {
-  background: #0e2e3a;
+  background: #FFFFFF;
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
-  border: 1px solid #e1e5e9;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #D3D9D4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .schedule-form h3 {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: #2E3944;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid #D3D9D4;
 }
 
 .form-row {
@@ -83,57 +84,57 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
-  color: white;
+  color: #2E3944;
   font-size: 14px;
 }
 
 .form-group select {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #e1e5e9;
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
   background: white;
-  color: #333;
+  color: #2E3944;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .form-group select:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.1);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group input {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #e1e5e9;
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
   background: white;
-  color: #333;
+  color: #2E3944;
   transition: all 0.2s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.1);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group input::placeholder {
-  color: #999;
+  color: #748D92;
 }
 
 .form-group textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #e1e5e9;
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
   background: white;
-  color: #333;
+  color: #2E3944;
   transition: all 0.2s ease;
   resize: vertical;
   min-height: 80px;
@@ -141,12 +142,12 @@
 
 .form-group textarea:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.1);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group textarea::placeholder {
-  color: #999;
+  color: #748D92;
 }
 
 .btn {
@@ -165,61 +166,61 @@
 }
 
 .btn-primary {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   font-weight: 700;
 }
 
 .btn-primary:hover {
-  background: #3ecfdf;
-  box-shadow: 0 4px 12px rgba(14, 192, 212, 0.4);
+  background: #1A6B85;
+  box-shadow: 0 4px 12px rgba(18, 78, 102, 0.3);
   transform: translateY(-2px);
 }
 
 .btn-secondary {
-  background: #184354;
-  color: #ffffff;
+  background: #748D92;
+  color: #FFFFFF;
 }
 
 .btn-secondary:hover {
-  background: #123341;
+  background: #5C7378;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(24, 67, 84, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .btn-success {
-  background: #28a745;
+  background: #27AE60;
   color: white;
 }
 
 .btn-success:hover {
-  background: #1e7e34;
+  background: #229954;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
 }
 
 .btn-danger {
-  background: #dc3545;
+  background: #C0392B;
   color: white;
 }
 
 .btn-danger:hover {
-  background: #bd2130;
+  background: #a93226;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  box-shadow: 0 2px 8px rgba(192, 57, 43, 0.3);
 }
 
 .btn-outline {
   background: transparent;
-  color: #0ec0d4;
-  border: 1px solid #0ec0d4;
+  color: #124E66;
+  border: 1px solid #124E66;
 }
 
 .btn-outline:hover {
-  background: #0ec0d4;
-  color: #184354;
+  background: #124E66;
+  color: #FFFFFF;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(14, 192, 212, 0.3);
+  box-shadow: 0 2px 8px rgba(18, 78, 102, 0.3);
 }
 
 .status-badge {
@@ -233,24 +234,24 @@
 }
 
 .status-badge.status-pending {
-  background: #fff3cd;
-  color: #856404;
+  background: rgba(243, 156, 18, 0.1);
+  color: #F39C12;
 }
 
 .status-badge.status-approved,
 .status-badge.status-active {
-  background: #d4edda;
-  color: #155724;
+  background: rgba(39, 174, 96, 0.1);
+  color: #27AE60;
 }
 
 .status-badge.status-rejected {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(192, 57, 43, 0.1);
+  color: #C0392B;
 }
 
 .status-badge.status-completed {
-  background: #d1ecf1;
-  color: #0c5460;
+  background: rgba(18, 78, 102, 0.1);
+  color: #124E66;
 }
 
 .form-actions {
@@ -259,7 +260,7 @@
   justify-content: flex-end;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #e1e5e9;
+  border-top: 1px solid #D3D9D4;
 }
 
 .schedules-list {
@@ -272,14 +273,14 @@
   background: white;
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e1e5e9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #D3D9D4;
   transition: all 0.2s ease;
 }
 
 .schedule-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .schedule-header {
@@ -288,7 +289,7 @@
   justify-content: space-between;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #D3D9D4;
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -304,7 +305,7 @@
 .schedule-title h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #2E3944;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -339,20 +340,20 @@
 
 .detail-label {
   font-weight: 500;
-  color: #666;
+  color: #5C7378;
   min-width: 80px;
   margin-right: 8px;
 }
 
 .detail-value {
-  color: #333;
+  color: #2E3944;
   flex: 1;
 }
 
 .no-schedules {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: #5C7378;
   font-style: italic;
 }
 
@@ -433,3 +434,8 @@
     flex-direction: column;
   }
 }
+
+  .schedule-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }

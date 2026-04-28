@@ -496,7 +496,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       <div className="stats-grid">
         <div className="stat-card stat-primary">
           <div className="stat-icon">
-            <Clock size={32} color="#0ec0d4" />
+            <Clock size={32} className="icon-accent" />
           </div>
           <div className="stat-content">
             <h3>Total Time-Ins</h3>
@@ -507,7 +507,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
         <div className="stat-card stat-accent">
           <div className="stat-icon">
-            <Users size={32} color="#0ec0d4" />
+            <Users size={32} className=" icon-accent" />
           </div>
           <div className="stat-content">
             <h3>Active Instructors</h3>
@@ -518,7 +518,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
         <div className="stat-card stat-secondary">
           <div className="stat-icon">
-            <DoorOpen size={32} color="#0ec0d4" />
+            <DoorOpen size={32} className="icon-accent " />
           </div>
           <div className="stat-content">
             <h3>Classrooms Used</h3>
@@ -530,7 +530,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         {/* ✅ Active Now Card */}
         <div className="stat-card stat-warning">
           <div className="stat-icon">
-            <Clock size={32} color="#ffc107" />
+            <Clock size={32} className="icon-accent" />
           </div>
           <div className="stat-content">
             <h3>Active Now</h3>
@@ -543,7 +543,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         {stats.lateCount > 0 && (
           <div className="stat-card stat-danger">
             <div className="stat-icon">
-              <AlertTriangle size={32} color="#dc3545" />
+              <AlertTriangle size={32} className="icon-accent" />
             </div>
             <div className="stat-content">
               <h3>Late Check-ins</h3>
@@ -557,7 +557,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         {stats.travelingCount > 0 && (
           <div className="stat-card stat-info">
             <div className="stat-icon">
-              <Plane size={32} color="#17a2b8" />
+              <Plane size={32} className="icon-accent" />
             </div>
             <div className="stat-content">
               <h3>On Travel</h3>

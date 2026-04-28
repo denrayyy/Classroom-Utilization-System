@@ -429,39 +429,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const getRoleBadge = (role: string) => {
-    const badges: Record<string, { class: string; icon: React.ReactNode }> = {
-      admin: { class: "role-admin", icon: <Crown size={12} /> },
-      teacher: { class: "role-teacher", icon: <UserIcon size={12} /> },
-      student: { class: "role-student", icon: <GraduationCap size={12} /> },
+    const badges: Record<string, string> = {
+      admin: "role-admin",
+      teacher: "role-teacher",
+      student: "role-student",
     };
-    const badge = badges[role] || {
-      class: "role-default",
-      icon: <UserIcon size={12} />,
-    };
+    const badgeClass = badges[role] || "role-default";
 
-    return (
-      <span className={`role-badge ${badge.class}`}>
-        <span className="role-icon">{badge.icon}</span>
-        <span className="role-text">{role}</span>
-      </span>
-    );
+    return <span className={`role-badge ${badgeClass}`}>{role}</span>;
   };
 
   const getStatusBadge = (isActive: boolean) => {
     if (isActive) {
-      return (
-        <span className="status-badge status-active">
-          <CheckCircle size={12} />
-          <span className="status-text">Active</span>
-        </span>
-      );
+      return <span className="status-badge status-active">Active</span>;
     }
-    return (
-      <span className="status-badge status-archived">
-        <Archive size={12} />
-        <span className="status-text">Archived</span>
-      </span>
-    );
+    return <span className="status-badge status-archived">Archived</span>;
   };
 
   const formatLastLogin = (lastLogin?: string) => {
@@ -541,14 +523,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <span className="header-icon">
               {showUserForm || showEditUserForm ? (
                 showEditUserForm ? (
-                  <Pencil size={20} color="#ffffff" />
+                  <Pencil size={20} className="icon-accent" />
                 ) : (
-                  <Plus size={20} color="#ffffff" />
+                  <Plus size={20} className="icon-accent" />
                 )
               ) : showArchived ? (
-                <Archive size={20} color="#ffffff" />
+                <Archive size={20} className="icon-accent" />
               ) : (
-                <Users size={20} color="#ffffff" />
+                <Users size={20} className="icon-accent" />
               )}
             </span>
             {showUserForm || showEditUserForm
@@ -568,9 +550,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
               >
                 <span className="btn-icon">
                   {showArchived ? (
-                    <Eye size={16} color="#0ec0d4" />
+                    <Eye size={16} className="icon-accent" />
                   ) : (
-                    <Archive size={16} color="#ffffff" />
+                    <Archive size={16} className="icon-accent" />
                   )}
                 </span>
                 {showArchived
@@ -585,7 +567,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     setShowEditUserForm(false);
                   }}
                 >
-                  <Plus size={16} color="#184354" />
+                  <Plus size={16} className="icon-accent" />
                   Add User
                 </button>
               )}
@@ -817,7 +799,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <>
             <div className="filters-section">
               <div className="search-wrapper">
-                <Search size={16} color="#0ec0d4" className="search-icon" />
+                <Search size={16} className="search-icon icon-accent" />
                 <input
                   type="text"
                   className="search-input"
@@ -830,7 +812,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     className="search-clear"
                     onClick={() => setSearchQuery("")}
                   >
-                    <X size={14} color="#dc3545" />
+                    <X size={14} className="icon-accent" />
                   </button>
                 )}
               </div>
@@ -871,7 +853,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     setDepartmentFilter("");
                   }}
                 >
-                  <X size={14} />
+                  <X size={14} className="icon-accent" />
                   Clear Filters
                 </button>
               )}
@@ -882,9 +864,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div className="empty-state">
                   <div className="empty-state-icon">
                     {showArchived ? (
-                      <Archive size={48} color="rgba(255,255,255,0.3)" />
+                      <Archive size={48} className="icon-accent" />
                     ) : (
-                      <Users size={48} color="rgba(255,255,255,0.3)" />
+                      <Users size={48} className="icon-accent" />
                     )}
                   </div>
                   <h3>No Users Found</h3>
@@ -960,7 +942,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   onClick={() => handleRestoreUser(userItem)}
                                   title="Restore user"
                                 >
-                                  <RotateCcw size={14} color="#27ae60" />
+                                  <RotateCcw
+                                    size={14}
+                                    className="icon-accent"
+                                  />
                                   Restore
                                 </button>
                               ) : (
@@ -973,7 +958,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                     }}
                                     title="Edit user"
                                   >
-                                    <Pencil size={14} color="#0ec0d4" />
+                                    <Pencil size={14} className="icon-accent" />
                                     Edit
                                   </button>
                                   {userItem._id !== user.id && (
@@ -984,7 +969,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                       }
                                       title="Archive user"
                                     >
-                                      <Archive size={14} color="#ffffff" />
+                                      <Archive
+                                        size={14}
+                                        className="icon-accent"
+                                      />
                                       Archive
                                     </button>
                                   )}
@@ -1068,11 +1056,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <Archive size={20} color="#ffffff" />
+                <Archive size={20} className="icon-accent" />
                 Archive User
               </h3>
               <button className="modal-close" onClick={handleArchiveCancel}>
-                <X size={20} color="#dc3545" />
+                <X size={20} className="icon-accent" />
               </button>
             </div>
             <div className="modal-body">
@@ -1109,11 +1097,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div className="modal-content confirm-modal">
             <div className="modal-header">
               <h3>
-                <RotateCcw size={20} color="#27ae60" />
+                <RotateCcw size={20} className="icon-accent" />
                 Restore User
               </h3>
               <button className="modal-close" onClick={handleRestoreCancel}>
-                <X size={20} color="#dc3545" />
+                <X size={20} className="icon-accent" />
               </button>
             </div>
             <div className="modal-body">

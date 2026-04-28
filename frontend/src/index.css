@@ -1,24 +1,24 @@
 /* ===== 1. CSS VARIABLES ===== */
 :root {
   /* Primary - Background (60%) */
-  --color-primary: #184354;
-  --color-primary-light: #1e5368;
-  --color-primary-dark: #123341;
+  --color-primary: #D3D9D4;
+  --color-primary-light: #FFFFFF;
+  --color-primary-dark: #D3D9D4;
   
   /* Secondary - Cards/Sidebars (30%) */
-  --color-secondary: #123341;
-  --color-secondary-light: #1a4356;
-  --color-secondary-dark: #0e2e3a;
+  --color-secondary: #FFFFFF;
+  --color-secondary-light: #FFFFFF;
+  --color-secondary-dark: #D3D9D4;
   
   /* Accent - Buttons/Highlights (10%) */
-  --color-accent: #0ec0d4;
-  --color-accent-light: #3ecfdf;
-  --color-accent-dark: #0b9aab;
+  --color-accent: #124E66;
+  --color-accent-light: #1A6B85;
+  --color-accent-dark: #0E3D4F;
   
   /* Text Colors */
-  --text-on-primary: #ffffff;
-  --text-on-secondary: #ffffff;
-  --text-on-accent: #184354;
+  --text-on-primary: #2E3944;
+  --text-on-secondary: #2E3944;
+  --text-on-accent: #FFFFFF;
 }
 
 /* ===== 2. RESET & BASE ===== */
@@ -63,11 +63,11 @@ code {
 .card {
   background: var(--color-secondary);
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   padding: 20px;
   margin-bottom: 20px;
   color: var(--text-on-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #D3D9D4;
 }
 
 /* ===== 5. BUTTONS ===== */
@@ -86,16 +86,16 @@ code {
 .btn:hover {
   background-color: var(--color-accent-light);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(14, 192, 212, 0.3);
+  box-shadow: 0 4px 12px rgba(18, 78, 102, 0.25);
 }
 
 .btn-danger {
-  background-color: #dc3545;
+  background-color: #C0392B;
   color: #ffffff;
 }
 
 .btn-danger:hover {
-  background-color: #c82333;
+  background-color: #a93226;
 }
 
 .btn-success {
@@ -124,11 +124,11 @@ code {
 .form-group textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
-  background: var(--color-primary-dark);
-  color: var(--text-on-primary);
+  background: #FFFFFF;
+  color: #2E3944;
   transition: all 0.2s ease;
 }
 
@@ -137,12 +137,12 @@ code {
 .form-group textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 4px rgba(14, 192, 212, 0.2);
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: #748D92;
 }
 
 .form-group textarea {
@@ -162,20 +162,20 @@ code {
 .table td {
   padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #D3D9D4;
 }
 
 .table th {
-  background-color: var(--color-secondary);
+  background-color: #D3D9D4;
   font-weight: 700;
-  color: var(--text-on-secondary);
-  border-bottom: 3px solid var(--color-accent);
+  color: #2E3944;
+  border-bottom: 2px solid var(--color-accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .table tr:hover {
-  background-color: rgba(14, 192, 212, 0.08);
+  background-color: rgba(18, 78, 102, 0.04);
 }
 
 /* ===== 8. TYPOGRAPHY ===== */
@@ -199,7 +199,7 @@ a:hover {
 
 /* ===== 9. STATUS & UTILITIES ===== */
 .error {
-  color: #dc3545;
+  color: #C0392B;
   font-size: 12px;
   margin-top: 5px;
 }
@@ -217,7 +217,7 @@ a:hover {
 }
 
 .status-pending {
-  color: #ffc107;
+  color: #F39C12;
   font-weight: 700;
 }
 
@@ -227,17 +227,17 @@ a:hover {
 }
 
 .status-rejected {
-  color: #dc3545;
+  color: #C0392B;
   font-weight: 700;
 }
 
 .status-cancelled {
-  color: #6c757d;
+  color: #5C7378;
   font-weight: 700;
 }
 
 .loading-spinner {
-  border: 3px solid var(--color-secondary);
+  border: 3px solid #D3D9D4;
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -257,7 +257,7 @@ a:hover {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-primary-dark);
+  background: #D3D9D4;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -376,23 +376,23 @@ a:hover {
   }
 }
 
-/* Filter inputs (for dashboard) */
+/* Filter inputs */
 .filter-group input,
 .filter-group select,
 .filter-input,
 .filter-select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid #748D92;
   border-radius: 8px;
   font-size: 14px;
-  background: #0e2e3a;
-  color: #ffffff;
+  background: #FFFFFF;
+  color: #2E3944;
 }
 
 .filter-group input::placeholder,
 .filter-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: #748D92;
 }
 
 .filter-group input:focus,
@@ -400,6 +400,6 @@ a:hover {
 .filter-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #0ec0d4;
-  box-shadow: 0 0 0 3px rgba(14, 192, 212, 0.2);
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.1);
 }
