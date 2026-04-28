@@ -83,23 +83,23 @@ const timeInSchema = mongoose.Schema({
   evidence: {
     filename: {
       type: String,
-      required: true
+      default: ''
     },
     originalName: {
       type: String,
-      required: true
+      default: ''
     },
     mimetype: {
       type: String,
-      required: true
+      default: ''
     },
     size: {
       type: Number,
-      required: true
+      default: 0
     },
     path: {
       type: String,
-      required: true
+      default: ''
     }
   },
   

@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./AdminSettings.css";
-import { User, Lock, Camera, Save, CheckCircle, Circle } from "lucide-react";
+import {
+  User,
+  Lock,
+  Camera,
+  Save,
+  CheckCircle,
+  Circle,
+  History,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 interface AdminSettingsProps {
   user: {
@@ -15,12 +25,32 @@ interface AdminSettingsProps {
   onUpdate: (updatedUser: any) => void;
 }
 
+interface ActivityLogItem {
+  _id: string;
+  user?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  action: string;
+  details?: string;
+  entityName?: string;
+  entityType?: string;
+  createdAt: string;
+}
+
+interface ReportHeaderSettings {
+  semester: string;
+  academicYearStart: string;
+  academicYearEnd: string;
+  label?: string;
+}
+
 const AdminSettings: React.FC<AdminSettingsProps> = ({
   user,
   onBack,
   onUpdate,
 }) => {
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "password" | "activity" | "reports">("profile");
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [email, setEmail] = useState(user.email);
@@ -35,6 +65,20 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityPageSize] = useState(10);
+  const [activityTotalPages, setActivityTotalPages] = useState(1);
+  const [activityDateRange, setActivityDateRange] = useState({
+    start: "",
+    end: "",
+  });
+  const [reportHeader, setReportHeader] = useState<ReportHeaderSettings>({
+    semester: "2nd Semester",
+    academicYearStart: "2025",
+    academicYearEnd: "2026",
+  });
 
   useEffect(() => {
     const backendUrl = "http://localhost:5000";
@@ -49,6 +93,105 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
       );
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === "activity") {
+      fetchActivityLogs();
+    }
+  }, [activeTab, activityPage, activityDateRange.start, activityDateRange.end]);
+
+  useEffect(() => {
+    fetchReportHeaderSettings();
+  }, []);
+
+  const fetchActivityLogs = async () => {
+    try {
+      setActivityLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/activity-logs", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: activityPage,
+          limit: activityPageSize,
+          startDate: activityDateRange.start || undefined,
+          endDate: activityDateRange.end || undefined,
+        },
+      });
+
+      setActivityLogs(response.data.logs || []);
+      setActivityTotalPages(response.data.pagination?.pages || 1);
+    } catch (error: any) {
+      console.error("Activity logs fetch error:", error);
+      setError(error.response?.data?.message || "Failed to load activity logs.");
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  const formatActivityDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getActivityUser = (log: ActivityLogItem) => {
+    const fullName = `${log.user?.firstName || ""} ${log.user?.lastName || ""}`.trim();
+    return fullName || "System";
+  };
+
+  const getActivityDetails = (log: ActivityLogItem) => {
+    if (log.details?.trim()) return log.details.trim();
+    if (log.entityName?.trim()) return `${log.entityType || "Record"}: ${log.entityName.trim()}`;
+    if (log.entityType?.trim()) return log.entityType.trim();
+    return "No details available";
+  };
+
+  const fetchReportHeaderSettings = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/system-settings/report-header", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setReportHeader({
+        semester: response.data?.semester || "2nd Semester",
+        academicYearStart: response.data?.academicYearStart || "2025",
+        academicYearEnd: response.data?.academicYearEnd || "2026",
+      });
+    } catch (error) {
+      console.error("Failed to fetch report header settings:", error);
+    }
+  };
+
+  const handleReportHeaderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put("/api/system-settings/report-header", reportHeader, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setSuccess("Report header settings updated successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error: any) {
+      setError(
+        error.response?.data?.message ||
+          "Failed to update report header settings.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,6 +351,23 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
           >
             <Lock size={18} className="tab-icon" />
             Security & Password
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "activity" ? "active" : ""}`}
+            onClick={() => {
+              setActivityPage(1);
+              setActiveTab("activity");
+            }}
+          >
+            <History size={18} className="tab-icon" />
+            Activity Logs
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "reports" ? "active" : ""}`}
+            onClick={() => setActiveTab("reports")}
+          >
+            <Save size={18} className="tab-icon" />
+            Report Settings
           </button>
         </div>
 
@@ -435,6 +595,217 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                   <>
                     <Lock size={16} />
                     Update Password
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {activeTab === "activity" && (
+          <div className="activity-settings-section">
+            <div className="activity-settings-header">
+              <div>
+                <h3>Activity Logs</h3>
+                <p className="section-description">
+                  Review recent admin activity and audit history.
+                </p>
+              </div>
+            </div>
+
+            <div className="activity-filters">
+              <div className="form-group">
+                <label>Start Date</label>
+                <input
+                  type="date"
+                  value={activityDateRange.start}
+                  onChange={(e) => {
+                    setActivityPage(1);
+                    setActivityDateRange((prev) => ({
+                      ...prev,
+                      start: e.target.value,
+                    }));
+                  }}
+                />
+              </div>
+              <div className="form-group">
+                <label>End Date</label>
+                <input
+                  type="date"
+                  value={activityDateRange.end}
+                  onChange={(e) => {
+                    setActivityPage(1);
+                    setActivityDateRange((prev) => ({
+                      ...prev,
+                      end: e.target.value,
+                    }));
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="activity-table-wrap">
+              <table className="activity-settings-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityLoading ? (
+                    <tr>
+                      <td colSpan={4} className="activity-table-empty">
+                        Loading activity logs...
+                      </td>
+                    </tr>
+                  ) : activityLogs.length ? (
+                    activityLogs.map((log) => (
+                      <tr key={log._id}>
+                        <td>{formatActivityDate(log.createdAt)}</td>
+                        <td>{getActivityUser(log)}</td>
+                        <td>
+                          <span className="activity-action-pill">
+                            {String(log.action || "").toUpperCase()}
+                          </span>
+                        </td>
+                        <td>{getActivityDetails(log)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="activity-table-empty">
+                        No activity logs found for the selected range.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="activity-pagination">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setActivityPage((prev) => Math.max(1, prev - 1))}
+                disabled={activityPage === 1 || activityLoading}
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              <span className="pagination-status">
+                Page {activityPage} of {Math.max(1, activityTotalPages)}
+              </span>
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() =>
+                  setActivityPage((prev) =>
+                    Math.min(activityTotalPages || 1, prev + 1),
+                  )
+                }
+                disabled={activityPage >= activityTotalPages || activityLoading}
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+        {activeTab === "reports" && (
+          <form onSubmit={handleReportHeaderSubmit}>
+            <div className="password-section">
+              <h3>Report Header</h3>
+              <p className="section-description">
+                Set the semester and academic year shown in Reports and DOCX exports.
+              </p>
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Semester</label>
+                  <select
+                    value={reportHeader.semester}
+                    onChange={(e) =>
+                      setReportHeader((prev) => ({
+                        ...prev,
+                        semester: e.target.value,
+                      }))
+                    }
+                    disabled={loading}
+                  >
+                    <option value="1st Semester">1st Semester</option>
+                    <option value="2nd Semester">2nd Semester</option>
+                    <option value="Summer">Summer</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Academic Year Start</label>
+                  <input
+                    type="text"
+                    value={reportHeader.academicYearStart}
+                    onChange={(e) =>
+                      setReportHeader((prev) => ({
+                        ...prev,
+                        academicYearStart: e.target.value,
+                      }))
+                    }
+                    placeholder="2025"
+                    disabled={loading}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Academic Year End</label>
+                  <input
+                    type="text"
+                    value={reportHeader.academicYearEnd}
+                    onChange={(e) =>
+                      setReportHeader((prev) => ({
+                        ...prev,
+                        academicYearEnd: e.target.value,
+                      }))
+                    }
+                    placeholder="2026"
+                    disabled={loading}
+                    required
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Preview</label>
+                  <div className="report-header-preview">
+                    {reportHeader.semester} AY: {reportHeader.academicYearStart} - {reportHeader.academicYearEnd}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onBack}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="loading-spinner-small"></span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    Save Report Settings
                   </>
                 )}
               </button>

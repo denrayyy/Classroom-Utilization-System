@@ -174,6 +174,19 @@ function parseDocxTable(html) {
   return unique;
 }
 
+function cleanScheduleTime(time) {
+  const parts = String(time || '')
+    .split('-')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 2) {
+    return String(time || '').trim();
+  }
+
+  return `${parts[0]}-${parts[parts.length - 1]}`;
+}
+
 function addSchedulesFromRow(row, currentDay, timeRange, schedules) {
   for (let roomIdx = 0; roomIdx < 8; roomIdx++) {
     const dataCol = 1 + (roomIdx * 2); // Columns 1, 3, 5, 7, 9, 11, 13, 15
@@ -229,7 +242,7 @@ function addSchedulesFromRow(row, currentDay, timeRange, schedules) {
     if (section || subjectCode) {
       schedules.push({
         day: currentDay,
-        time: timeRange,
+        time: cleanScheduleTime(timeRange),
         room: `ComLab ${roomIdx + 1}`,
         section: section,
         subjectCode: subjectCode,
@@ -263,4 +276,4 @@ const processSchedules = async (schedules, Classroom, Instructor) => {
   return processed;
 };
 
-module.exports = { parseSchedulePDF, processSchedules, isMajorSubject };
+module.exports = { parseSchedulePDF, processSchedules, isMajorSubject, cleanScheduleTime };

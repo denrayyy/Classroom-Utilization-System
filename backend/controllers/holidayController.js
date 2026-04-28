@@ -202,51 +202,69 @@ export const deleteHoliday = async (req, res) => {
  */
 export const seedHolidays = async (req, res) => {
   try {
-    const { year } = req.body;
-    const targetYear = year || new Date().getFullYear();
-    
-    const phHolidays = [
-      { name: "New Year's Day", date: `${targetYear}-01-01`, type: 'regular', description: 'Regular holiday' },
-      { name: "EDSA People Power Anniversary", date: `${targetYear}-02-25`, type: 'special', description: 'Special non-working day' },
-      { name: "Araw ng Kagitingan", date: `${targetYear}-04-09`, type: 'regular', description: 'Day of Valor' },
-      { name: "Labor Day", date: `${targetYear}-05-01`, type: 'regular', description: 'Regular holiday' },
-      { name: "Independence Day", date: `${targetYear}-06-12`, type: 'regular', description: 'Regular holiday' },
-      { name: "Ninoy Aquino Day", date: `${targetYear}-08-21`, type: 'special', description: 'Special non-working day' },
-      { name: "National Heroes Day", date: `${targetYear}-08-25`, type: 'regular', description: 'Regular holiday' },
-      { name: "All Saints' Day", date: `${targetYear}-11-01`, type: 'special', description: 'Special non-working day' },
-      { name: "Bonifacio Day", date: `${targetYear}-11-30`, type: 'regular', description: 'Regular holiday' },
-      { name: "Feast of the Immaculate Conception", date: `${targetYear}-12-08`, type: 'special', description: 'Special non-working day' },
-      { name: "Christmas Day", date: `${targetYear}-12-25`, type: 'regular', description: 'Regular holiday' },
-      { name: "Rizal Day", date: `${targetYear}-12-30`, type: 'regular', description: 'Regular holiday' },
-      { name: "Last Day of the Year", date: `${targetYear}-12-31`, type: 'special', description: 'Special non-working day' },
+    const { year, years } = req.body;
+    const requestedYears = Array.isArray(years)
+      ? years
+      : year !== undefined
+        ? [year]
+        : [new Date().getFullYear()];
+    const targetYears = [...new Set(
+      requestedYears
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    )];
+
+    if (!targetYears.length) {
+      return res.status(400).json({ message: "At least one valid year is required." });
+    }
+
+    const buildPhilippineHolidays = (targetYear) => [
+      { name: "New Year's Day", date: `${targetYear}-01-01`, type: "regular", description: "Regular holiday" },
+      { name: "EDSA People Power Anniversary", date: `${targetYear}-02-25`, type: "special", description: "Special non-working day" },
+      { name: "Araw ng Kagitingan", date: `${targetYear}-04-09`, type: "regular", description: "Day of Valor" },
+      { name: "Labor Day", date: `${targetYear}-05-01`, type: "regular", description: "Regular holiday" },
+      { name: "Independence Day", date: `${targetYear}-06-12`, type: "regular", description: "Regular holiday" },
+      { name: "Ninoy Aquino Day", date: `${targetYear}-08-21`, type: "special", description: "Special non-working day" },
+      { name: "National Heroes Day", date: `${targetYear}-08-25`, type: "regular", description: "Regular holiday" },
+      { name: "All Saints' Day", date: `${targetYear}-11-01`, type: "special", description: "Special non-working day" },
+      { name: "Bonifacio Day", date: `${targetYear}-11-30`, type: "regular", description: "Regular holiday" },
+      { name: "Feast of the Immaculate Conception", date: `${targetYear}-12-08`, type: "special", description: "Special non-working day" },
+      { name: "Christmas Day", date: `${targetYear}-12-25`, type: "regular", description: "Regular holiday" },
+      { name: "Rizal Day", date: `${targetYear}-12-30`, type: "regular", description: "Regular holiday" },
+      { name: "Last Day of the Year", date: `${targetYear}-12-31`, type: "special", description: "Special non-working day" },
     ];
-    
+
     let created = 0;
     let skipped = 0;
-    
-    for (const holiday of phHolidays) {
-      const date = new Date(holiday.date);
-      const exists = await Holiday.findOne({ date });
-      
-      if (!exists) {
-        await Holiday.create({
-          ...holiday,
-          date,
-          year: targetYear,
-          isActive: true
-        });
-        created++;
-      } else {
-        skipped++;
+
+    for (const targetYear of targetYears) {
+      const phHolidays = buildPhilippineHolidays(targetYear);
+
+      for (const holiday of phHolidays) {
+        const date = new Date(holiday.date);
+        const exists = await Holiday.findOne({ date });
+
+        if (!exists) {
+          await Holiday.create({
+            ...holiday,
+            date,
+            year: targetYear,
+            isActive: true,
+            isRecurring: true,
+          });
+          created++;
+        } else {
+          skipped++;
+        }
       }
     }
-    
+
     res.json({
       success: true,
-      message: `Seeded ${created} new holidays for ${targetYear} (${skipped} already existed)`,
+      message: `Seeded ${created} new holidays for ${targetYears.join(", ")} (${skipped} already existed)`,
       created,
       skipped,
-      year: targetYear
+      years: targetYears,
     });
   } catch (error) {
     console.error("Error seeding holidays:", error);

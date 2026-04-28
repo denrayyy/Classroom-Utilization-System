@@ -23,6 +23,10 @@ const holidaySchema = mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isRecurring: {
+    type: Boolean,
+    default: true
+  },
   year: {
     type: Number,
     required: true

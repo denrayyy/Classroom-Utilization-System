@@ -32,6 +32,15 @@ interface Instructor {
   travelDetails?: string;
 }
 
+interface MatchedSchedule {
+  day: string;
+  time: string;
+  section: string;
+  subjectCode: string;
+  instructor: string;
+  scheduledStartTime: string;
+}
+
 const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -49,6 +58,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [success, setSuccess] = useState(false);
   const [timeInData, setTimeInData] = useState<any>(null);
   const [warnings, setWarnings] = useState<any[]>([]);
+  const [matchedSchedule, setMatchedSchedule] = useState<MatchedSchedule | null>(null);
 
   // ✅ NEW: Holiday state
   const [holiday, setHoliday] = useState<any>(null);
@@ -83,8 +93,14 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   useEffect(() => {
     if (selectedClassroom) {
       checkClassroomAvailability(selectedClassroom);
+      fetchCurrentSchedule(selectedClassroom);
     } else {
       setOccupancyWarning(null);
+      setMatchedSchedule(null);
+      setInstructorName("");
+      setSection("");
+      setSubjectCode("");
+      setScheduledStartTime("");
     }
   }, [selectedClassroom]);
 
@@ -123,6 +139,38 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       }
     } catch (error) {
       console.error("Failed to check availability:", error);
+    }
+  };
+
+  const fetchCurrentSchedule = async (classroomId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/timein/schedule-match/${classroomId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load current schedule");
+      }
+
+      if (data.matched && data.schedule) {
+        setMatchedSchedule(data.schedule);
+        setInstructorName(data.schedule.instructor || "");
+        setSection(data.schedule.section || "");
+        setSubjectCode(data.schedule.subjectCode || "");
+        setScheduledStartTime(data.schedule.scheduledStartTime || "");
+      } else {
+        setMatchedSchedule(null);
+        setInstructorName("");
+        setSection("");
+        setSubjectCode("");
+        setScheduledStartTime("");
+      }
+    } catch (error) {
+      console.error("Failed to load current schedule:", error);
+      setMatchedSchedule(null);
     }
   };
 
@@ -196,10 +244,15 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedClassroom || !evidence || !instructorName.trim()) {
+    if (!selectedClassroom || !instructorName.trim()) {
       setError(
-        "Please select a classroom, upload evidence, and select an instructor",
+        "Please select a classroom and select an instructor",
       );
+      return;
+    }
+
+    if (classType === "synchronous" && !matchedSchedule) {
+      setError("No active schedule matches the current time for this room.");
       return;
     }
 
@@ -216,7 +269,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
       const formData = new FormData();
       formData.append("classroom", selectedClassroom);
-      formData.append("evidence", evidence);
+      if (evidence) formData.append("evidence", evidence);
       formData.append("instructorName", instructorName);
       formData.append("classType", classType);
 
@@ -246,6 +299,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         setSubjectCode("");
         setScheduledStartTime("");
         setRemarks("");
+        setMatchedSchedule(null);
         setOccupancyWarning(null);
 
         const fileInput = document.getElementById(
@@ -374,6 +428,33 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
           </div>
         )}
 
+        {selectedClassroom && !matchedSchedule && !occupancyWarning && (
+          <div className="warning-box">
+            <Info size={16} color="#ffc107" />
+            <div>
+              <strong>No active schedule found.</strong>
+              <p>
+                The selected room has no class scheduled for the current time,
+                so time-in is not available yet.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {matchedSchedule && (
+          <div className="warning-box" style={{ borderColor: "#0ec0d4" }}>
+            <Info size={16} color="#0ec0d4" />
+            <div>
+              <strong>Current matched schedule</strong>
+              <p>
+                {matchedSchedule.day} | {matchedSchedule.time} |{" "}
+                {matchedSchedule.section} | {matchedSchedule.subjectCode} |{" "}
+                {matchedSchedule.instructor}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ✅ Instructor Travel/Leave Status */}
         {selectedInstructor?.travelStatus &&
           selectedInstructor.travelStatus !== "available" && (
@@ -430,7 +511,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                   className="upload-btn"
                   onClick={() => document.getElementById("evidence")?.click()}
                 >
-                  Upload Photo
+                  Upload Photo (Optional)
                 </button>
                 {evidence && (
                   <p className="file-info">Selected: {evidence.name}</p>
@@ -501,9 +582,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 <input
                   type="text"
                   value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  placeholder="e.g., BSIT 3F"
-                  className="form-field"
+                  readOnly
+                  placeholder="Auto-filled from current room schedule"
+                  className="form-field readonly-field"
                 />
               </div>
 
@@ -513,9 +594,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 <input
                   type="text"
                   value={subjectCode}
-                  onChange={(e) => setSubjectCode(e.target.value)}
-                  placeholder="e.g., IT 137"
-                  className="form-field"
+                  readOnly
+                  placeholder="Auto-filled from current room schedule"
+                  className="form-field readonly-field"
                 />
               </div>
 
@@ -525,42 +606,23 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 <input
                   type="text"
                   value={scheduledStartTime}
-                  onChange={(e) => setScheduledStartTime(e.target.value)}
-                  placeholder="e.g., 7:30"
-                  className="form-field"
+                  readOnly
+                  placeholder="Auto-filled from current room schedule"
+                  className="form-field readonly-field"
                 />
               </div>
 
               {/* Instructor */}
               <div className="field-group">
                 <label>Instructor Name:</label>
-                <select
+                <input
+                  type="text"
                   value={instructorName}
-                  onChange={(e) => setInstructorName(e.target.value)}
+                  readOnly
                   required
-                  className="form-field"
-                >
-                  <option value="">Select Instructor</option>
-                  {Array.isArray(instructors) && instructors.length > 0 ? (
-                    instructors.map((instructor) => (
-                      <option
-                        key={instructor._id}
-                        value={instructor.name}
-                        disabled={instructor.unavailable}
-                      >
-                        {instructor.name}
-                        {instructor.unavailable && ` (Unavailable)`}
-                        {instructor.travelStatus &&
-                          instructor.travelStatus !== "available" &&
-                          ` (${instructor.travelStatus})`}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="" disabled>
-                      Loading instructors...
-                    </option>
-                  )}
-                </select>
+                  placeholder="Auto-filled from current room schedule"
+                  className="form-field readonly-field"
+                />
               </div>
 
               {/* Remarks */}
@@ -583,12 +645,14 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             <button
               type="submit"
               className="btn-timein"
-              disabled={loading || !!occupancyWarning}
+              disabled={loading || !!occupancyWarning || (!!selectedClassroom && !matchedSchedule)}
             >
               {loading
                 ? "Processing..."
                 : occupancyWarning
                   ? "Classroom Occupied"
+                  : selectedClassroom && !matchedSchedule
+                    ? "No Active Schedule"
                   : "Time-In"}
             </button>
           </div>

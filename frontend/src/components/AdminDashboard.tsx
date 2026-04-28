@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./AdminDashboard.css";
 import {
+  CalendarDays,
   Clock,
   Users,
   DoorOpen,
   TrendingUp,
-  Calendar,
   AlertTriangle,
   Plane,
 } from "lucide-react";
@@ -80,6 +80,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [activeTimeIns, setActiveTimeIns] = useState<any[]>([]);
   const [holiday, setHoliday] = useState<any>(null);
+  const [holidayChecked, setHolidayChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -138,7 +139,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   // ✅ Check holiday and active time-ins
   useEffect(() => {
     checkHoliday();
+    const holidayInterval = setInterval(checkHoliday, 60000);
     fetchActiveTimeIns();
+    return () => clearInterval(holidayInterval);
   }, []);
 
   const checkHoliday = async () => {
@@ -149,9 +152,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       });
       if (response.data.isHoliday) {
         setHoliday(response.data.holiday);
+      } else {
+        setHoliday(null);
       }
     } catch (err) {
       console.error("Failed to check holiday:", err);
+    } finally {
+      setHolidayChecked(true);
     }
   };
 
@@ -461,15 +468,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       {success && <div className="alert alert-success">{success}</div>}
       {error && <div className="alert alert-error">{error}</div>}
       {/* ✅ Holiday Banner */}
-      {holiday && (
+      {holidayChecked && holiday && (
         <div className="holiday-banner">
-          <Calendar size={24} color="#ffc107" />
+          <CalendarDays size={36} color="#ffc107" />
           <div>
-            <strong style={{ color: "#ffc107" }}>
-              📅 Today is {holiday.name}
-            </strong>
-            <p style={{ color: "rgba(255,255,255,0.8)", margin: "4px 0 0" }}>
-              {holiday.type?.toUpperCase()} Holiday
+            <h3 style={{ color: "#ffc107", margin: "0 0 4px 0" }}>
+              Today is {holiday.name}
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.9)", margin: 0 }}>
+              <span
+                style={{
+                  background: "rgba(255, 193, 7, 0.2)",
+                  padding: "2px 10px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                }}
+              >
+                {holiday.type?.toUpperCase()}
+              </span>
               {holiday.description && ` - ${holiday.description}`}
             </p>
           </div>

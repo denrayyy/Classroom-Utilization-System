@@ -62,15 +62,21 @@ const autoTimeoutExpiredSessions = async () => {
  */
 const checkHolidayToday = async () => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
+    const now = new Date();
+    const manilaTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+    );
+
+    const startOfDay = new Date(manilaTime);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(manilaTime);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const holiday = await Holiday.findOne({
-      date: { $gte: today, $lt: tomorrow }
+      date: { $gte: startOfDay, $lt: endOfDay },
+      isActive: true,
     });
-    
+
     return holiday;
   } catch (error) {
     return null;
@@ -99,10 +105,150 @@ function isTimeOverlap(time1, time2) {
   return start1 < end2 && start2 < end1;
 }
 
-function timeToMinutes(timeStr) {
-  const [hours, minutes] = timeStr.trim().split(':').map(Number);
-  return (hours || 0) * 60 + (minutes || 0);
+function normalizeDayName(day) {
+  return String(day || "").trim().toLowerCase();
 }
+
+function timeToMinutes(timeStr) {
+  const raw = String(timeStr || "").trim().toUpperCase();
+  if (!raw) return NaN;
+
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+  if (!match) return NaN;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || "0");
+  const meridiem = match[3];
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return NaN;
+
+  if (!meridiem) {
+    // Schedule convention: bare 1:00-6:00 values are afternoon classes.
+    if (hours >= 1 && hours <= 6) {
+      hours += 12;
+    }
+  } else {
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function getDayName(date) {
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function parseScheduleRange(scheduleTime) {
+  const parts = String(scheduleTime || "")
+    .split("-")
+    .map((value) => value?.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return {
+    start: parts[0],
+    end: parts[parts.length - 1],
+  };
+}
+
+function getActiveScheduleForTime(schedules = [], currentTime) {
+  const currentDay = normalizeDayName(getDayName(currentTime));
+  const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+
+  return (
+    schedules.find((schedule) => {
+      if (!schedule?.day || !schedule?.time) return false;
+      if (normalizeDayName(schedule.day) !== currentDay) return false;
+
+      const range = parseScheduleRange(schedule.time);
+      if (!range) return false;
+
+      const startMinutes = timeToMinutes(range.start);
+      const endMinutes = timeToMinutes(range.end);
+      if (Number.isNaN(startMinutes) || Number.isNaN(endMinutes)) return false;
+
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    }) || null
+  );
+}
+
+const autoTimeoutExpiredSessionsBySchedule = async (currentTime = new Date()) => {
+  try {
+    const cooldownMs = (2 * 60 * 60 * 1000) + (30 * 60 * 1000); // 2h 30m fallback
+    const activeTimeIns = await TimeIn.find({
+      timeOut: { $exists: false },
+    })
+      .populate("classroom", "name schedules")
+      .exec();
+
+    const recordsToTimeout = [];
+
+    activeTimeIns.forEach((record) => {
+      let shouldTimeout = false;
+
+      const matchedSchedule = getActiveScheduleForTime(
+        record.classroom?.schedules || [],
+        record.timeIn,
+      );
+
+      if (matchedSchedule) {
+        const range = parseScheduleRange(matchedSchedule.time);
+        const endMinutes = range ? timeToMinutes(range.end) : NaN;
+
+        if (!Number.isNaN(endMinutes)) {
+          const scheduleEndTime = new Date(record.timeIn);
+          scheduleEndTime.setHours(
+            Math.floor(endMinutes / 60),
+            endMinutes % 60,
+            0,
+            0,
+          );
+
+          shouldTimeout = currentTime >= scheduleEndTime;
+        }
+      }
+
+      if (!shouldTimeout) {
+        shouldTimeout = currentTime - new Date(record.timeIn) >= cooldownMs;
+      }
+
+      if (shouldTimeout) {
+        recordsToTimeout.push(record._id);
+      }
+    });
+
+    if (!recordsToTimeout.length) {
+      return { modifiedCount: 0 };
+    }
+
+    const result = await TimeIn.updateMany(
+      {
+        _id: { $in: recordsToTimeout },
+        timeOut: { $exists: false },
+      },
+      {
+        $set: {
+          timeOut: currentTime,
+          status: "auto-timed-out",
+          autoTimedOutAt: currentTime,
+        },
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`Auto timed-out ${result.modifiedCount} expired sessions`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error auto time-out:", error);
+    return null;
+  }
+};
 
 /**
  * Create time-in record with evidence upload.
@@ -116,12 +262,8 @@ function timeToMinutes(timeStr) {
  */
 export const create = asyncHandler(async (req, res) => {
   // ✅ Auto time-out expired sessions BEFORE checking for active time-ins
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule(req.worldTime ?? new Date());
   
-  if (!req.file) {
-    return res.status(400).json({ message: "Evidence photo is required" });
-  }
-
   const { 
     classroom, 
     instructorName, 
@@ -135,6 +277,11 @@ export const create = asyncHandler(async (req, res) => {
 
   // ✅ Get ACTUAL current time (not scheduled time)
   const actualTimeIn = req.worldTime ?? new Date();
+  let matchedSchedule = null;
+  let finalInstructorName = instructorName?.trim() || "";
+  let finalSection = section?.trim() || "";
+  let finalSubjectCode = subjectCode?.trim() || "";
+  let finalScheduledStartTime = scheduledStartTime?.trim() || "";
   
   // ✅ Check if today is a holiday
   const holiday = await checkHolidayToday();
@@ -148,9 +295,9 @@ export const create = asyncHandler(async (req, res) => {
     travelDetails: null
   };
   
-  if (instructorName) {
+  if (finalInstructorName) {
     const instructor = await Instructor.findOne({ 
-      name: { $regex: new RegExp(instructorName, 'i') } 
+      name: { $regex: new RegExp(finalInstructorName, 'i') } 
     });
     
     if (instructor) {
@@ -170,9 +317,43 @@ export const create = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: "Classroom is required for synchronous classes" });
     }
 
-    const classroomExists = await Classroom.findById(classroom);
+    const classroomExists = await Classroom.findById(classroom).lean();
     if (!classroomExists) {
       return res.status(404).json({ message: "Classroom not found" });
+    }
+
+    matchedSchedule = getActiveScheduleForTime(
+      classroomExists.schedules || [],
+      actualTimeIn,
+    );
+
+    if (!matchedSchedule) {
+      return res.status(409).json({
+        message: `No scheduled class is active in ${classroomExists.name} at this time.`,
+        classroom: {
+          id: classroomExists._id,
+          name: classroomExists.name,
+          location: classroomExists.location
+        },
+        currentDay: getDayName(actualTimeIn),
+        currentTime: actualTimeIn.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }),
+      });
+    }
+
+    finalInstructorName = matchedSchedule.instructor?.trim() || "";
+    finalSection = matchedSchedule.section?.trim() || "";
+    finalSubjectCode = matchedSchedule.subjectCode?.trim() || "";
+    finalScheduledStartTime =
+      parseScheduleRange(matchedSchedule.time)?.start || "";
+
+    if (!finalInstructorName) {
+      return res.status(409).json({
+        message: `The active schedule in ${classroomExists.name} does not have an assigned instructor.`,
+      });
     }
 
     // ✅ Check if classroom is already occupied
@@ -198,10 +379,10 @@ export const create = asyncHandler(async (req, res) => {
     }
 
     // ✅ Check for schedule conflicts
-    if (scheduledStartTime) {
+    if (finalScheduledStartTime) {
       const conflictingSchedule = classroomExists.schedules?.find(s => {
-        const [start] = s.time.split('-');
-        return start === scheduledStartTime;
+        const scheduleRange = parseScheduleRange(s.time);
+        return scheduleRange?.start === finalScheduledStartTime;
       });
 
       if (conflictingSchedule) {
@@ -255,15 +436,15 @@ export const create = asyncHandler(async (req, res) => {
   }
 
   // ✅ Check if instructor is already teaching elsewhere (synchronous only)
-  if (classType === "synchronous" && instructorName) {
+  if (classType === "synchronous" && finalInstructorName) {
     const activeInstructorTimeIn = await TimeIn.findOne({
-      instructorName: instructorName,
+      instructorName: finalInstructorName,
       timeOut: { $exists: false }
     }).populate("classroom", "name");
 
     if (activeInstructorTimeIn) {
       return res.status(409).json({
-        message: `Instructor ${instructorName} is currently teaching in ${activeInstructorTimeIn.classroom?.name || 'another classroom'}.`,
+        message: `Instructor ${finalInstructorName} is currently teaching in ${activeInstructorTimeIn.classroom?.name || 'another classroom'}.`,
         activeTeachingSession: {
           id: activeInstructorTimeIn._id,
           classroom: activeInstructorTimeIn.classroom?.name || 'Unknown',
@@ -277,19 +458,21 @@ export const create = asyncHandler(async (req, res) => {
   const timeInRecord = new TimeIn({
     student: req.user._id,
     classroom,
-    instructorName,
-    section: section || '',
-    subjectCode: subjectCode || '',
-    evidence: {
-      filename: req.file.filename,
-      originalName: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      path: req.file.path,
-    },
+    instructorName: finalInstructorName,
+    section: finalSection,
+    subjectCode: finalSubjectCode,
+    evidence: req.file
+      ? {
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+          path: req.file.path,
+        }
+      : {},
     timeIn: actualTimeIn,              // ✅ ACTUAL check-in time
-    scheduledStartTime: scheduledStartTime || '', // ✅ Scheduled time for reference
-    isLate: isTimeLate(actualTimeIn, scheduledStartTime), // ✅ Late detection
+    scheduledStartTime: finalScheduledStartTime, // ✅ Scheduled time for reference
+    isLate: isTimeLate(actualTimeIn, finalScheduledStartTime), // ✅ Late detection
     remarks: remarks || '',
     classType,
     signature: signature ? {
@@ -328,7 +511,7 @@ export const create = asyncHandler(async (req, res) => {
   if (instructorStatus.onTravel) {
     warnings.push({
       type: 'travel',
-      message: `Instructor ${instructorName} is currently on official travel`,
+      message: `Instructor ${finalInstructorName} is currently on official travel`,
       travelDetails: instructorStatus.travelDetails
     });
   }
@@ -336,7 +519,7 @@ export const create = asyncHandler(async (req, res) => {
   if (instructorStatus.onLeave) {
     warnings.push({
       type: 'leave',
-      message: `Instructor ${instructorName} is currently on leave`,
+      message: `Instructor ${finalInstructorName} is currently on leave`,
       travelDetails: instructorStatus.travelDetails
     });
   }
@@ -344,12 +527,12 @@ export const create = asyncHandler(async (req, res) => {
   if (timeInRecord.isLate) {
     warnings.push({
       type: 'late',
-      message: `Late check-in. Scheduled: ${scheduledStartTime}, Actual: ${actualTimeIn.toLocaleTimeString()}`
+      message: `Late check-in. Scheduled: ${finalScheduledStartTime}, Actual: ${actualTimeIn.toLocaleTimeString()}`
     });
   }
 
   res.status(201).json({
-    message: `Successfully timed in to ${timeInRecord.classroom?.name || 'classroom'} with instructor ${instructorName}`,
+    message: `Successfully timed in to ${timeInRecord.classroom?.name || 'classroom'} with instructor ${finalInstructorName}`,
     timeInRecord: {
       id: timeInRecord._id,
       student: timeInRecord.student,
@@ -371,7 +554,8 @@ export const create = asyncHandler(async (req, res) => {
         originalName: timeInRecord.evidence.originalName,
         mimetype: timeInRecord.evidence.mimetype,
         size: timeInRecord.evidence.size,
-      }
+      },
+      matchedSchedule
     },
     warnings: warnings.length > 0 ? warnings : undefined
   });
@@ -381,7 +565,7 @@ export const create = asyncHandler(async (req, res) => {
  * Record time-out for the most recent active time-in
  */
 export const timeout = asyncHandler(async (req, res) => {
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule();
   
   const timeInRecord = await TimeIn.findOne({
     student: req.user._id,
@@ -424,7 +608,7 @@ export const timeout = asyncHandler(async (req, res) => {
  * Auto time-out expired sessions
  */
 export const list = asyncHandler(async (req, res) => {
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule();
   
   const { student, classroom, date, status, startDate, endDate, instructorName } = req.query;
   const query = {};
@@ -473,7 +657,7 @@ export const list = asyncHandler(async (req, res) => {
  * Get active time-ins for monitoring display
  */
 export const getActiveTimeIns = asyncHandler(async (req, res) => {
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule();
   
   const activeTimeIns = await TimeIn.find({ 
     timeOut: { $exists: false },
@@ -564,7 +748,7 @@ export const getEvidence = (req, res) => {
  * Generate PDF of time-in transactions
  */
 export const exportPdf = asyncHandler(async (req, res) => {
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule();
   
   const { date } = req.query;
   let query = {};
@@ -702,7 +886,7 @@ export const remove = asyncHandler(async (req, res) => {
 });
 
 export const getById = asyncHandler(async (req, res) => {
-  await autoTimeoutExpiredSessions();
+  await autoTimeoutExpiredSessionsBySchedule();
   
   const timeInRecord = await TimeIn.findById(req.params.id)
     .populate("student", "firstName lastName email employeeId department gender")
@@ -804,4 +988,45 @@ export const resetOldTimeIns = asyncHandler(async (req, res) => {
     console.error("Error resetting old time-ins:", error);
     res.status(500).json({ success: false, message: "Failed to reset old time-ins", error: error.message });
   }
+});
+
+export const getCurrentScheduleForClassroom = asyncHandler(async (req, res) => {
+  const currentTime = req.worldTime ?? new Date();
+  const classroom = await Classroom.findById(req.params.classroomId)
+    .select("name location schedules")
+    .lean();
+
+  if (!classroom) {
+    return res.status(404).json({ message: "Classroom not found" });
+  }
+
+  const matchedSchedule = getActiveScheduleForTime(
+    classroom.schedules || [],
+    currentTime,
+  );
+
+  res.json({
+    classroom: {
+      id: classroom._id,
+      name: classroom.name,
+      location: classroom.location,
+    },
+    currentDay: getDayName(currentTime),
+    currentTime: currentTime.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }),
+    matched: !!matchedSchedule,
+    schedule: matchedSchedule
+      ? {
+          day: matchedSchedule.day,
+          time: matchedSchedule.time,
+          section: matchedSchedule.section || "",
+          subjectCode: matchedSchedule.subjectCode || "",
+          instructor: matchedSchedule.instructor || "",
+          scheduledStartTime: parseScheduleRange(matchedSchedule.time)?.start || "",
+        }
+      : null,
+  });
 });

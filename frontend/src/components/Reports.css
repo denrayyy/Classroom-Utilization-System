@@ -8,6 +8,10 @@
   padding: 30px;
   max-width: 1600px;
   margin: 0 auto;
+  background: #0e2e3a;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
 }
 
 /* Page Header */
@@ -442,6 +446,10 @@
 
 .btn-icon {
   font-size: 16px;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
 }
 
 /* Table Styles */
@@ -1428,24 +1436,39 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.report-meta-separator {
+  display: inline-block;
+  margin-left: 18px;
+}
+
 .reports .docx-grid-container {
-  background: #ffffff;
-  border: 1px solid #111827;
+  background: #123341;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .reports .docx-grid-table {
-  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 1200px;
 }
 
 .reports .docx-grid-table th,
 .reports .docx-grid-table td {
-  border: 1px solid #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+  min-width: 100px;
 }
 
 .reports .corner-header,
 .reports .room-header {
-  background: #f8fafc;
-  color: #111827;
+  background: #0e2e3a;
+  color: #0ec0d4;
+  font-weight: 700;
 }
 
 .reports .corner-header {
@@ -1459,14 +1482,14 @@
 
 .reports .room-sub-header {
   font-size: 10px;
-  color: #1f2937;
+  color: rgba(255, 255, 255, 0.7);
   line-height: 1.25;
   text-transform: none;
 }
 
 .reports .time-cell {
-  background: #ffffff;
-  color: #111827;
+  background: #0a1e28;
+  color: #0ec0d4;
   width: 130px;
 }
 
@@ -1474,7 +1497,7 @@
 .reports .cell-section,
 .reports .cell-subject,
 .reports .cell-instructor {
-  color: #111827;
+  color: #ffffff;
 }
 
 .reports .remarks-cell {
@@ -1484,30 +1507,31 @@
 .reports .day-row .day-cell {
   text-align: left;
   font-weight: 600;
-  background: #f3f4f6;
-  color: #111827;
+  background: #0e2e3a;
+  color: #ffffff;
   padding: 6px 10px;
 }
 
 .reports .day-row .day-empty-cell {
-  background: #f9fafb;
+  background: #123341;
   padding: 6px 8px;
 }
 
 .reports .cell-content {
-  align-items: flex-start;
-  justify-content: flex-start;
-  text-align: left;
-  min-height: 0;
-  padding: 2px 4px;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  gap: 4px;
+  min-height: 70px;
 }
 
 .reports .cell-section,
 .reports .cell-subject,
 .reports .cell-instructor {
-  font-size: 10px;
-  line-height: 1;
+  font-size: 13px;
+  line-height: 1.2;
   margin: 0;
 }
 

@@ -5,13 +5,28 @@
 
 import PDFDocument from "pdfkit";
 import crypto from 'crypto';
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } from "docx";
+import {
+  AlignmentType,
+  BorderStyle,
+  Document,
+  Packer,
+  PageOrientation,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  VerticalAlign,
+  VerticalMergeType,
+  WidthType,
+} from "docx";
 import Report from "../models/Report.js";
 import ClassroomUsage from "../models/ClassroomUsage.js";
 import Schedule from "../models/Schedule.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
 import TimeIn from "../models/TimeIn.js";
+import { getStoredReportHeader } from "./systemSettingsController.js";
 import {
   requireVersion,
   buildVersionedUpdateDoc,
@@ -20,6 +35,72 @@ import {
   isVersionError,
 } from "../utils/mvcc.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+
+const normalizeDayName = (day) => String(day || "").trim().toLowerCase();
+
+const timeToMinutes = (timeStr) => {
+  const raw = String(timeStr || "").trim().toUpperCase();
+  if (!raw) return NaN;
+
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+  if (!match) return NaN;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || "0");
+  const meridiem = match[3];
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return NaN;
+
+  if (!meridiem) {
+    if (hours >= 1 && hours <= 6) {
+      hours += 12;
+    }
+  } else {
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+  }
+
+  return hours * 60 + minutes;
+};
+
+const parseScheduleRange = (scheduleTime) => {
+  const parts = String(scheduleTime || "")
+    .split("-")
+    .map((value) => value?.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return {
+    start: parts[0],
+    end: parts[parts.length - 1],
+  };
+};
+
+const getScheduleForRecord = (record) => {
+  const schedules = record.classroom?.schedules || [];
+  const recordDate = new Date(record.date || record.timeIn);
+  const currentDay = normalizeDayName(
+    recordDate.toLocaleDateString("en-US", { weekday: "long" }),
+  );
+  const currentMinutes = recordDate.getHours() * 60 + recordDate.getMinutes();
+
+  return (
+    schedules.find((schedule) => {
+      if (normalizeDayName(schedule.day) !== currentDay) return false;
+      const range = parseScheduleRange(schedule.time);
+      if (!range) return false;
+
+      const startMinutes = timeToMinutes(range.start);
+      const endMinutes = timeToMinutes(range.end);
+      if (Number.isNaN(startMinutes) || Number.isNaN(endMinutes)) return false;
+
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    }) || null
+  );
+};
 
 /**
  * List reports with optional filters
@@ -64,10 +145,29 @@ export const getTimeInAll = asyncHandler(async (req, res) => {
   if (classroom) query.classroom = classroom;
   const pageNum = parseInt(page); const limitNum = parseInt(limit);
   const [timeInTransactions, total] = await Promise.all([
-    TimeIn.find(query).populate("student", "firstName lastName email employeeId department").populate("classroom", "name location capacity").populate("verifiedBy", "firstName lastName").sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
+    TimeIn.find(query).populate("student", "firstName lastName email employeeId department").populate("classroom", "name location capacity schedules").populate("verifiedBy", "firstName lastName").sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
     TimeIn.countDocuments(query)
   ]);
-  res.json({ data: timeInTransactions, pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
+
+  const recordsWithScheduleData = timeInTransactions.map((record) => {
+    const matchedSchedule = getScheduleForRecord(record);
+    const scheduleRange = matchedSchedule
+      ? parseScheduleRange(matchedSchedule.time)
+      : null;
+
+    return {
+      ...record,
+      section: matchedSchedule?.section || record.section || "",
+      subjectCode: matchedSchedule?.subjectCode || record.subjectCode || "",
+      instructorName:
+        matchedSchedule?.instructor || record.instructorName || "",
+      scheduledStartTime:
+        record.scheduledStartTime || scheduleRange?.start || "",
+      scheduledEndTime: scheduleRange?.end || "",
+    };
+  });
+
+  res.json({ data: recordsWithScheduleData, pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
 });
 
 /**
@@ -196,9 +296,15 @@ export const exportTimeInDocx = asyncHandler(async (req, res) => {
   if (!transactions || !Array.isArray(transactions)) {
     return res.status(400).json({ message: "No transaction data provided" });
   }
+  const reportHeader = await getStoredReportHeader();
 
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
   const rooms = ["ComLab 1", "ComLab 2", "ComLab 3", "ComLab 4", "ComLab 5", "ComLab 6", "ComLab 7", "ComLab 8"];
+  const tableBorder = {
+    style: BorderStyle.SINGLE,
+    size: 4,
+    color: "000000",
+  };
   const formatRangeLabel = (totalMinutes) => {
     const hour24 = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
@@ -221,133 +327,372 @@ export const exportTimeInDocx = asyncHandler(async (req, res) => {
     return ranges;
   };
   const timeBlocks = buildTimeRanges();
+  const normalizeRoom = (roomName) => roomName?.trim().toLowerCase() || "";
+  const timeToMinutes = (timeStr) => {
+    const raw = String(timeStr || "").trim().toUpperCase();
+    if (!raw) return Number.NaN;
 
-  const normalizeRoom = (roomName) => roomName?.trim().toLowerCase();
+    const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+    if (!match) return Number.NaN;
 
-  const findRecord = (day, room, block) => {
-    return transactions.find((t) => {
+    let hours = Number(match[1]);
+    const minutes = Number(match[2] || "0");
+    const meridiem = match[3];
+
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.NaN;
+
+    if (!meridiem) {
+      if (hours >= 1 && hours <= 6) {
+        hours += 12;
+      }
+    } else {
+      if (meridiem === "AM" && hours === 12) hours = 0;
+      if (meridiem === "PM" && hours !== 12) hours += 12;
+    }
+
+    return hours * 60 + minutes;
+  };
+  const parseRecordBounds = (record) => {
+    const timeInDate = new Date(record.timeIn || record.date);
+    const actualStartMinutes = timeInDate.getHours() * 60 + timeInDate.getMinutes();
+    const scheduledStartMinutes = timeToMinutes(record.scheduledStartTime);
+    const scheduledEndMinutes = timeToMinutes(record.scheduledEndTime);
+    const startMinutes = Number.isNaN(scheduledStartMinutes)
+      ? actualStartMinutes
+      : scheduledStartMinutes;
+    let endMinutes = Number.NaN;
+
+    if (!Number.isNaN(scheduledEndMinutes)) {
+      endMinutes = scheduledEndMinutes;
+    } else if (record.timeOut) {
+      const timeOutDate = new Date(record.timeOut);
+      endMinutes = timeOutDate.getHours() * 60 + timeOutDate.getMinutes();
+    } else if (!Number.isNaN(scheduledStartMinutes)) {
+      endMinutes = scheduledStartMinutes + 30;
+    }
+
+    if (endMinutes <= startMinutes) {
+      endMinutes = startMinutes + 30;
+    }
+
+    return { startMinutes, endMinutes };
+  };
+  const findBlockIndex = (minutes) =>
+    timeBlocks.findIndex(
+      (block) => minutes >= block.startMinutes && minutes < block.endMinutes,
+    );
+  const buildDayGrid = (day) => {
+    const grid = rooms.reduce((acc, room) => ({
+      ...acc,
+      [room]: timeBlocks.map(() => ({ record: null, rowSpan: 1, skip: false })),
+    }), {});
+
+    transactions.forEach((record) => {
       try {
-        const recordDay = new Date(t.date || t.timeIn).toLocaleDateString("en-US", { weekday: "long" });
-        if (recordDay !== day) return false;
-        if (normalizeRoom(t.classroom?.name) !== normalizeRoom(room)) return false;
-        const recordTime = new Date(t.timeIn);
-        const recordMinutes = recordTime.getHours() * 60 + recordTime.getMinutes();
-        return recordMinutes >= block.startMinutes && recordMinutes < block.endMinutes;
+        const recordDay = new Date(record.date || record.timeIn).toLocaleDateString("en-US", {
+          weekday: "long",
+        });
+        if (recordDay !== day) return;
+
+        const roomKey = rooms.find((room) => normalizeRoom(room) === normalizeRoom(record.classroom?.name));
+        if (!roomKey) return;
+
+        const { startMinutes, endMinutes } = parseRecordBounds(record);
+        const startIndex = findBlockIndex(startMinutes);
+        if (startIndex === -1) return;
+
+        const endIndex = timeBlocks.findIndex((block) => block.startMinutes >= endMinutes);
+        const rowSpan = Math.max(
+          1,
+          endIndex === -1 ? timeBlocks.length - startIndex : endIndex - startIndex,
+        );
+        const roomBlocks = grid[roomKey];
+        if (!roomBlocks || roomBlocks[startIndex]?.skip) return;
+
+        roomBlocks[startIndex] = { record, rowSpan, skip: false };
+        for (let index = startIndex + 1; index < startIndex + rowSpan; index += 1) {
+          if (roomBlocks[index]) {
+            roomBlocks[index] = { record: null, rowSpan: 0, skip: true };
+          }
+        }
       } catch {
-        return false;
+        // Ignore malformed dates
       }
     });
-  };
 
-  const sections = days.map((day) => {
-    const rows = [];
-    rows.push(new TableRow({
+    return grid;
+  };
+  const formatInclusiveDates = (records) => {
+    const validDates = records
+      .map((record) => new Date(record.date || record.timeIn))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (!validDates.length) return "";
+
+    const start = validDates[0];
+    const end = validDates[validDates.length - 1];
+    const sameMonth =
+      start.getMonth() === end.getMonth() &&
+      start.getFullYear() === end.getFullYear();
+    const month = start.toLocaleString("en-US", { month: "long" }).toUpperCase();
+
+    if (sameMonth) {
+      return `${month} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+    }
+
+    const startLabel = start.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+    }).toUpperCase();
+    const endLabel = end.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).toUpperCase();
+
+    return `${startLabel} - ${endLabel}`;
+  };
+  const makeCellParagraph = (text, options = {}) =>
+    new Paragraph({
+      alignment: options.alignment || AlignmentType.CENTER,
+      spacing: {
+        before: options.before ?? 0,
+        after: options.after ?? 0,
+        line: options.line ?? 240,
+      },
+      children: [
+        new TextRun({
+          text: text || "",
+          bold: options.bold || false,
+          size: options.size || 18,
+        }),
+      ],
+    });
+  const makeTableCell = ({
+    text = "",
+    children,
+    width,
+    columnSpan,
+    rowSpan,
+    verticalMerge,
+    bold = false,
+    size = 18,
+    alignment = AlignmentType.CENTER,
+  }) =>
+    new TableCell({
+      width,
+      columnSpan,
+      rowSpan,
+      verticalMerge,
+      verticalAlign: VerticalAlign.CENTER,
+      borders: {
+        top: tableBorder,
+        bottom: tableBorder,
+        left: tableBorder,
+        right: tableBorder,
+      },
+      margins: {
+        top: 70,
+        bottom: 70,
+        left: 80,
+        right: 80,
+      },
+      children: children || [makeCellParagraph(text, { bold, size, alignment })],
+    });
+
+  const weeklyGrid = days.reduce((acc, day) => {
+    acc[day] = buildDayGrid(day);
+    return acc;
+  }, {});
+  const rows = [
+    new TableRow({
       tableHeader: true,
       children: [
-        new TableCell({
-          children: [new Paragraph({ text: "CLASS SCHEDULE", alignment: AlignmentType.CENTER })],
-          width: { size: 1400, type: WidthType.DXA },
+        makeTableCell({
+          text: "CLASS SCHEDULE",
+          width: { size: 1200, type: WidthType.DXA },
+          bold: true,
+          size: 18,
         }),
-        ...rooms.map(room => new TableCell({
-          children: [new Paragraph({ text: room, alignment: AlignmentType.CENTER })],
-          width: { size: 2200, type: WidthType.DXA },
-          columnSpan: 2,
-        })),
+        ...rooms.map((room) =>
+          makeTableCell({
+            text: room,
+            width: { size: 1900, type: WidthType.DXA },
+            columnSpan: 2,
+            bold: true,
+            size: 18,
+          }),
+        ),
       ],
-    }));
-
-    rows.push(
-      new TableRow({
-        tableHeader: true,
-        children: [
-          new TableCell({
-            children: [new Paragraph({ text: "", alignment: AlignmentType.CENTER })],
-            width: { size: 1400, type: WidthType.DXA },
-          }),
-          ...rooms.flatMap(() => [
-            new TableCell({
-              children: [new Paragraph({ text: "Course Code/ Instructor", alignment: AlignmentType.CENTER })],
-              width: { size: 1100, type: WidthType.DXA },
-            }),
-            new TableCell({
-              children: [
-                new Paragraph({ text: "Remarks &", alignment: AlignmentType.CENTER }),
-                new Paragraph({ text: "Signature of Monitoring Incharge", alignment: AlignmentType.CENTER }),
-              ],
-              width: { size: 1100, type: WidthType.DXA },
-            }),
-          ]),
-        ],
-      })
-    );
-
-    rows.push(
-      new TableRow({
-        children: [
-          new TableCell({
-            children: [new Paragraph({ text: day })],
-            width: { size: 1400, type: WidthType.DXA },
-          }),
-          ...rooms.flatMap(() => [
-            new TableCell({
-              children: [new Paragraph({ text: "" })],
-              width: { size: 1100, type: WidthType.DXA },
-            }),
-            new TableCell({
-              children: [new Paragraph({ text: "" })],
-              width: { size: 1100, type: WidthType.DXA },
-            }),
-          ]),
-        ],
-      })
-    );
-
-    timeBlocks.forEach((block) => {
-      rows.push(new TableRow({
-        children: [
-          new TableCell({
-            children: [new Paragraph({ text: block.label, alignment: AlignmentType.CENTER })],
-            width: { size: 1400, type: WidthType.DXA },
-          }),
-          ...rooms.flatMap((room) => {
-            const record = findRecord(day, room, block);
-            return [
-              new TableCell({
-                children: record
-                  ? [
-                      new Paragraph({ text: record.section || "" }),
-                      new Paragraph({ text: record.subjectCode || "" }),
-                      new Paragraph({ text: record.instructorName || "" }),
-                    ]
-                  : [new Paragraph({ text: "" })],
-                width: { size: 1100, type: WidthType.DXA },
-              }),
-              new TableCell({
-                children: [new Paragraph({ text: record?.remarks?.trim() || "" })],
-                width: { size: 1100, type: WidthType.DXA },
-              }),
-            ];
-          }),
-        ],
-      }));
-    });
-    return {
-      properties: { page: { size: { width: 16840, height: 11900 } } },
+    }),
+    new TableRow({
+      tableHeader: true,
       children: [
-        new Paragraph({ text: "BUKIDNON STATE UNIVERSITY", alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "OFFICE OF THE VICE PRESIDENT FOR ACADEMIC AFFAIRS", alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "DAILY ROOM UTILIZATION AND CLASS ATTENDANCE MONITORING LOG", alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "2nd Semester AY: 2025 - 2026", alignment: AlignmentType.CENTER }),
-        new Paragraph({
-          text: "College/Department: COLLEGE OF TECHNOLOGIES - INFORMATION TECHNOLOGY",
-          alignment: AlignmentType.LEFT,
+        makeTableCell({
+          text: "",
+          width: { size: 1200, type: WidthType.DXA },
         }),
-        new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }),
+        ...rooms.flatMap((room, index) => [
+          makeTableCell({
+            text: index === 2 ? "Course Code/ Instructor*" : "Course Code/ Instructor",
+            width: { size: 950, type: WidthType.DXA },
+            bold: true,
+            size: 16,
+          }),
+          makeTableCell({
+            children: [
+              makeCellParagraph("Remarks &", {
+                bold: true,
+                size: 16,
+              }),
+              makeCellParagraph("Signature of Monitoring Incharge", {
+                bold: true,
+                size: 16,
+              }),
+            ],
+            width: { size: 950, type: WidthType.DXA },
+          }),
+        ]),
       ],
-    };
+    }),
+  ];
+
+  days.forEach((day) => {
+    rows.push(
+      new TableRow({
+        children: [
+          makeTableCell({
+            text: day,
+            width: { size: 1200, type: WidthType.DXA },
+            bold: true,
+            alignment: AlignmentType.LEFT,
+          }),
+          ...rooms.flatMap(() => [
+            makeTableCell({
+              text: "",
+              width: { size: 950, type: WidthType.DXA },
+            }),
+            makeTableCell({
+              text: "",
+              width: { size: 950, type: WidthType.DXA },
+            }),
+          ]),
+        ],
+      }),
+    );
+
+    timeBlocks.forEach((block, blockIndex) => {
+      rows.push(
+        new TableRow({
+          children: [
+            makeTableCell({
+              text: block.label,
+              width: { size: 1200, type: WidthType.DXA },
+              size: 16,
+            }),
+            ...rooms.flatMap((room) => {
+              const cell = weeklyGrid[day][room][blockIndex];
+
+              if (cell?.record) {
+                return [
+                  makeTableCell({
+                    width: { size: 950, type: WidthType.DXA },
+                    verticalMerge: VerticalMergeType.RESTART,
+                    children: [
+                      makeCellParagraph(cell.record.section || "", { bold: true, size: 16 }),
+                      makeCellParagraph(cell.record.subjectCode || "", { size: 16 }),
+                      makeCellParagraph(cell.record.instructorName || "", { size: 16 }),
+                    ],
+                  }),
+                  makeTableCell({
+                    text: cell.record.remarks?.trim() || "",
+                    width: { size: 950, type: WidthType.DXA },
+                    verticalMerge: VerticalMergeType.RESTART,
+                    size: 16,
+                  }),
+                ];
+              }
+
+              if (cell?.skip) {
+                return [
+                  makeTableCell({
+                    text: "",
+                    width: { size: 950, type: WidthType.DXA },
+                    verticalMerge: VerticalMergeType.CONTINUE,
+                  }),
+                  makeTableCell({
+                    text: "",
+                    width: { size: 950, type: WidthType.DXA },
+                    verticalMerge: VerticalMergeType.CONTINUE,
+                  }),
+                ];
+              }
+
+              return [
+                makeTableCell({
+                  text: "",
+                  width: { size: 950, type: WidthType.DXA },
+                }),
+                makeTableCell({
+                  text: "",
+                  width: { size: 950, type: WidthType.DXA },
+                }),
+              ];
+            }),
+          ],
+        }),
+      );
+    });
   });
 
-  const doc = new Document({ sections });
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 720,
+            right: 540,
+            bottom: 720,
+            left: 540,
+          },
+          size: {
+            orientation: PageOrientation.LANDSCAPE,
+          },
+        },
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 100 },
+          children: [new TextRun({ text: "OFFICE OF THE VICE PRESIDENT FOR ACADEMIC AFFAIRS", bold: true, size: 18 })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 100 },
+          children: [new TextRun({ text: "DAILY ROOM UTILIZATION AND CLASS ATTENDANCE MONITORING LOG", bold: true, size: 18 })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 180 },
+          children: [new TextRun({ text: reportHeader.label, size: 18 })],
+        }),
+        new Paragraph({
+          spacing: { after: 160 },
+          children: [
+            new TextRun({ text: "College/Department: ", bold: true, size: 18 }),
+            new TextRun({ text: "COLLEGE OF TECHNOLOGIES- INFORMATION TECHNOLOGY", size: 18 }),
+            new TextRun({ text: "   Inclusive Dates: ", bold: true, size: 18 }),
+            new TextRun({ text: formatInclusiveDates(transactions), size: 18 }),
+          ],
+        }),
+        new Table({
+          rows,
+          width: { size: 100, type: WidthType.PERCENTAGE },
+        }),
+      ],
+    }],
+  });
   const buffer = await Packer.toBuffer(doc);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
   res.setHeader("Content-Disposition", `attachment; filename=schedule-report-${new Date().toISOString().split("T")[0]}.docx`);

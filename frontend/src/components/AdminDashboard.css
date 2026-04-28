@@ -31,6 +31,18 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.holiday-banner {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 152, 0, 0.08));
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-left: 4px solid #ffc107;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 /* Stats Grid */
 .stats-grid {
   display: grid;
@@ -46,6 +58,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
+  min-height: 140px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -81,6 +94,7 @@
   background: rgba(255, 255, 255, 0.1);
   width: 80px;
   height: 80px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,23 +103,30 @@
 
 .stat-content {
   color: #ffffff;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
 
 .stat-content h3 {
   font-size: 16px;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
   opacity: 0.9;
+  line-height: 1.35;
 }
 
 .stat-number {
   font-size: 36px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin: 0 0 4px;
 }
 
 .stat-label {
   font-size: 14px;
+  margin: 0;
   opacity: 0.8;
 }
 

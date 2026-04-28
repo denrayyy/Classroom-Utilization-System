@@ -34,13 +34,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     { path: "/users", label: "Manage Users", icon: "/users.png" },
     { path: "/classrooms", label: "Manage Classroom", icon: "/classroom.png" },
     {
-      path: "/instructors",
-      label: "Manage Instructors",
-      icon: "/instructor.png",
-    },
-    { path: "/holidays", label: "Holiday Management", icon: "/holiday.png" },
-    { path: "/activity-logs", label: "Activity Logs", icon: "/activity.png" },
-    {
       path: "/settings",
       label: "Settings",
       icon: "/settings.png",
@@ -86,7 +79,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     if (currentPath === "/reports") return "Reports";
     if (currentPath === "/users") return "Manage Users";
     if (currentPath === "/classrooms") return "Manage Classroom";
-    if (currentPath === "/instructors") return "Manage Instructors";
     if (currentPath === "/holidays") return "Holiday Management";
     if (currentPath === "/activity-logs") return "Activity Logs";
     return "Dashboard";

@@ -19,7 +19,6 @@ import ResetPassword from "./components/ResetPassword";
 import TimeTracker from "./components/TimeTracker";
 import ClassroomManagement from "./components/ClassroomManagement";
 import UserManagement from "./components/UserManagement";
-import InstructorManagement from "./components/InstructorManagement";
 import ScheduleManagement from "./components/ScheduleManagement";
 import ClassroomUsage from "./components/ClassroomUsage";
 import Monitoring from "./components/Monitoring";
@@ -197,10 +196,6 @@ const App: React.FC = () => {
                   <Route
                     path="/classrooms"
                     element={<ClassroomManagement user={user} />}
-                  />
-                  <Route
-                    path="/instructors"
-                    element={<InstructorManagement user={user} />}
                   />
                   <Route
                     path="/holidays"

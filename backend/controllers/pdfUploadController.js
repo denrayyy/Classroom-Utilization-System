@@ -7,7 +7,11 @@ import Instructor from '../models/Instructor.js';
 
 // Use createRequire to import CommonJS module
 const require = createRequire(import.meta.url);
-const { parseSchedulePDF, processSchedules } = require('../utils/pdfParser.cjs');
+const {
+  parseSchedulePDF,
+  processSchedules,
+  cleanScheduleTime,
+} = require('../utils/pdfParser.cjs');
 
 // Configure multer for PDF upload
 const storage = multer.diskStorage({
@@ -93,7 +97,7 @@ export const bulkImportSchedules = async (req, res, next) => {
       if (classroom) {
         const newSchedule = {
           day: schedule.day,
-          time: schedule.time,
+          time: cleanScheduleTime(schedule.time),
           section: schedule.section,
           subjectCode: schedule.subjectCode,
           instructor: schedule.instructor

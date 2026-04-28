@@ -39,6 +39,13 @@ router.get(
   controllerHandler(timeinController.checkHoliday)
 );
 
+router.get(
+  "/schedule-match/:classroomId",
+  authenticateToken,
+  attachWorldTime,
+  controllerHandler(timeinController.getCurrentScheduleForClassroom)
+);
+
 // ✅ POST /api/timein/reset-old — Admin: Reset/archive old records
 router.post(
   "/reset-old",
