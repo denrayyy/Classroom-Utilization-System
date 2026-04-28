@@ -31,6 +31,7 @@ import Profile from "./components/Profile";
 import ChangePasswordModal from "./components/ChangePasswordModal";
 import AdminSettings from "./components/AdminSettings";
 import ActivityLogs from "./components/ActivityLogs";
+import HolidayManagement from "./components/HolidayManagement";
 
 // Types
 interface User {
@@ -200,6 +201,10 @@ const App: React.FC = () => {
                   <Route
                     path="/instructors"
                     element={<InstructorManagement user={user} />}
+                  />
+                  <Route
+                    path="/holidays"
+                    element={<HolidayManagement user={user} />}
                   />
                   <Route
                     path="/activity-logs"

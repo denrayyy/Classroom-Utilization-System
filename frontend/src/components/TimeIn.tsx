@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from "react";
 import "./TimeIn.css";
-import { Upload, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
+import {
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Plane,
+  Info,
+} from "lucide-react";
 
 interface TimeInProps {
   user: { firstName: string; lastName: string; email: string };
@@ -19,6 +28,8 @@ interface Instructor {
   name: string;
   unavailable?: boolean;
   unavailableReason?: string;
+  travelStatus?: string;
+  travelDetails?: string;
 }
 
 const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
@@ -28,11 +39,22 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [evidence, setEvidence] = useState<File | null>(null);
   const [instructorName, setInstructorName] = useState("");
+  const [section, setSection] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [classType, setClassType] = useState("synchronous");
+  const [scheduledStartTime, setScheduledStartTime] = useState("");
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [timeInData, setTimeInData] = useState<any>(null);
+  const [warnings, setWarnings] = useState<any[]>([]);
+
+  // ✅ NEW: Holiday state
+  const [holiday, setHoliday] = useState<any>(null);
+
+  // ✅ NEW: Classroom occupancy state
+  const [occupancyWarning, setOccupancyWarning] = useState<any>(null);
 
   // Get current date and time
   const currentDate = new Date();
@@ -50,11 +72,59 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   useEffect(() => {
     fetchClassrooms();
     fetchInstructors();
+    checkHoliday();
   }, []);
 
   useEffect(() => {
     fetchClassrooms();
   }, [excludeComLabs]);
+
+  // ✅ Check classroom availability when selected
+  useEffect(() => {
+    if (selectedClassroom) {
+      checkClassroomAvailability(selectedClassroom);
+    } else {
+      setOccupancyWarning(null);
+    }
+  }, [selectedClassroom]);
+
+  // ✅ Check today's holiday
+  const checkHoliday = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/timein/check-holiday", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.isHoliday) {
+          setHoliday(data.holiday);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check holiday:", error);
+    }
+  };
+
+  // ✅ Check classroom availability
+  const checkClassroomAvailability = async (classroomId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/timein/availability/${classroomId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.available) {
+          setOccupancyWarning(data);
+        } else {
+          setOccupancyWarning(null);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check availability:", error);
+    }
+  };
 
   const fetchClassrooms = async () => {
     try {
@@ -65,11 +135,8 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       }
       const query = excludeComLabs ? "?excludeComputerLabs=true" : "";
       const response = await fetch(`/api/classrooms${query}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (response.ok) {
         const data = await response.json();
         setClassrooms(data);
@@ -86,31 +153,22 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       const response = await fetch(
         "/api/instructors?archived=false&limit=1000",
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
-
       if (response.ok) {
         const data = await response.json();
-        console.log("Instructors API response:", data);
-
         let instructorArray: Instructor[] = [];
-
         if (Array.isArray(data)) {
           instructorArray = data;
-        } else if (data && data.data && Array.isArray(data.data)) {
+        } else if (data?.data && Array.isArray(data.data)) {
           instructorArray = data.data;
         } else if (data && typeof data === "object") {
           const possibleArray = Object.values(data).find((val) =>
             Array.isArray(val),
           );
-          if (possibleArray) {
-            instructorArray = possibleArray as Instructor[];
-          }
+          if (possibleArray) instructorArray = possibleArray as Instructor[];
         }
-
         setInstructors(instructorArray);
       }
     } catch (error) {
@@ -155,37 +213,41 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         setLoading(false);
         return;
       }
+
       const formData = new FormData();
       formData.append("classroom", selectedClassroom);
       formData.append("evidence", evidence);
       formData.append("instructorName", instructorName);
-      if (remarks) formData.append("remarks", remarks);
+      formData.append("classType", classType);
 
-      console.log("Sending time-in request...", {
-        selectedClassroom,
-        evidence: evidence?.name,
-        remarks,
-      });
+      // ✅ NEW: Send additional fields
+      if (section) formData.append("section", section);
+      if (subjectCode) formData.append("subjectCode", subjectCode);
+      if (scheduledStartTime)
+        formData.append("scheduledStartTime", scheduledStartTime);
+      if (remarks) formData.append("remarks", remarks);
 
       const response = await fetch("/api/timein", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      console.log("Response status:", response.status);
       const data = await response.json();
-      console.log("Response data:", data);
 
       if (response.ok) {
         setTimeInData(data.timeInRecord);
+        setWarnings(data.warnings || []);
         setSuccess(true);
         setSelectedClassroom("");
         setEvidence(null);
         setInstructorName("");
+        setSection("");
+        setSubjectCode("");
+        setScheduledStartTime("");
         setRemarks("");
+        setOccupancyWarning(null);
+
         const fileInput = document.getElementById(
           "evidence",
         ) as HTMLInputElement;
@@ -193,7 +255,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
 
         setTimeout(() => {
           onBack();
-        }, 2000);
+        }, 3000);
       } else {
         setError(data.message || "Time-in failed");
       }
@@ -211,9 +273,18 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
+  // ✅ Get instructor status for display
+  const getSelectedInstructorStatus = () => {
+    if (!instructorName) return null;
+    const instructor = instructors.find((i) => i.name === instructorName);
+    return instructor;
+  };
+
+  const selectedInstructor = getSelectedInstructorStatus();
+
   if (success) {
     let displayTime = formattedTime;
-    if (timeInData && timeInData.timeIn) {
+    if (timeInData?.timeIn) {
       const timeInDate = new Date(timeInData.timeIn);
       displayTime = timeInDate.toLocaleTimeString("en-US", {
         hour: "2-digit",
@@ -235,6 +306,19 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             <p className="status-message">
               Your time-in has been recorded with evidence.
             </p>
+
+            {/* ✅ Show warnings */}
+            {warnings.length > 0 && (
+              <div className="warnings-list">
+                {warnings.map((w, i) => (
+                  <div key={i} className={`warning-item warning-${w.type}`}>
+                    <AlertTriangle size={16} />
+                    <span>{w.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <p
               className="status-message"
               style={{
@@ -261,8 +345,74 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
           </button>
         </div>
 
+        {/* ✅ Holiday Warning Banner */}
+        {holiday && (
+          <div className="holiday-banner">
+            <Calendar size={20} color="#ffc107" />
+            <div>
+              <strong>📅 Today is {holiday.name}</strong>
+              <p>{holiday.type?.toUpperCase()} Holiday</p>
+              {holiday.description && (
+                <p className="holiday-desc">{holiday.description}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Classroom Occupancy Warning */}
+        {occupancyWarning && (
+          <div className="occupancy-warning-banner">
+            <AlertTriangle size={20} color="#dc3545" />
+            <div>
+              <strong>Classroom Occupied!</strong>
+              <p>{occupancyWarning.occupiedBy} is currently using this room</p>
+              <p>Instructor: {occupancyWarning.instructorName}</p>
+              <p>
+                Since: {new Date(occupancyWarning.since).toLocaleTimeString()}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Instructor Travel/Leave Status */}
+        {selectedInstructor?.travelStatus &&
+          selectedInstructor.travelStatus !== "available" && (
+            <div className="instructor-travel-banner">
+              <Plane size={20} color="#ffc107" />
+              <div>
+                <strong>
+                  Instructor Status:{" "}
+                  {selectedInstructor.travelStatus
+                    .replace("-", " ")
+                    .toUpperCase()}
+                </strong>
+                {selectedInstructor.travelDetails && (
+                  <p>{selectedInstructor.travelDetails}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+        {/* ✅ Instructor Unavailable Warning */}
+        {selectedInstructor?.unavailable && (
+          <div className="warning-box">
+            <AlertTriangle size={16} color="#ffc107" />
+            <div>
+              <strong>Warning:</strong> This instructor is currently
+              unavailable.
+              {selectedInstructor.unavailableReason && (
+                <p>
+                  <strong>Reason:</strong>{" "}
+                  {selectedInstructor.unavailableReason}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         <form className="timein-form" onSubmit={handleSubmit}>
           <div className="form-content">
+            {/* Evidence Upload */}
             <div className="upload-section">
               <div className="upload-area">
                 <div className="upload-icon">
@@ -289,8 +439,11 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             </div>
 
             <div className="form-fields">
+              {/* Time & Date (Read Only) */}
               <div className="field-group">
-                <label>Time-In:</label>
+                <label>
+                  <Clock size={16} /> Time-In:
+                </label>
                 <input
                   type="text"
                   value={formattedTime}
@@ -300,7 +453,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
               </div>
 
               <div className="field-group">
-                <label>Date:</label>
+                <label>
+                  <Calendar size={16} /> Date:
+                </label>
                 <input
                   type="text"
                   value={formattedDate}
@@ -309,6 +464,20 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 />
               </div>
 
+              {/* ✅ Class Type */}
+              <div className="field-group">
+                <label>Class Type:</label>
+                <select
+                  value={classType}
+                  onChange={(e) => setClassType(e.target.value)}
+                  className="form-field"
+                >
+                  <option value="synchronous">Synchronous (In-Person)</option>
+                  <option value="asynchronous">Asynchronous (Online)</option>
+                </select>
+              </div>
+
+              {/* Classroom */}
               <div className="field-group">
                 <label>Classroom:</label>
                 <select
@@ -326,6 +495,43 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 </select>
               </div>
 
+              {/* ✅ Section */}
+              <div className="field-group">
+                <label>Section:</label>
+                <input
+                  type="text"
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
+                  placeholder="e.g., BSIT 3F"
+                  className="form-field"
+                />
+              </div>
+
+              {/* ✅ Subject Code */}
+              <div className="field-group">
+                <label>Subject Code:</label>
+                <input
+                  type="text"
+                  value={subjectCode}
+                  onChange={(e) => setSubjectCode(e.target.value)}
+                  placeholder="e.g., IT 137"
+                  className="form-field"
+                />
+              </div>
+
+              {/* ✅ Scheduled Start Time */}
+              <div className="field-group">
+                <label>Scheduled Start Time:</label>
+                <input
+                  type="text"
+                  value={scheduledStartTime}
+                  onChange={(e) => setScheduledStartTime(e.target.value)}
+                  placeholder="e.g., 7:30"
+                  className="form-field"
+                />
+              </div>
+
+              {/* Instructor */}
               <div className="field-group">
                 <label>Instructor Name:</label>
                 <select
@@ -344,6 +550,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                       >
                         {instructor.name}
                         {instructor.unavailable && ` (Unavailable)`}
+                        {instructor.travelStatus &&
+                          instructor.travelStatus !== "available" &&
+                          ` (${instructor.travelStatus})`}
                       </option>
                     ))
                   ) : (
@@ -352,28 +561,9 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                     </option>
                   )}
                 </select>
-                {instructorName &&
-                  Array.isArray(instructors) &&
-                  (() => {
-                    const selectedInstructor = instructors.find(
-                      (i) => i.name === instructorName,
-                    );
-                    if (selectedInstructor?.unavailable) {
-                      return (
-                        <div className="warning-box">
-                          <AlertTriangle size={16} color="#ffc107" />
-                          <strong>Warning:</strong> This instructor is currently
-                          unavailable.
-                          <br />
-                          <strong>Reason:</strong>{" "}
-                          {selectedInstructor.unavailableReason}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
               </div>
 
+              {/* Remarks */}
               <div className="field-group">
                 <label>Remarks (Optional):</label>
                 <textarea
@@ -390,8 +580,16 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-actions">
-            <button type="submit" className="btn-timein" disabled={loading}>
-              {loading ? "Processing..." : "Time-In"}
+            <button
+              type="submit"
+              className="btn-timein"
+              disabled={loading || !!occupancyWarning}
+            >
+              {loading
+                ? "Processing..."
+                : occupancyWarning
+                  ? "Classroom Occupied"
+                  : "Time-In"}
             </button>
           </div>
         </form>

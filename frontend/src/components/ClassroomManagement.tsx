@@ -18,10 +18,11 @@ import {
   Users,
   Clock,
   X,
-  ChevronDown,
   Trash2,
   Hourglass,
+  FileText,
 } from "lucide-react";
+import PDFUploader from "./PDFUploader";
 
 interface User {
   id: string;
@@ -74,6 +75,7 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   );
   const [isEditingSchedules, setIsEditingSchedules] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showPDFUploader, setShowPDFUploader] = useState(false);
   const [scheduleFormData, setScheduleFormData] = useState({
     day: "Monday",
     time: "",
@@ -809,6 +811,8 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 </select>
               </div>
 
+              {/* REMOVED: Import PDF Schedule button from header */}
+
               <button
                 className={`btn ${showArchived ? "btn-secondary" : "btn-outline"}`}
                 onClick={() => setShowArchived(!showArchived)}
@@ -1151,6 +1155,54 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
         )}
       </div>
 
+      {/* PDF Uploader Modal */}
+      {showPDFUploader && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowPDFUploader(false)}
+        >
+          <div
+            className="modal-content pdf-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PDFUploader
+              onClose={() => {
+                setShowPDFUploader(false);
+                if (viewingClassroom) {
+                  setShowScheduleView(true);
+                }
+              }}
+              onImportComplete={() => {
+                fetchData();
+                if (viewingClassroom) {
+                  const fetchUpdatedClassroom = async () => {
+                    try {
+                      const token = localStorage.getItem("token");
+                      const response = await axios.get(
+                        `/api/classrooms/${viewingClassroom._id}`,
+                        {
+                          headers: { Authorization: `Bearer ${token}` },
+                        },
+                      );
+                      setViewingClassroom(response.data);
+                      setShowScheduleView(true);
+                    } catch (err) {
+                      console.error("Failed to refresh classroom:", err);
+                    }
+                  };
+                  fetchUpdatedClassroom();
+                }
+                setSuccess(
+                  `PDF schedules imported to ${viewingClassroom?.name || "classroom"}!`,
+                );
+                setTimeout(() => setSuccess(""), 3000);
+              }}
+              targetClassroom={viewingClassroom}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Schedule View Modal */}
       {showScheduleView && viewingClassroom && (
         <div className="modal-overlay">
@@ -1164,9 +1216,28 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                 />
                 {viewingClassroom.name} - Schedule
               </h3>
-              <button className="modal-close" onClick={handleCloseScheduleView}>
-                <X size={20} color="#dc3545" />
-              </button>
+              <div
+                style={{ display: "flex", gap: "12px", alignItems: "center" }}
+              >
+                {/* ADDED: Import PDF button in schedule modal header */}
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    setShowScheduleView(false);
+                    setShowPDFUploader(true);
+                  }}
+                  title={`Import PDF for ${viewingClassroom.name}`}
+                >
+                  <FileText size={16} />
+                  Import PDF
+                </button>
+                <button
+                  className="modal-close"
+                  onClick={handleCloseScheduleView}
+                >
+                  <X size={20} color="#dc3545" />
+                </button>
+              </div>
             </div>
 
             <div className="modal-body">
@@ -1387,22 +1458,43 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                       <Calendar size={48} color="rgba(255,255,255,0.3)" />
                     </div>
                     <p>No schedules assigned to this classroom.</p>
-                    {isEditingSchedules && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "12px",
+                        justifyContent: "center",
+                        marginTop: "16px",
+                      }}
+                    >
+                      {isEditingSchedules && (
+                        <button
+                          className="btn btn-outline"
+                          onClick={() => {
+                            setScheduleFormData({
+                              day: "Monday",
+                              time: "",
+                              section: "",
+                              subjectCode: "",
+                              instructor: "",
+                            });
+                          }}
+                        >
+                          <Plus size={16} />
+                          Add First Schedule
+                        </button>
+                      )}
+                      {/* ADDED: Import PDF button in empty state */}
                       <button
-                        className="btn btn-outline"
+                        className="btn btn-primary"
                         onClick={() => {
-                          setScheduleFormData({
-                            day: "Monday",
-                            time: "",
-                            section: "",
-                            subjectCode: "",
-                            instructor: "",
-                          });
+                          setShowScheduleView(false);
+                          setShowPDFUploader(true);
                         }}
                       >
-                        Add First Schedule
+                        <FileText size={16} />
+                        Import PDF for {viewingClassroom?.name}
                       </button>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>

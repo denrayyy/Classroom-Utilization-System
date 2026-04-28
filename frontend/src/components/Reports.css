@@ -802,7 +802,7 @@
 }
 
 .modal-content {
-  background: #123341;
+  background: #0e2e3a;
   border-radius: 20px;
   max-height: 90vh;
   overflow-y: auto;
@@ -1051,4 +1051,467 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+/* DOCX Grid Table */
+.docx-grid-container {
+  background: #123341;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.docx-table-wrapper {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.docx-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 1200px;
+}
+
+.docx-grid-table th,
+.docx-grid-table td {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+  min-width: 100px;
+}
+
+.time-header {
+  background: #0e2e3a;
+  color: #ffffff;
+  font-weight: 700;
+  width: 100px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.room-header {
+  background: #0e2e3a;
+  color: #0ec0d4;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.room-subheader {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.time-cell {
+  background: #0a1e28;
+  color: #0ec0d4;
+  font-weight: 700;
+  font-size: 11px;
+  width: 100px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.time-text {
+  display: block;
+  text-align: center;
+}
+
+.room-cell {
+  background: #0e2e3a;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all 0.2s;
+}
+
+.room-cell.has-data {
+  background: #0a2e3a;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.section-row .room-cell {
+  background: #0e2e3a;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.subject-row .room-cell {
+  background: #123341;
+  color: #0ec0d4;
+  font-size: 11px;
+}
+
+.instructor-row .room-cell {
+  background: #0a1e28;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.docx-grid-table tr:hover td {
+  background: rgba(14, 192, 212, 0.1) !important;
+}
+
+/* Day Selector */
+.day-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.day-btn {
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.day-btn:hover {
+  border-color: #0ec0d4;
+  color: #0ec0d4;
+}
+
+.day-btn.active {
+  background: #0ec0d4;
+  color: #184354;
+  border-color: #0ec0d4;
+}
+
+/* ============================================================ */
+/* DOCX CELL CONTENT - Stacked Section/Subject/Instructor */
+/* ============================================================ */
+
+/* Cell Content - Stacked vertically like DOCX */
+.cell-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  gap: 4px;
+  min-height: 70px;
+}
+
+.cell-section {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cell-subject {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0ec0d4;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.cell-instructor {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  text-transform: uppercase;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+}
+
+/* Empty cell styling */
+.empty-cell .cell-section,
+.empty-cell .cell-subject,
+.empty-cell .cell-instructor {
+  color: rgba(255, 255, 255, 0.12);
+}
+
+/* Data cell with content */
+.data-cell {
+  background: #0e2e3a;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0;
+  vertical-align: middle;
+}
+
+.data-cell.has-data {
+  background: #0a2e3a;
+}
+
+.data-cell.has-data:hover {
+  background: rgba(14, 192, 212, 0.12) !important;
+  cursor: default;
+}
+
+.remarks-cell {
+  min-width: 150px;
+}
+
+.data-cell.empty:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Time cell in first column */
+.time-cell {
+  background: #0a1e28;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 11px;
+  width: 110px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px;
+}
+
+.time-label {
+  display: block;
+  font-size: 13px;
+  color: #0ec0d4;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.time-sub-slots {
+  display: block;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+}
+
+/* Corner header */
+.corner-header {
+  background: #0a1e28;
+  color: #ffffff;
+  font-weight: 700;
+  width: 110px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Room header */
+.room-header {
+  background: #0e2e3a;
+  color: #0ec0d4;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 8px;
+}
+
+.room-group-header {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.room-sub-header {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: none;
+  line-height: 1.25;
+}
+
+.remarks-header {
+  min-width: 150px;
+}
+
+.room-name {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.room-label {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Hover effect on table rows */
+.docx-grid-table tbody tr:hover td {
+  background: rgba(14, 192, 212, 0.06) !important;
+}
+
+.docx-grid-table tbody tr:hover td.data-cell.has-data {
+  background: rgba(14, 192, 212, 0.15) !important;
+}
+
+/* Sticky first column */
+.docx-grid-table th:first-child,
+.docx-grid-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .docx-grid-table {
+    font-size: 10px;
+    min-width: 900px;
+  }
+  
+  .cell-section {
+    font-size: 11px;
+  }
+  
+  .cell-subject {
+    font-size: 10px;
+  }
+  
+  .cell-instructor {
+    font-size: 9px;
+  }
+  
+  .time-cell {
+    width: 90px;
+    font-size: 10px;
+  }
+  
+  .time-label {
+    font-size: 11px;
+  }
+}
+
+/* Paper-like report overrides */
+.report-paper-header {
+  text-align: center;
+  margin: 4px 0 14px;
+  color: #ffffff;
+}
+
+.paper-school {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+
+.paper-office {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.paper-title {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.paper-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.report-meta-line {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.reports .docx-grid-container {
+  background: #ffffff;
+  border: 1px solid #111827;
+}
+
+.reports .docx-grid-table {
+  table-layout: fixed;
+}
+
+.reports .docx-grid-table th,
+.reports .docx-grid-table td {
+  border: 1px solid #1f2937;
+}
+
+.reports .corner-header,
+.reports .room-header {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.reports .corner-header {
+  width: 130px;
+}
+
+.reports .room-group-header {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.reports .room-sub-header {
+  font-size: 10px;
+  color: #1f2937;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+.reports .time-cell {
+  background: #ffffff;
+  color: #111827;
+  width: 130px;
+}
+
+.reports .time-label,
+.reports .cell-section,
+.reports .cell-subject,
+.reports .cell-instructor {
+  color: #111827;
+}
+
+.reports .remarks-cell {
+  min-width: 150px;
+}
+
+.reports .day-row .day-cell {
+  text-align: left;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #111827;
+  padding: 6px 10px;
+}
+
+.reports .day-row .day-empty-cell {
+  background: #f9fafb;
+  padding: 6px 8px;
+}
+
+.reports .cell-content {
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 0;
+  padding: 2px 4px;
+  gap: 0;
+}
+
+.reports .cell-section,
+.reports .cell-subject,
+.reports .cell-instructor {
+  font-size: 10px;
+  line-height: 1;
+  margin: 0;
+}
+
+.reports .time-label {
+  font-size: 10px;
+  line-height: 1.1;
 }

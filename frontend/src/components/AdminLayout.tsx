@@ -38,6 +38,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       label: "Manage Instructors",
       icon: "/instructor.png",
     },
+    { path: "/holidays", label: "Holiday Management", icon: "/holiday.png" },
     { path: "/activity-logs", label: "Activity Logs", icon: "/activity.png" },
     {
       path: "/settings",
@@ -86,6 +87,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     if (currentPath === "/users") return "Manage Users";
     if (currentPath === "/classrooms") return "Manage Classroom";
     if (currentPath === "/instructors") return "Manage Instructors";
+    if (currentPath === "/holidays") return "Holiday Management";
     if (currentPath === "/activity-logs") return "Activity Logs";
     return "Dashboard";
   };

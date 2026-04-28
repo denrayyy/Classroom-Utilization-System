@@ -37,6 +37,7 @@ interface Schedule {
   endTime: string;
   semester: string;
   academicYear: string;
+  classType?: "synchronous" | "asynchronous";
   status: "pending" | "approved" | "rejected" | "active" | "completed";
   requestDate: string;
   approvedBy?: {
@@ -68,6 +69,7 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ user }) => {
     semester: "",
     academicYear: "",
     notes: "",
+    classType: "synchronous",
     isRecurring: true,
     endDate: "",
   });
@@ -137,6 +139,7 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ user }) => {
         semester: "",
         academicYear: "",
         notes: "",
+        classType: "synchronous",
         isRecurring: true,
         endDate: "",
       });
@@ -191,6 +194,7 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ user }) => {
       semester: "",
       academicYear: "",
       notes: "",
+      classType: "synchronous",
       isRecurring: true,
       endDate: "",
     });
@@ -208,6 +212,7 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ user }) => {
       endTime: schedule.endTime,
       semester: schedule.semester || "",
       academicYear: schedule.academicYear || "",
+      classType: schedule.classType || "synchronous",
       notes: schedule.notes || "",
       isRecurring: true,
       endDate: "",
@@ -300,6 +305,23 @@ const ScheduleManagement: React.FC<ScheduleManagementProps> = ({ user }) => {
                   ))}
                 </select>
               </div>
+              <div className="form-group">
+                <label htmlFor="classType">Class Type</label>
+                <select
+                  id="classType"
+                  value={formData.classType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, classType: e.target.value })
+                  }
+                  required
+                >
+                  <option value="synchronous">Synchronous (Physical Classroom)</option>
+                  <option value="asynchronous">Asynchronous (Online/Virtual)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="dayOfWeek">Day of Week</label>
                 <select

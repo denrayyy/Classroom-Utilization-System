@@ -25,11 +25,11 @@ const timeRangesOverlap = (start1, end1, start2, end2) => {
 /**
  * Check for schedule conflicts
  * A conflict occurs when:
- * 1. Same classroom on same day with overlapping times, OR
+ * 1. Same classroom on same day with overlapping times (only for synchronous classes), OR
  * 2. Same teacher on same day with overlapping times
  */
 export const checkScheduleConflict = async (scheduleData, excludeScheduleId = null) => {
-  const { classroom, teacher, dayOfWeek, startTime, endTime, status } = scheduleData;
+  const { classroom, teacher, dayOfWeek, startTime, endTime, status, classType = "synchronous" } = scheduleData;
 
   // Only check conflicts for active/pending schedules
   const statusFilter = { $in: ["pending", "approved", "active"] };
@@ -37,27 +37,30 @@ export const checkScheduleConflict = async (scheduleData, excludeScheduleId = nu
     statusFilter.$in = statusFilter.$in.includes(status) ? [status] : statusFilter.$in;
   }
 
-  // Check classroom conflicts
-  const classroomQuery = {
-    classroom,
-    dayOfWeek,
-    status: statusFilter,
-  };
-  if (excludeScheduleId) {
-    classroomQuery._id = { $ne: excludeScheduleId };
-  }
+  // Check classroom conflicts (only for synchronous classes)
+  if (classType === "synchronous") {
+    const classroomQuery = {
+      classroom,
+      dayOfWeek,
+      status: statusFilter,
+      classType: "synchronous" // Only check against other synchronous classes
+    };
+    if (excludeScheduleId) {
+      classroomQuery._id = { $ne: excludeScheduleId };
+    }
 
-  const classroomConflicts = await Schedule.find(classroomQuery);
+    const classroomConflicts = await Schedule.find(classroomQuery);
 
-  for (const conflict of classroomConflicts) {
-    if (timeRangesOverlap(startTime, endTime, conflict.startTime, conflict.endTime)) {
-      throw new Error(
-        `Classroom conflict: Another schedule (${conflict.subject || conflict.courseCode || "Schedule"}) exists in the same classroom at overlapping times on the same day.`
-      );
+    for (const conflict of classroomConflicts) {
+      if (timeRangesOverlap(startTime, endTime, conflict.startTime, conflict.endTime)) {
+        throw new Error(
+          `Classroom conflict: Another synchronous schedule (${conflict.subject || conflict.courseCode || "Schedule"}) exists in the same classroom at overlapping times on the same day.`
+        );
+      }
     }
   }
 
-  // Check teacher conflicts
+  // Check teacher conflicts (applies to both sync and async)
   const teacherQuery = {
     teacher,
     dayOfWeek,

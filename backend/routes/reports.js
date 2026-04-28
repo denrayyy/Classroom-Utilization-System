@@ -20,12 +20,25 @@ router.get(
   controllerHandler(reportsController.list)
 );
 
-// GET /api/reports/timein/all — Admin
+// GET /api/reports/timein/all
 router.get(
   "/timein/all",
   authenticateToken,
-  requireAdmin,
   controllerHandler(reportsController.getTimeInAll)
+);
+
+// ✅ POST /api/reports/timein/export-docx — Export as DOCX
+router.post(
+  "/timein/export-docx",
+  authenticateToken,
+  controllerHandler(reportsController.exportTimeInDocx)
+);
+
+// POST /api/reports/timein/export-pdf — Export as PDF
+router.post(
+  "/timein/export-pdf",
+  authenticateToken,
+  controllerHandler(reportsController.exportTimeInPdf)
 );
 
 // POST /api/reports/teacher
@@ -62,14 +75,6 @@ router.post(
   authenticateToken,
   requireAdmin,
   controllerHandler(reportsController.archiveDaily)
-);
-
-// ⚠️ FIXED: Changed from GET to POST since we're sending data in the request body
-router.post(
-  "/timein/export-pdf",
-  authenticateToken,
-  requireAdmin,
-  controllerHandler(reportsController.exportTimeInPdf)
 );
 
 // GET /api/reports/:id

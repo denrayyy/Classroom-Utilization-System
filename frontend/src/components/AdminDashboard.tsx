@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./AdminDashboard.css";
-import { Clock, Users, DoorOpen, TrendingUp } from "lucide-react";
+import {
+  Clock,
+  Users,
+  DoorOpen,
+  TrendingUp,
+  Calendar,
+  AlertTriangle,
+  Plane,
+} from "lucide-react";
 
 interface AdminDashboardProps {
   fullName: string;
@@ -27,6 +35,23 @@ interface ActivityRecord {
   timeOut?: string;
   date: string;
   isArchived?: boolean;
+  isLate?: boolean;
+  scheduledStartTime?: string;
+  isHoliday?: boolean;
+  holidayInfo?: {
+    name: string;
+    type: string;
+    description: string;
+  };
+  instructorStatus?: {
+    onTravel: boolean;
+    onLeave: boolean;
+    travelDetails: string;
+  };
+  section?: string;
+  subjectCode?: string;
+  classType?: string;
+  remarks?: string;
   evidence?: {
     filename?: string;
     originalName?: string;
@@ -45,11 +70,16 @@ interface OverallStats {
   totalToday: number;
   totalInstructors: number;
   totalClassrooms: number;
+  activeNow: number;
+  lateCount: number;
+  travelingCount: number;
   instructors: InstructorStats[];
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [activeTimeIns, setActiveTimeIns] = useState<any[]>([]);
+  const [holiday, setHoliday] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +96,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     totalToday: 0,
     totalInstructors: 0,
     totalClassrooms: 0,
+    activeNow: 0,
+    lateCount: 0,
+    travelingCount: 0,
     instructors: [],
   });
 
@@ -102,11 +135,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     return `${year}-${month}-${day}`;
   };
 
+  // ✅ Check holiday and active time-ins
+  useEffect(() => {
+    checkHoliday();
+    fetchActiveTimeIns();
+  }, []);
+
+  const checkHoliday = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/timein/check-holiday", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.data.isHoliday) {
+        setHoliday(response.data.holiday);
+      }
+    } catch (err) {
+      console.error("Failed to check holiday:", err);
+    }
+  };
+
+  const fetchActiveTimeIns = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/timein/monitoring/active", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setActiveTimeIns(response.data);
+    } catch (err) {
+      console.error("Failed to fetch active time-ins:", err);
+    }
+  };
+
   const fetchRecentActivities = async () => {
     try {
       const token = localStorage.getItem("token");
-
-      // Get today's date in Manila timezone
       const todayStr = getManilaTodayString();
 
       console.log("📅 Fetching Manila date:", todayStr);
@@ -117,18 +180,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
       console.log(`📊 API returned ${response.data.length} records`);
 
-      // Filter using Manila date comparison
       const todayRecords = response.data.filter((record: ActivityRecord) => {
         const recordManilaDate = convertToManilaDateString(record.date);
         const isToday = recordManilaDate === todayStr;
         const notArchived = !record.isArchived;
-
-        if (isToday && notArchived) {
-          console.log(
-            `✅ Record ${record._id} - Manila date: ${recordManilaDate} - INCLUDED`,
-          );
-        }
-
         return isToday && notArchived;
       });
 
@@ -138,7 +193,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       setActivities(todayRecords);
       calculateStats(todayRecords);
       setLoading(false);
-      // Reset to first page when new data arrives
       setCurrentPage(1);
     } catch (error: any) {
       console.error("Error fetching activities:", error);
@@ -152,17 +206,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
   };
 
   const calculateStats = (records: ActivityRecord[]) => {
-    // Filter out records without instructor name
     const validRecords = records.filter((record) => record.instructorName);
-
     const totalToday = validRecords.length;
-
-    // Get unique classrooms used today
     const uniqueClassrooms = new Set(
       validRecords.map((r) => r.classroom?.name).filter(Boolean),
     ).size;
+    const lateCount = validRecords.filter((r) => r.isLate).length;
+    const travelingCount = validRecords.filter(
+      (r) => r.instructorStatus?.onTravel,
+    ).length;
+    const activeNow = activeTimeIns.length;
 
-    // Group by instructor
     const instructorMap = new Map<
       string,
       {
@@ -191,7 +245,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       instructorStats.total += 1;
       instructorStats.classrooms.add(classroom);
 
-      // Track first and last time-in
       if (timeIn) {
         if (
           !instructorStats.firstTimeIn ||
@@ -222,29 +275,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
       totalToday,
       totalInstructors: instructorMap.size,
       totalClassrooms: uniqueClassrooms,
+      activeNow,
+      lateCount,
+      travelingCount,
       instructors,
     });
   };
 
   useEffect(() => {
     fetchRecentActivities();
-
-    // Refresh every 30 seconds for real-time updates
     const interval = setInterval(() => {
       fetchRecentActivities();
+      fetchActiveTimeIns();
     }, 30000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // Update total pages when filtered activities change
   useEffect(() => {
     const validActivities = activities.filter(
       (activity) => activity.student && activity.classroom,
     );
     const filteredActivities = filterActivities(validActivities);
     setTotalPages(Math.ceil(filteredActivities.length / pageSize));
-    // Reset to first page when filters change
     setCurrentPage(1);
   }, [activities, searchName, selectedInstructor, pageSize]);
 
@@ -277,7 +329,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
   const filterActivities = (activitiesList: ActivityRecord[]) => {
     return activitiesList.filter((activity) => {
-      // Filter by student name
       if (searchName) {
         const fullName =
           `${activity.student?.firstName} ${activity.student?.lastName}`.toLowerCase();
@@ -285,14 +336,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
           return false;
         }
       }
-
-      // Filter by instructor
       if (selectedInstructor !== "all") {
         if (activity.instructorName !== selectedInstructor) {
           return false;
         }
       }
-
       return true;
     });
   };
@@ -316,7 +364,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
         headers: { Authorization: `Bearer ${token}` },
         responseType: "blob",
       });
-
       const url = window.URL.createObjectURL(response.data);
       setEvidenceModal({ open: true, url, filename, isBlob: true });
       setEvidenceLoading(false);
@@ -356,7 +403,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     };
   }, [evidenceModal.url, evidenceModal.isBlob]);
 
-  // Get paginated data
   const getPaginatedData = () => {
     const validActivities = activities.filter(
       (activity) => activity.student && activity.classroom,
@@ -367,10 +413,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     return filteredActivities.slice(start, end);
   };
 
-  // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll to top of the table
     const tableContainer = document.querySelector(
       ".activities-table-container",
     );
@@ -379,7 +423,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     }
   };
 
-  // Get gender badge
   const getGenderBadge = (gender: string) => {
     if (gender === "male") {
       return <span className="badge badge-male">♂ Male</span>;
@@ -389,7 +432,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
     return null;
   };
 
-  // Get current paginated data
   const currentActivities = getPaginatedData();
   const validActivities = activities.filter(
     (activity) => activity.student && activity.classroom,
@@ -399,6 +441,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
 
   return (
     <div className="admin-dashboard">
+      {/* Header */}
       <div className="dashboard-header">
         <div className="welcome-section">
           <h1>Dashboard</h1>
@@ -414,10 +457,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
           </p>
         </div>
       </div>
-
+      {/* Messages */}
       {success && <div className="alert alert-success">{success}</div>}
       {error && <div className="alert alert-error">{error}</div>}
-
+      {/* ✅ Holiday Banner */}
+      {holiday && (
+        <div className="holiday-banner">
+          <Calendar size={24} color="#ffc107" />
+          <div>
+            <strong style={{ color: "#ffc107" }}>
+              📅 Today is {holiday.name}
+            </strong>
+            <p style={{ color: "rgba(255,255,255,0.8)", margin: "4px 0 0" }}>
+              {holiday.type?.toUpperCase()} Holiday
+              {holiday.description && ` - ${holiday.description}`}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Statistics Cards */}
       <div className="stats-grid">
         <div className="stat-card stat-primary">
@@ -430,6 +487,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
             <p className="stat-label">today</p>
           </div>
         </div>
+
         <div className="stat-card stat-accent">
           <div className="stat-icon">
             <Users size={32} color="#0ec0d4" />
@@ -440,6 +498,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
             <p className="stat-label">taught today</p>
           </div>
         </div>
+
         <div className="stat-card stat-secondary">
           <div className="stat-icon">
             <DoorOpen size={32} color="#0ec0d4" />
@@ -450,69 +509,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
             <p className="stat-label">utilized today</p>
           </div>
         </div>
-      </div>
 
-      {/* Instructor Statistics */}
-      {stats.instructors.length > 0 && (
-        <div className="department-stats-section">
-          <h2>
-            <TrendingUp
-              size={20}
-              color="#0ec0d4"
-              style={{ marginRight: "8px" }}
-            />
-            Instructor Activity Today
-          </h2>
-          <div className="department-stats-grid">
-            {stats.instructors.map((instructor) => (
-              <div
-                key={instructor.instructorName}
-                className="department-stat-card"
-              >
-                <div className="department-header">
-                  <h3>{instructor.instructorName}</h3>
-                  <span className="department-percentage">
-                    {instructor.total}{" "}
-                    {instructor.total === 1 ? "time-in" : "time-ins"}
-                  </span>
-                </div>
-                <div className="department-progress">
-                  <div
-                    className="progress-bar"
-                    style={{
-                      width: `${Math.min(100, (instructor.total / stats.totalToday) * 100)}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="department-details">
-                  <div className="detail-item">
-                    <span className="detail-label">Classes:</span>
-                    <span className="detail-value">{instructor.total}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Classrooms:</span>
-                    <span className="detail-value">
-                      {instructor.uniqueClassrooms}
-                    </span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">First In:</span>
-                    <span className="detail-value">
-                      {formatTime(instructor.firstTimeIn)}
-                    </span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Last In:</span>
-                    <span className="detail-value">
-                      {formatTime(instructor.lastTimeIn)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* ✅ Active Now Card */}
+        <div className="stat-card stat-warning">
+          <div className="stat-icon">
+            <Clock size={32} color="#ffc107" />
+          </div>
+          <div className="stat-content">
+            <h3>Active Now</h3>
+            <p className="stat-number">{stats.activeNow}</p>
+            <p className="stat-label">classes in session</p>
           </div>
         </div>
-      )}
+
+        {/* ✅ Late Check-ins Card */}
+        {stats.lateCount > 0 && (
+          <div className="stat-card stat-danger">
+            <div className="stat-icon">
+              <AlertTriangle size={32} color="#dc3545" />
+            </div>
+            <div className="stat-content">
+              <h3>Late Check-ins</h3>
+              <p className="stat-number">{stats.lateCount}</p>
+              <p className="stat-label">today</p>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Traveling Instructors Card */}
+        {stats.travelingCount > 0 && (
+          <div className="stat-card stat-info">
+            <div className="stat-icon">
+              <Plane size={32} color="#17a2b8" />
+            </div>
+            <div className="stat-content">
+              <h3>On Travel</h3>
+              <p className="stat-number">{stats.travelingCount}</p>
+              <p className="stat-label">instructors</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Activities Section */}
       <div className="activities-section">
@@ -586,6 +623,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                         <th>Department</th>
                         <th>Instructor</th>
                         <th>Classroom</th>
+                        <th>Section/Subject</th>
                         <th>Evidence</th>
                       </tr>
                     </thead>
@@ -593,11 +631,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                       {currentActivities.map((activity) => {
                         const { time } = formatDateTime(activity.timeIn);
                         return (
-                          <tr key={activity._id}>
-                            <td>{time}</td>
+                          <tr
+                            key={activity._id}
+                            className={activity.isLate ? "late-row" : ""}
+                          >
+                            <td>
+                              {time}
+                              {/* ✅ Late Badge */}
+                              {activity.isLate && (
+                                <span
+                                  className="late-badge"
+                                  title={`Scheduled: ${activity.scheduledStartTime || "N/A"}`}
+                                >
+                                  LATE
+                                </span>
+                              )}
+                              {/* ✅ Travel Badge */}
+                              {activity.instructorStatus?.onTravel && (
+                                <span
+                                  className="travel-badge"
+                                  title={
+                                    activity.instructorStatus?.travelDetails ||
+                                    "On official travel"
+                                  }
+                                >
+                                  <Plane size={10} /> Travel
+                                </span>
+                              )}
+                            </td>
                             <td className="student-name">
                               {activity.student?.firstName}{" "}
                               {activity.student?.lastName}
+                              {activity.student?.gender && (
+                                <span style={{ marginLeft: "6px" }}>
+                                  {getGenderBadge(activity.student.gender)}
+                                </span>
+                              )}
                             </td>
                             <td>
                               <span className="department-badge">
@@ -610,6 +679,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                               </span>
                             </td>
                             <td>{activity.classroom?.name}</td>
+                            {/* ✅ Section/Subject */}
+                            <td>
+                              {activity.section && activity.subjectCode ? (
+                                <span style={{ fontSize: "12px" }}>
+                                  {activity.section} - {activity.subjectCode}
+                                </span>
+                              ) : (
+                                <span className="no-evidence">N/A</span>
+                              )}
+                            </td>
                             <td>
                               {activity.evidence?.filename ? (
                                 <button
@@ -621,7 +700,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                                   }
                                   disabled={evidenceLoading}
                                 >
-                                  {evidenceLoading ? "Loading..." : "View"}
+                                  {evidenceLoading ? "..." : "View"}
                                 </button>
                               ) : (
                                 <span className="no-evidence">No evidence</span>
@@ -634,7 +713,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                   </table>
                 </div>
 
-                {/* Pagination Controls */}
+                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="pagination-section">
                     <div className="pagination-info">
@@ -650,30 +729,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                       >
                         ← Previous
                       </button>
-
                       <div className="page-numbers">
                         {(() => {
                           const pages: number[] = [];
                           if (totalPages <= 5) {
-                            for (let i = 1; i <= totalPages; i++) {
-                              pages.push(i);
-                            }
+                            for (let i = 1; i <= totalPages; i++) pages.push(i);
                           } else if (currentPage <= 3) {
-                            for (let i = 1; i <= 5; i++) {
-                              pages.push(i);
-                            }
+                            for (let i = 1; i <= 5; i++) pages.push(i);
                           } else if (currentPage >= totalPages - 2) {
-                            for (let i = totalPages - 4; i <= totalPages; i++) {
+                            for (let i = totalPages - 4; i <= totalPages; i++)
                               pages.push(i);
-                            }
                           } else {
                             for (
                               let i = currentPage - 2;
                               i <= currentPage + 2;
                               i++
-                            ) {
+                            )
                               pages.push(i);
-                            }
                           }
                           return pages.map((pageNum) => (
                             <button
@@ -686,7 +758,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                           ));
                         })()}
                       </div>
-
                       <button
                         className="btn-pagination"
                         onClick={() => handlePageChange(currentPage + 1)}
@@ -694,7 +765,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
                       >
                         Next →
                       </button>
-
                       <select
                         className="page-size-select"
                         value={pageSize}
@@ -716,7 +786,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ fullName }) => {
           })()
         )}
       </div>
-
       {/* Evidence Modal */}
       {evidenceModal.open && (
         <div className="modal-overlay" onClick={closeEvidenceModal}>

@@ -37,6 +37,11 @@ const scheduleSchema = mongoose.Schema({
     enum: ["pending", "approved", "active", "cancelled"],
     default: "pending"
   },
+  classType: {
+    type: String,
+    enum: ["synchronous", "asynchronous"],
+    default: "synchronous"
+  },
   semester: {
     type: String
   },

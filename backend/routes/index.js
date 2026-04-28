@@ -11,6 +11,7 @@ import reportRoutes from "./reports.js";
 import timeInRoutes from "./timein.js";
 import userRoutes from "./users.js";
 import instructorRoutes from "./instructors.js";
+import holidayRoutes from "./holidays.js";
 import apiRoutes from "./api.js";
 import activityLogsRoutes from "./activityLogs.js";
 
@@ -48,6 +49,7 @@ router.use("/reports", reportRoutes);
 router.use("/timein", timeInRoutes);
 router.use("/users", userRoutes);
 router.use("/instructors", instructorRoutes);
+router.use("/holidays", holidayRoutes);
 router.use("/activity-logs", activityLogsRoutes);
 router.use("/", apiRoutes);
 

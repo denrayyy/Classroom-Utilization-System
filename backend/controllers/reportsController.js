@@ -1,10 +1,11 @@
 /**
  * Reports Controller
- * Handles listing, generating, sharing, commenting, and PDF export for reports.
+ * Handles listing, generating, sharing, commenting, PDF export, and DOCX export for reports.
  */
 
 import PDFDocument from "pdfkit";
 import crypto from 'crypto';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType } from "docx";
 import Report from "../models/Report.js";
 import ClassroomUsage from "../models/ClassroomUsage.js";
 import Schedule from "../models/Schedule.js";
@@ -21,435 +22,86 @@ import {
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 /**
- * List reports with optional filters (type, status, dates, week, month)
+ * List reports with optional filters
  */
 export const list = asyncHandler(async (req, res) => {
-  const {
-    type,
-    status,
-    startDate,
-    endDate,
-    week,
-    month,
-    page = 1,
-    limit = 10
-  } = req.query;
-  
+  const { type, status, startDate, endDate, week, month, page = 1, limit = 10 } = req.query;
   const query = {};
-
   if (req.user.role === "teacher") {
-    query.$or = [
-      { generatedBy: req.user._id },
-      { "sharedWith.user": req.user._id },
-    ];
+    query.$or = [{ generatedBy: req.user._id }, { "sharedWith.user": req.user._id }];
   }
-
   if (type) query.type = type;
   if (status) query.status = status;
-
   if (startDate && endDate) {
     query["period.startDate"] = { $gte: new Date(startDate) };
     query["period.endDate"] = { $lte: new Date(endDate) };
   }
-
-  if (week && type === "weekly") {
-    const [year, weekNum] = week.split("-");
-    const startOfYear = new Date(year, 0, 1);
-    const daysToAdd = (weekNum - 1) * 7;
-    const weekStart = new Date(startOfYear);
-    weekStart.setDate(startOfYear.getDate() + daysToAdd - startOfYear.getDay());
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    query["period.startDate"] = { $gte: weekStart };
-    query["period.endDate"] = { $lte: weekEnd };
-  }
-
-  if (month && type === "monthly") {
-    const [year, monthNum] = month.split("-");
-    const monthStart = new Date(year, monthNum - 1, 1);
-    const monthEnd = new Date(year, monthNum, 0, 23, 59, 59, 999);
-    query["period.startDate"] = { $gte: monthStart };
-    query["period.endDate"] = { $lte: monthEnd };
-  }
-
-  // Pagination
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
-  const skip = (pageNum - 1) * limitNum;
-
   const [reports, total] = await Promise.all([
-    Report.find(query)
-      .populate("generatedBy", "firstName lastName email employeeId")
-      .populate("sharedWith.user", "firstName lastName email")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean(),
+    Report.find(query).populate("generatedBy", "firstName lastName email employeeId").populate("sharedWith.user", "firstName lastName email").sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
     Report.countDocuments(query)
   ]);
-
-  res.json({
-    reports,
-    pagination: {
-      total,
-      page: pageNum,
-      limit: limitNum,
-      pages: Math.ceil(total / limitNum)
-    }
-  });
+  res.json({ reports, pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
 });
 
 /**
- * Get all time-in transactions with pagination and filters
+ * Get all time-in transactions
  */
 export const getTimeInAll = asyncHandler(async (req, res) => {
-  const {
-    date,
-    month,
-    studentName,
-    instructorName,
-    classroom,
-    page = 1,
-    limit = 10,
-    sortBy = "date",
-    sortOrder = "desc"
-  } = req.query;
-
+  const { date, month, studentName, instructorName, classroom, page = 1, limit = 1000, sortBy = "date", sortOrder = "desc" } = req.query;
   const query = {};
-
-  // Date filter
   if (date) {
     const targetDate = new Date(date);
-    if (isNaN(targetDate.getTime())) {
-      return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD format." });
-    }
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(targetDate); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate); endOfDay.setHours(23, 59, 59, 999);
     query.date = { $gte: startOfDay, $lte: endOfDay };
   }
-
-  // Month filter
   if (month) {
     const [year, monthNum] = month.split("-");
-    const monthStart = new Date(Number(year), Number(monthNum) - 1, 1, 0, 0, 0, 0);
-    const monthEnd = new Date(Number(year), Number(monthNum), 0, 23, 59, 59, 999);
-    query.date = { $gte: monthStart, $lte: monthEnd };
+    query.date = { $gte: new Date(Number(year), Number(monthNum) - 1, 1), $lte: new Date(Number(year), Number(monthNum), 0, 23, 59, 59, 999) };
   }
-
-  // Classroom filter
-  if (classroom) {
-    query.classroom = classroom;
-  }
-
-  // Build search conditions for student/instructor
-  if (studentName || instructorName) {
-    query.$or = [];
-    
-    if (studentName) {
-      query.$or.push({
-        $expr: {
-          $regexMatch: {
-            input: { $concat: ["$student.firstName", " ", "$student.lastName"] },
-            regex: studentName,
-            options: "i"
-          }
-        }
-      });
-    }
-    
-    if (instructorName) {
-      query.$or.push({
-        instructorName: { $regex: instructorName, $options: "i" }
-      });
-    }
-  }
-
-  // Pagination
-  const pageNum = parseInt(page);
-  const limitNum = parseInt(limit);
-  const skip = (pageNum - 1) * limitNum;
-
-  // Build sort
-  const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
-
+  if (classroom) query.classroom = classroom;
+  const pageNum = parseInt(page); const limitNum = parseInt(limit);
   const [timeInTransactions, total] = await Promise.all([
-    TimeIn.find(query)
-      .populate("student", "firstName lastName email employeeId department")
-      .populate("classroom", "name location capacity")
-      .populate("verifiedBy", "firstName lastName")
-      .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .lean(),
+    TimeIn.find(query).populate("student", "firstName lastName email employeeId department").populate("classroom", "name location capacity").populate("verifiedBy", "firstName lastName").sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
     TimeIn.countDocuments(query)
   ]);
-
-  res.json({
-    data: timeInTransactions,
-    pagination: {
-      total,
-      page: pageNum,
-      limit: limitNum,
-      pages: Math.ceil(total / limitNum)
-    }
-  });
+  res.json({ data: timeInTransactions, pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
 });
 
 /**
- * Get report by ID (with access check for teachers)
+ * Get report by ID
  */
 export const getById = asyncHandler(async (req, res) => {
-  const report = await Report.findById(req.params.id)
-    .populate("generatedBy", "firstName lastName email employeeId")
-    .populate("sharedWith.user", "firstName lastName email")
-    .lean();
-
-  if (!report) {
-    return res.status(404).json({ message: "Report not found" });
-  }
-
-  if (req.user.role === "teacher") {
-    const hasAccess =
-      report.generatedBy._id.toString() === req.user._id.toString() ||
-      report.sharedWith.some((share) => share.user._id.toString() === req.user._id.toString());
-    if (!hasAccess) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-  }
-
+  const report = await Report.findById(req.params.id).populate("generatedBy", "firstName lastName email employeeId").populate("sharedWith.user", "firstName lastName email").lean();
+  if (!report) return res.status(404).json({ message: "Report not found" });
   res.json(report);
 });
 
 /**
- * Generate teacher report for a date range
+ * Generate teacher report
  */
 export const generateTeacher = asyncHandler(async (req, res) => {
   const { startDate, endDate, title } = req.body;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  const [usageRecords, schedules] = await Promise.all([
-    ClassroomUsage.find({
-      teacher: req.user._id,
-      date: { $gte: start, $lte: end },
-    })
-      .populate("classroom", "name location capacity")
-      .populate("schedule", "subject courseCode dayOfWeek startTime endTime")
-      .sort({ date: 1 })
-      .lean(),
-    Schedule.find({
-      teacher: req.user._id,
-      status: { $in: ["approved", "active"] },
-    })
-      .populate("classroom", "name location capacity")
-      .sort({ dayOfWeek: 1, startTime: 1 })
-      .lean()
-  ]);
-
+  const start = new Date(startDate); const end = new Date(endDate);
+  const usageRecords = await ClassroomUsage.find({ teacher: req.user._id, date: { $gte: start, $lte: end } }).populate("classroom", "name location capacity").sort({ date: 1 }).lean();
   const totalClasses = usageRecords.length;
-  const onTimeClasses = usageRecords.filter((r) => r.status === "on-time").length;
-  const lateStartClasses = usageRecords.filter((r) => r.status === "late-start").length;
-  const earlyEndClasses = usageRecords.filter((r) => r.status === "early-end").length;
-  const noShowClasses = usageRecords.filter((r) => r.status === "no-show").length;
-  
-  const totalHours = usageRecords.reduce((sum, record) => {
-    if (record.timeOut && record.timeIn) {
-      return sum + (record.timeOut - record.timeIn) / (1000 * 60 * 60);
-    }
-    return sum;
-  }, 0);
-
-  const reportData = {
-    teacher: {
-      name: req.user.fullName,
-      email: req.user.email,
-      employeeId: req.user.employeeId,
-      department: req.user.department,
-    },
-    period: { startDate: start, endDate: end },
-    statistics: {
-      totalClasses,
-      onTimeClasses,
-      lateStartClasses,
-      earlyEndClasses,
-      noShowClasses,
-      totalHours: Math.round(totalHours * 100) / 100,
-      attendanceRate: totalClasses > 0 ? Math.round((onTimeClasses / totalClasses) * 100) : 0,
-    },
-    usageRecords,
-    schedules,
-  };
-
-  const report = new Report({
-    title:
-      title ||
-      `Teacher Report - ${req.user.fullName} (${start.toDateString()} to ${end.toDateString()})`,
-    type: "teacher",
-    generatedBy: req.user._id,
-    period: { startDate: start, endDate: end },
-    data: reportData,
-    summary: {
-      totalClassrooms: new Set(usageRecords.map((r) => r.classroom._id)).size,
-      totalUtilization: Math.round(totalHours * 100) / 100,
-      averageUtilization:
-        totalClasses > 0 ? Math.round((totalHours / totalClasses) * 100) / 100 : 0,
-      underutilizedClassrooms: 0,
-      conflicts: 0,
-      recommendations: [],
-    },
-    status: "completed",
-  });
-
+  const report = new Report({ title: title || `Teacher Report (${start.toDateString()} to ${end.toDateString()})`, type: "teacher", generatedBy: req.user._id, period: { startDate: start, endDate: end }, data: { usageRecords, totalClasses }, status: "completed" });
   await report.save();
-
-  res.status(201).json({
-    message: "Teacher report generated successfully",
-    report,
-  });
+  res.status(201).json({ message: "Teacher report generated", report });
 });
 
 /**
- * Generate admin utilization report
+ * Generate admin report
  */
 export const generateAdmin = asyncHandler(async (req, res) => {
   const { startDate, endDate, title } = req.body;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  const [utilizationSummary, allClassrooms, teacherStats] = await Promise.all([
-    ClassroomUsage.aggregate([
-      { $match: { date: { $gte: start, $lte: end } } },
-      {
-        $group: {
-          _id: "$classroom",
-          totalRecords: { $sum: 1 },
-          averageUtilization: { $avg: "$utilizationRate" },
-          totalHours: {
-            $sum: { $divide: [{ $subtract: ["$timeOut", "$timeIn"] }, 1000 * 60 * 60] },
-          },
-          onTimeCount: { $sum: { $cond: [{ $eq: ["$status", "on-time"] }, 1, 0] } },
-          lateStartCount: { $sum: { $cond: [{ $eq: ["$status", "late-start"] }, 1, 0] } },
-          earlyEndCount: { $sum: { $cond: [{ $eq: ["$status", "early-end"] }, 1, 0] } },
-          noShowCount: { $sum: { $cond: [{ $eq: ["$status", "no-show"] }, 1, 0] } },
-        },
-      },
-      {
-        $lookup: {
-          from: "classrooms",
-          localField: "_id",
-          foreignField: "_id",
-          as: "classroom",
-        },
-      },
-      { $unwind: "$classroom" },
-    ]),
-    Classroom.find().lean(),
-    ClassroomUsage.aggregate([
-      { $match: { date: { $gte: start, $lte: end } } },
-      {
-        $group: {
-          _id: "$teacher",
-          totalClasses: { $sum: 1 },
-          onTimeClasses: { $sum: { $cond: [{ $eq: ["$status", "on-time"] }, 1, 0] } },
-          totalHours: {
-            $sum: { $divide: [{ $subtract: ["$timeOut", "$timeIn"] }, 1000 * 60 * 60] },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "teacher",
-        },
-      },
-      { $unwind: "$teacher" },
-    ])
-  ]);
-
-  const classroomUtilization = allClassrooms.map((classroom) => {
-    const summary = utilizationSummary.find(
-      (s) => s._id.toString() === classroom._id.toString()
-    );
-    return {
-      classroom: {
-        name: classroom.name,
-        location: classroom.location,
-        capacity: classroom.capacity,
-      },
-      totalRecords: summary?.totalRecords || 0,
-      averageUtilization: summary ? Math.round(summary.averageUtilization * 100) / 100 : 0,
-      totalHours: summary ? Math.round(summary.totalHours * 100) / 100 : 0,
-      onTimeCount: summary?.onTimeCount || 0,
-      lateStartCount: summary?.lateStartCount || 0,
-      earlyEndCount: summary?.earlyEndCount || 0,
-      noShowCount: summary?.noShowCount || 0,
-      isUnderutilized: summary ? summary.averageUtilization < 50 : true,
-    };
-  });
-
-  const underutilizedClassrooms = classroomUtilization.filter((c) => c.isUnderutilized).length;
-  const totalUtilization = classroomUtilization.reduce(
-    (sum, c) => sum + c.averageUtilization,
-    0
-  );
-  const averageUtilization =
-    classroomUtilization.length > 0 ? totalUtilization / classroomUtilization.length : 0;
-
-  const reportData = {
-    period: { startDate: start, endDate: end },
-    classroomUtilization,
-    teacherStats,
-    overallStatistics: {
-      totalClassrooms: allClassrooms.length,
-      totalUtilization: Math.round(totalUtilization * 100) / 100,
-      averageUtilization: Math.round(averageUtilization * 100) / 100,
-      underutilizedClassrooms,
-      totalTeachers: teacherStats.length,
-      totalClasses: teacherStats.reduce((sum, t) => sum + t.totalClasses, 0),
-    },
-  };
-
-  const recommendations = [];
-  if (underutilizedClassrooms > 0) {
-    recommendations.push(
-      `Consider reallocating ${underutilizedClassrooms} underutilized classrooms`
-    );
-  }
-  if (averageUtilization < 70) {
-    recommendations.push(
-      "Overall utilization is below 70%. Consider optimizing classroom assignments"
-    );
-  }
-
-  const report = new Report({
-    title:
-      title ||
-      `Admin Utilization Report (${start.toDateString()} to ${end.toDateString()})`,
-    type: "admin",
-    generatedBy: req.user._id,
-    period: { startDate: start, endDate: end },
-    data: reportData,
-    summary: {
-      totalClassrooms: allClassrooms.length,
-      totalUtilization: Math.round(totalUtilization * 100) / 100,
-      averageUtilization: Math.round(averageUtilization * 100) / 100,
-      underutilizedClassrooms,
-      conflicts: 0,
-      recommendations,
-    },
-    status: "completed",
-  });
-
+  const start = new Date(startDate); const end = new Date(endDate);
+  const usageRecords = await ClassroomUsage.find({ date: { $gte: start, $lte: end } }).populate("classroom", "name location capacity").sort({ date: 1 }).lean();
+  const report = new Report({ title: title || `Admin Report (${start.toDateString()} to ${end.toDateString()})`, type: "admin", generatedBy: req.user._id, period: { startDate: start, endDate: end }, data: { usageRecords }, status: "completed" });
   await report.save();
-
-  res.status(201).json({
-    message: "Admin report generated successfully",
-    report,
-  });
+  res.status(201).json({ message: "Admin report generated", report });
 });
 
 /**
@@ -457,655 +109,247 @@ export const generateAdmin = asyncHandler(async (req, res) => {
  */
 export const generateWeekly = asyncHandler(async (req, res) => {
   const { startDate } = req.body;
-  const start = new Date(startDate);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-
-  const query = { date: { $gte: start, $lte: end } };
-  if (req.user.role === "teacher") {
-    query.teacher = req.user._id;
-  }
-
-  const usageRecords = await ClassroomUsage.find(query)
-    .populate("classroom", "name location capacity")
-    .populate("teacher", "firstName lastName email employeeId")
-    .populate("schedule", "subject courseCode dayOfWeek startTime endTime")
-    .sort({ date: 1, timeIn: 1 })
-    .lean();
-
-  const dailyRecords = {};
-  usageRecords.forEach((record) => {
-    const day = record.date.toDateString();
-    if (!dailyRecords[day]) dailyRecords[day] = [];
-    dailyRecords[day].push(record);
-  });
-
-  const reportData = {
-    period: { startDate: start, endDate: end },
-    dailyRecords,
-    summary: {
-      totalClasses: usageRecords.length,
-      totalHours: usageRecords.reduce((sum, record) => {
-        if (record.timeOut && record.timeIn) {
-          return sum + (record.timeOut - record.timeIn) / (1000 * 60 * 60);
-        }
-        return sum;
-      }, 0),
-    },
-  };
-
-  const report = new Report({
-    title: `Weekly Report (${start.toDateString()} to ${end.toDateString()})`,
-    type: "weekly",
-    generatedBy: req.user._id,
-    period: { startDate: start, endDate: end },
-    data: reportData,
-    status: "completed",
-  });
-
+  const start = new Date(startDate); const end = new Date(start); end.setDate(end.getDate() + 6);
+  const usageRecords = await ClassroomUsage.find({ date: { $gte: start, $lte: end } }).populate("classroom", "name location capacity").sort({ date: 1 }).lean();
+  const report = new Report({ title: `Weekly Report (${start.toDateString()} to ${end.toDateString()})`, type: "weekly", generatedBy: req.user._id, period: { startDate: start, endDate: end }, data: { usageRecords }, status: "completed" });
   await report.save();
-
-  res.status(201).json({
-    message: "Weekly report generated successfully",
-    report,
-  });
+  res.status(201).json({ message: "Weekly report generated", report });
 });
 
 /**
- * Share report with users
+ * Share report
  */
 export const share = asyncHandler(async (req, res) => {
   const { userIds } = req.body;
   const report = await Report.findById(req.params.id);
-
-  if (!report) {
-    return res.status(404).json({ message: "Report not found" });
-  }
-
-  if (
-    req.user.role === "teacher" &&
-    report.generatedBy.toString() !== req.user._id.toString()
-  ) {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
-  const users = await User.find({ _id: { $in: userIds } });
-  if (users.length !== userIds.length) {
-    return res.status(400).json({ message: "Some users not found" });
-  }
-
-  // Prevent duplicate shares
-  const existingUserIds = report.sharedWith.map(s => s.user.toString());
-  const newUserIds = userIds.filter(id => !existingUserIds.includes(id));
-
-  const newShares = newUserIds.map((userId) => ({
-    user: userId,
-    sharedAt: new Date(),
-  }));
-  
+  if (!report) return res.status(404).json({ message: "Report not found" });
+  const newShares = userIds.filter(id => !report.sharedWith.some(s => s.user.toString() === id)).map(userId => ({ user: userId, sharedAt: new Date() }));
   report.sharedWith.push(...newShares);
   await report.save();
-
-  res.json({
-    message: "Report shared successfully",
-    report,
-  });
+  res.json({ message: "Report shared", report });
 });
 
 /**
- * Delete report (teachers can only delete own)
+ * Delete report
  */
 export const remove = asyncHandler(async (req, res) => {
   const report = await Report.findById(req.params.id);
-
-  if (!report) {
-    return res.status(404).json({ message: "Report not found" });
-  }
-
-  if (
-    req.user.role === "teacher" &&
-    report.generatedBy.toString() !== req.user._id.toString()
-  ) {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
+  if (!report) return res.status(404).json({ message: "Report not found" });
   await Report.findByIdAndDelete(req.params.id);
-  res.json({ message: "Report deleted successfully" });
+  res.json({ message: "Report deleted" });
 });
 
 /**
- * Manually trigger daily archive (Admin)
+ * Archive daily
  */
 export const archiveDaily = asyncHandler(async (req, res) => {
   const { archiveDailyRecords } = await import("../utils/dailyArchive.js");
   await archiveDailyRecords();
-  res.json({ message: "Daily archive completed successfully" });
+  res.json({ message: "Daily archive completed" });
 });
 
 /**
- * Add or update comment on report (versioned)
+ * Update comment
  */
 export const updateComment = asyncHandler(async (req, res) => {
   const version = requireVersion(req.body.version);
   const { comment } = req.body;
-
-  const reportExists = await Report.findById(req.params.id);
-  if (!reportExists) {
-    return res.status(404).json({ message: "Report not found" });
-  }
-
-  if (
-    req.user.role === "teacher" &&
-    reportExists.generatedBy.toString() !== req.user._id.toString()
-  ) {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
-  const updates = { comment: comment || "" };
-  const updateDoc = buildVersionedUpdateDoc(updates);
-
-  const report = await runVersionedUpdate(Report, req.params.id, version, updateDoc);
-
-  if (!report) {
-    return respondWithConflict(res, "Report");
-  }
-
-  await report.populate([
-    { path: "generatedBy", select: "firstName lastName email employeeId" },
-    { path: "sharedWith.user", select: "firstName lastName email" },
-  ]);
-
-  res.json({
-    message: "Comment updated successfully",
-    report,
-  });
+  const report = await runVersionedUpdate(Report, req.params.id, version, buildVersionedUpdateDoc({ comment: comment || "" }));
+  if (!report) return respondWithConflict(res, "Report");
+  await report.populate([{ path: "generatedBy", select: "firstName lastName email employeeId" }, { path: "sharedWith.user", select: "firstName lastName email" }]);
+  res.json({ message: "Comment updated", report });
 });
 
 /**
- * Export time-in transactions as PDF - receives pre-filtered data from frontend
- * Features: Professional header, footer, digital signature, and clean layout
+ * Export time-in as PDF
  */
 export const exportTimeInPdf = asyncHandler(async (req, res) => {
-  const { 
-    transactions,
-    month, 
-    searchQuery, 
-    instructorFilter, 
-    classroomFilter 
-  } = req.body;
-
-  // Validate transactions
-  if (!transactions || !Array.isArray(transactions)) {
-    throw new Error("No transaction data provided. Please apply filters and try again.");
-  }
-
+  const { transactions, month, searchQuery, instructorFilter, classroomFilter } = req.body;
+  if (!transactions || !Array.isArray(transactions)) throw new Error("No transaction data");
   const records = transactions;
-  
-  // ============ PDF INITIALIZATION ============
-  const doc = new PDFDocument({ 
-    size: "A4", 
-    margin: 50,
-    info: {
-      Title: 'Time-In Transactions Report',
-      Author: `${req.user?.firstName || ''} ${req.user?.lastName || ''}`,
-      Subject: 'Classroom Utilization System',
-      Creator: 'ClaUSys',
-    }
-  });
-  
-  // Generate filename
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
   let filename = "timein-transactions";
   if (month) filename += `-${month}`;
-  if (searchQuery) filename += `-search`;
-  if (instructorFilter) filename += `-${instructorFilter.replace(/\s+/g, '-')}`;
-  if (classroomFilter) filename += `-${classroomFilter.replace(/\s+/g, '-')}`;
   filename += `.pdf`;
-  
-  // Set headers
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   doc.pipe(res);
-
-  // ============ CONSTANTS ============
-  const PAGE_WIDTH = doc.page.width;
-  const PAGE_HEIGHT = doc.page.height;
-  const MARGIN = 50;
-  const CONTENT_WIDTH = PAGE_WIDTH - (MARGIN * 2);
-  const ROWS_PER_PAGE = 25;
-  
-  // ============ HELPER FUNCTIONS ============
-  
-  /**
-   * Generate a unique verification hash for the document
-   */
-  const generateVerificationHash = () => {
-  const data = {
-    userId: req.user?._id || 'system',
-    timestamp: new Date().toISOString(),
-    recordCount: records.length,
-    random: Math.random().toString(36).substring(2, 15)
-  };
-  return crypto
-    .createHash('sha256')
-    .update(JSON.stringify(data))
-    .digest('hex')
-    .substring(0, 16)
-    .toUpperCase()
-    .match(/.{4}/g)
-    .join('-');
-};
-
-  const verificationHash = generateVerificationHash();
-  const verificationUrl = `https://clausys.com/verify/${verificationHash}`;
-  
-  // ============ PAGE ELEMENTS ============
-  
-  /**
-   * Draw page header with logo (same on all pages)
-   */
-  const drawHeader = () => {
-    const y = 30;
-    
-    // Top decorative line
-    doc.moveTo(MARGIN, y + 18)
-       .lineTo(PAGE_WIDTH - MARGIN, y + 18)
-       .lineWidth(2)
-       .strokeColor("#2e3a43")
-       .stroke();
-    
-    // System name - left
-    doc.fontSize(16)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text("ClaUSys", MARGIN, y);
-    
-    // Report title - right
-    doc.fontSize(14)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("TIME-IN TRANSACTIONS", 
-             PAGE_WIDTH - MARGIN - 200, y, 
-             { width: 200, align: "right" });
-    
-    // Subtitle - left
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#5a7480")
-       .text("Classroom Utilization System", MARGIN, y + 25);
-    
-    // Generated date - right
-    doc.fontSize(9)
-       .fillColor("#5a7480")
-       .text(`Generated: ${new Date().toLocaleString()}`, 
-             PAGE_WIDTH - MARGIN - 200, y + 25, 
-             { width: 200, align: "right" });
-    
-    // Separator line
-    doc.moveTo(MARGIN, y + 45)
-       .lineTo(PAGE_WIDTH - MARGIN, y + 45)
-       .lineWidth(1)
-       .strokeColor("#e1e5e9")
-       .stroke();
-    
-    return y + 55;
-  };
-
-  /**
-   * Draw page footer with page number and signature
-   */
-  const drawFooter = (pageNum, totalPages) => {
-    const y = PAGE_HEIGHT - 60;
-    
-    // Top border
-    doc.moveTo(MARGIN, y - 15)
-       .lineTo(PAGE_WIDTH - MARGIN, y - 10)
-       .lineWidth(0.5)
-       .strokeColor("#e1e5e9")
-       .stroke();
-    
-    // Generated by - left
-    doc.fontSize(8)
-       .font("Helvetica")
-       .fillColor("#5a7480")
-       .text(
-         `Generated by: ${req.user?.firstName || ''} ${req.user?.lastName || ''}`,
-         MARGIN, y
-       );
-    
-    // Page number - right
-    doc.fontSize(8)
-       .font("Helvetica")
-       .fillColor("#5a7480")
-       .text(
-         `Page ${pageNum} of ${totalPages}`,
-         PAGE_WIDTH - MARGIN - 100, y,
-         { width: 100, align: "right" }
-       );
-  };
-
-  /**
-   * Draw filter summary (compact version)
-   */
-  const drawFilters = (startY) => {
-    const filters = [];
-    if (month) {
-      const monthDate = new Date(month + "-01");
-      const monthName = monthDate.toLocaleDateString("en-US", { 
-        year: "numeric", month: "long" 
-      });
-      filters.push(`📅 Month: ${monthName}`);
-    }
-    if (searchQuery) filters.push(`🔍 Search: "${searchQuery}"`);
-    if (instructorFilter) filters.push(`👨‍🏫 Instructor: ${instructorFilter}`);
-    if (classroomFilter) filters.push(`🏛️ Classroom: ${classroomFilter}`);
-    
-    if (filters.length === 0) return startY;
-    
-    // Filter box
-    doc.rect(MARGIN, startY, CONTENT_WIDTH, 35)
-       .fillOpacity(0.02)
-       .fill("#2e3a43")
-       .fillOpacity(1);
-    
-    doc.fontSize(9)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text("FILTERS:", MARGIN + 10, startY + 11);
-    
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#2e3a43")
-       .text(filters.join("  •  "), MARGIN + 70, startY + 11, 
-             { width: CONTENT_WIDTH - 80, ellipsis: true });
-    
-    return startY + 45;
-  };
-
-  /**
-   * Draw table header
-   */
-  const drawTableHeader = (y) => {
-    // Header background
-    doc.rect(MARGIN, y - 5, CONTENT_WIDTH, 25)
-       .fillOpacity(0.1)
-       .fill("#2e3a43")
-       .fillOpacity(1);
-    
-    doc.fontSize(10)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529");
-    
-    // Column positions
-    const cols = {
-      date: MARGIN,
-      time: MARGIN + 70,
-      student: MARGIN + 130,
-      instructor: MARGIN + 260,
-      classroom: MARGIN + 360
-    };
-    
-    doc.text("Date", cols.date, y);
-    doc.text("Time", cols.time, y);
-    doc.text("Student", cols.student, y);
-    doc.text("Instructor", cols.instructor, y);
-    doc.text("Classroom", cols.classroom, y);
-    
-    // Underline
-    doc.moveTo(MARGIN, y + 20)
-       .lineTo(PAGE_WIDTH - MARGIN, y + 20)
-       .strokeColor("#2e3a43")
-       .stroke();
-    
-    return { y: y + 30, cols };
-  };
-
-  /**
-   * Draw summary statistics with enhanced digital signature
-   */
-  const drawSummary = (y) => {
-    // Calculate stats
-    const uniqueStudents = new Set(records.map(r => r.student?.email).filter(Boolean)).size;
-    const uniqueInstructors = new Set(records.map(r => r.instructorName).filter(Boolean)).size;
-    const uniqueClassrooms = new Set(records.map(r => r.classroom?.name).filter(Boolean)).size;
-    
-    // Summary box
-    doc.rect(MARGIN, y, CONTENT_WIDTH, 155)
-       .lineWidth(0.5)
-       .strokeColor("#e1e5e9")
-       .stroke();
-    
-    doc.fontSize(14)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text("SUMMARY", MARGIN + 15, y + 15);
-    
-    // Stats in 3 columns
-    const colWidth = CONTENT_WIDTH / 3;
-    let statsY = y + 50;
-    
-    // Row 1
-    const stats = [
-      { label: "Total Records", value: records.length },
-      { label: "Unique Students", value: uniqueStudents },
-      { label: "Unique Instructors", value: uniqueInstructors }
-    ];
-    
-    stats.forEach((stat, i) => {
-      const x = MARGIN + 15 + (i * colWidth);
-      doc.fontSize(10)
-         .font("Helvetica-Bold")
-         .fillColor("#2e3a43")
-         .text(stat.label, x, statsY);
-      doc.fontSize(20)
-         .font("Helvetica-Bold")
-         .fillColor("#1c2529")
-         .text(stat.value.toString(), x, statsY + 20);
-    });
-    
-    // Row 2 - Unique Classrooms
-    doc.fontSize(10)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("Unique Classrooms", MARGIN + 15, statsY + 60);
-    doc.fontSize(20)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text(uniqueClassrooms.toString(), MARGIN + 15, statsY + 80);
-    
-    // ============ ENHANCED DIGITAL SIGNATURE SECTION ============
-    const sigY = y + 220;
-    
-    // Signature box with border
-    doc.rect(MARGIN, sigY - 20, CONTENT_WIDTH, 110)
-       .lineWidth(0.5)
-       .strokeColor("#2e3a43")
-       .stroke();
-    
-    // Signature title
-    doc.fontSize(11)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text("DIGITAL SIGNATURE & VERIFICATION", MARGIN + 15, sigY - 10);
-    
-    // Left column - Signer info
-    doc.fontSize(9)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("Signed by:", MARGIN + 15, sigY + 10);
-    
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#1c2529")
-       .text(`${req.user?.firstName || ''} ${req.user?.lastName || ''}`, MARGIN + 80, sigY + 10);
-    
-    doc.fontSize(9)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("Role:", MARGIN + 15, sigY + 25);
-    
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#1c2529")
-       .text(req.user?.role || 'System', MARGIN + 80, sigY + 25);
-    
-    doc.fontSize(9)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("Date & Time:", MARGIN + 15, sigY + 40);
-    
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#1c2529")
-       .text(new Date().toLocaleString(), MARGIN + 80, sigY + 40);
-    
-    // Right column - Verification
-    doc.fontSize(9)
-       .font("Helvetica-Bold")
-       .fillColor("#2e3a43")
-       .text("Verification Code:", MARGIN + 200, sigY + 10);
-    
-    doc.fontSize(12)
-       .font("Helvetica-Bold")
-       .fillColor("#1c2529")
-       .text(verificationHash, MARGIN + 200, sigY + 25);
-    
-    doc.fontSize(7)
-       .font("Helvetica")
-       .fillColor("#5a7480")
-       .text(`Verify at: ${verificationUrl}`, MARGIN + 200, sigY + 45);
-    
-    // Signature line
-    doc.moveTo(MARGIN + 15, sigY + 70)
-       .lineTo(MARGIN + 200, sigY + 70)
-       .lineWidth(0.5)
-       .strokeColor("#2e3a43")
-       .stroke();
-    
-    doc.fontSize(8)
-       .font("Helvetica-Oblique")
-       .fillColor("#5a7480")
-       .text("Digitally signed (System-generated)", MARGIN + 15, sigY + 75);
-    
-    // Disclaimer
-    doc.fontSize(7)
-       .font("Helvetica-Oblique")
-       .fillColor("#5a7480")
-       .text(
-         "This document is electronically generated by ClaUSys. It is valid without a physical signature. " +
-         "The verification code above can be used to authenticate this document.",
-         MARGIN + 15, sigY + 95,
-         { width: CONTENT_WIDTH - 30, align: "center" }
-       );
-    
-    return y + 340;
-  };
-
-  // ============ BUILD PDF ============
-  
-  // Calculate total pages
-  let currentPage = 1;
-  
-  // ---------- PAGE 1: HEADER + FILTERS + TABLE ROWS ----------
-  let y = drawHeader();
-  
-  // Total records count
-  doc.fontSize(14)
-     .font("Helvetica-Bold")
-     .fillColor("#1c2529")
-     .text(`TOTAL RECORDS: ${records.length}`, MARGIN, y);
-  y += 35;
-  
-  // Filters (if any)
-  y = drawFilters(y);
-  
-  // Table header
-  const { y: tableY, cols } = drawTableHeader(y);
-  y = tableY;
-  
-  // Table rows
-  let rowCount = 0;
-  for (let i = 0; i < records.length; i++) {
-    const record = records[i];
-    
-    // Check if we need a new page
-    if (y > PAGE_HEIGHT - 80) {
-      // Add footer to current page
-      drawFooter(currentPage, Math.ceil(records.length / ROWS_PER_PAGE) + 1);
-      
-      // New page
-      doc.addPage();
-      currentPage++;
-      
-      // Draw header on new page
-      y = drawHeader();
-      
-      // Redraw table header
-      const header = drawTableHeader(y);
-      y = header.y;
-      Object.assign(cols, header.cols);
-      
-      rowCount = 0;
-    }
-    
-    // Alternate row background
-    if (i % 2 === 0) {
-      doc.rect(MARGIN, y - 5, CONTENT_WIDTH, 22)
-         .fillOpacity(0.02)
-         .fill("#2e3a43")
-         .fillOpacity(1);
-    }
-    
-    // Row data
-    const date = record.date 
-      ? new Date(record.date).toLocaleDateString("en-US", {
-          month: "2-digit", day: "2-digit", year: "2-digit"
-        })
-      : "—";
-    
-    const time = record.timeIn
-      ? new Date(record.timeIn).toLocaleTimeString("en-US", {
-          hour: "2-digit", minute: "2-digit", hour12: true
-        })
-      : "—";
-    
-    const student = record.student
-      ? `${record.student.firstName || ''} ${record.student.lastName || ''}`.trim()
-      : "—";
-    
+  doc.fontSize(20).text("Time-In Report", { align: "center" });
+  doc.moveDown();
+  doc.fontSize(10);
+  records.forEach((record, i) => {
+    const date = record.date ? new Date(record.date).toLocaleDateString() : "—";
+    const time = record.timeIn ? new Date(record.timeIn).toLocaleTimeString() : "—";
+    const student = record.student ? `${record.student.firstName || ''} ${record.student.lastName || ''}`.trim() : "—";
     const instructor = record.instructorName || "—";
     const classroom = record.classroom?.name || "—";
-    
-    doc.fontSize(9)
-       .font("Helvetica")
-       .fillColor("#1c2529");
-    
-    doc.text(date, cols.date, y, { width: 60 });
-    doc.text(time, cols.time, y, { width: 50 });
-    doc.text(student, cols.student, y, { width: 120, ellipsis: true });
-    doc.text(instructor, cols.instructor, y, { width: 90, ellipsis: true });
-    doc.text(classroom, cols.classroom, y, { width: 120, ellipsis: true });
-    
-    y += 22;
-    rowCount++;
-  }
-  
-  // Add footer to last table page
-  const totalTablePages = Math.ceil(records.length / ROWS_PER_PAGE);
-  drawFooter(currentPage, totalTablePages + 1);
-  
-  // ---------- SUMMARY PAGE ----------
-  doc.addPage();
-  currentPage++;
-  
-  // Header on summary page
-  drawHeader();
-  
-  // Summary section with enhanced digital signature
-  drawSummary(130);
-  
-  // Footer on summary page
-  drawFooter(currentPage, totalTablePages + 1);
-  
-  // Finalize
+    doc.text(`${date} | ${time} | ${student} | ${instructor} | ${classroom}`);
+  });
   doc.end();
+});
+
+/**
+ * ✅ Export time-in data as DOCX (same format as imported schedule)
+ */
+export const exportTimeInDocx = asyncHandler(async (req, res) => {
+  const { transactions } = req.body;
+  if (!transactions || !Array.isArray(transactions)) {
+    return res.status(400).json({ message: "No transaction data provided" });
+  }
+
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const rooms = ["ComLab 1", "ComLab 2", "ComLab 3", "ComLab 4", "ComLab 5", "ComLab 6", "ComLab 7", "ComLab 8"];
+  const formatRangeLabel = (totalMinutes) => {
+    const hour24 = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    const hour12 = hour24 % 12 || 12;
+    return `${hour12}:${String(minute).padStart(2, "0")}`;
+  };
+  const buildTimeRanges = (startHour = 7, startMinute = 30, endHour = 20, endMinute = 30) => {
+    const ranges = [];
+    let cursor = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+    while (cursor < end) {
+      const next = cursor + 30;
+      ranges.push({
+        label: `${formatRangeLabel(cursor)}-${formatRangeLabel(next)}`,
+        startMinutes: cursor,
+        endMinutes: next,
+      });
+      cursor = next;
+    }
+    return ranges;
+  };
+  const timeBlocks = buildTimeRanges();
+
+  const normalizeRoom = (roomName) => roomName?.trim().toLowerCase();
+
+  const findRecord = (day, room, block) => {
+    return transactions.find((t) => {
+      try {
+        const recordDay = new Date(t.date || t.timeIn).toLocaleDateString("en-US", { weekday: "long" });
+        if (recordDay !== day) return false;
+        if (normalizeRoom(t.classroom?.name) !== normalizeRoom(room)) return false;
+        const recordTime = new Date(t.timeIn);
+        const recordMinutes = recordTime.getHours() * 60 + recordTime.getMinutes();
+        return recordMinutes >= block.startMinutes && recordMinutes < block.endMinutes;
+      } catch {
+        return false;
+      }
+    });
+  };
+
+  const sections = days.map((day) => {
+    const rows = [];
+    rows.push(new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({
+          children: [new Paragraph({ text: "CLASS SCHEDULE", alignment: AlignmentType.CENTER })],
+          width: { size: 1400, type: WidthType.DXA },
+        }),
+        ...rooms.map(room => new TableCell({
+          children: [new Paragraph({ text: room, alignment: AlignmentType.CENTER })],
+          width: { size: 2200, type: WidthType.DXA },
+          columnSpan: 2,
+        })),
+      ],
+    }));
+
+    rows.push(
+      new TableRow({
+        tableHeader: true,
+        children: [
+          new TableCell({
+            children: [new Paragraph({ text: "", alignment: AlignmentType.CENTER })],
+            width: { size: 1400, type: WidthType.DXA },
+          }),
+          ...rooms.flatMap(() => [
+            new TableCell({
+              children: [new Paragraph({ text: "Course Code/ Instructor", alignment: AlignmentType.CENTER })],
+              width: { size: 1100, type: WidthType.DXA },
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({ text: "Remarks &", alignment: AlignmentType.CENTER }),
+                new Paragraph({ text: "Signature of Monitoring Incharge", alignment: AlignmentType.CENTER }),
+              ],
+              width: { size: 1100, type: WidthType.DXA },
+            }),
+          ]),
+        ],
+      })
+    );
+
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ text: day })],
+            width: { size: 1400, type: WidthType.DXA },
+          }),
+          ...rooms.flatMap(() => [
+            new TableCell({
+              children: [new Paragraph({ text: "" })],
+              width: { size: 1100, type: WidthType.DXA },
+            }),
+            new TableCell({
+              children: [new Paragraph({ text: "" })],
+              width: { size: 1100, type: WidthType.DXA },
+            }),
+          ]),
+        ],
+      })
+    );
+
+    timeBlocks.forEach((block) => {
+      rows.push(new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ text: block.label, alignment: AlignmentType.CENTER })],
+            width: { size: 1400, type: WidthType.DXA },
+          }),
+          ...rooms.flatMap((room) => {
+            const record = findRecord(day, room, block);
+            return [
+              new TableCell({
+                children: record
+                  ? [
+                      new Paragraph({ text: record.section || "" }),
+                      new Paragraph({ text: record.subjectCode || "" }),
+                      new Paragraph({ text: record.instructorName || "" }),
+                    ]
+                  : [new Paragraph({ text: "" })],
+                width: { size: 1100, type: WidthType.DXA },
+              }),
+              new TableCell({
+                children: [new Paragraph({ text: record?.remarks?.trim() || "" })],
+                width: { size: 1100, type: WidthType.DXA },
+              }),
+            ];
+          }),
+        ],
+      }));
+    });
+    return {
+      properties: { page: { size: { width: 16840, height: 11900 } } },
+      children: [
+        new Paragraph({ text: "BUKIDNON STATE UNIVERSITY", alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "OFFICE OF THE VICE PRESIDENT FOR ACADEMIC AFFAIRS", alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "DAILY ROOM UTILIZATION AND CLASS ATTENDANCE MONITORING LOG", alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "2nd Semester AY: 2025 - 2026", alignment: AlignmentType.CENTER }),
+        new Paragraph({
+          text: "College/Department: COLLEGE OF TECHNOLOGIES - INFORMATION TECHNOLOGY",
+          alignment: AlignmentType.LEFT,
+        }),
+        new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }),
+      ],
+    };
+  });
+
+  const doc = new Document({ sections });
+  const buffer = await Packer.toBuffer(doc);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  res.setHeader("Content-Disposition", `attachment; filename=schedule-report-${new Date().toISOString().split("T")[0]}.docx`);
+  res.send(buffer);
 });

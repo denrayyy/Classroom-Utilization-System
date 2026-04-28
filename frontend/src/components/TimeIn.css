@@ -1,8 +1,10 @@
-/* ===== TIME IN STYLES - COLOR PALETTE ===== */
-/* Primary/Background: #184354 */
-/* Cards/Secondary: #123341 */
-/* Accent/Highlight: #0ec0d4 */
-/* Text: #ffffff */
+.field-help {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #0ec0d4;
+  font-style: italic;
+}
 
 .timein-page {
   min-height: 100vh;

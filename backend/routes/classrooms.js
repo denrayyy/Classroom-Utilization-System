@@ -1,5 +1,6 @@
 import express from "express";
 import * as classroomController from "../controllers/classroomController.js";
+import * as pdfUploadController from "../controllers/pdfUploadController.js";
 import { controllerHandler } from "../middleware/controllerHandler.js";
 import { validateRequest, createClassroomValidation } from "../middleware/classroomValidation.js";
 import { logActivity } from "../middleware/activityLogger.js";
@@ -7,6 +8,31 @@ import { authenticateToken } from "../middleware/auth.js";
 
 
 const router = express.Router();
+
+// ==========================================
+// PDF SCHEDULE UPLOAD ROUTES
+// ==========================================
+// IMPORTANT: These must come BEFORE the /:id routes to avoid conflicts
+
+// POST /api/classrooms/upload-schedule — Upload and parse PDF schedule
+router.post(
+  "/upload-schedule",
+  authenticateToken,
+  pdfUploadController.upload.single('pdf'),
+  controllerHandler(pdfUploadController.uploadSchedule)
+);
+
+// POST /api/classrooms/bulk-import-schedules — Import extracted schedules to database
+router.post(
+  "/bulk-import-schedules",
+  authenticateToken,
+  logActivity,
+  controllerHandler(pdfUploadController.bulkImportSchedules)
+);
+
+// ==========================================
+// REGULAR CLASSROOM ROUTES
+// ==========================================
 
 // GET /api/classrooms — list all classrooms with optional filters
 router.get(
