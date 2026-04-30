@@ -40,10 +40,10 @@ router.get(
 );
 
 router.get(
-  "/schedule-match/:classroomId",
+  "/available-classes",
   authenticateToken,
   attachWorldTime,
-  controllerHandler(timeinController.getCurrentScheduleForClassroom)
+  controllerHandler(timeinController.getAvailableClasses)
 );
 
 // ✅ POST /api/timein/reset-old — Admin: Reset/archive old records

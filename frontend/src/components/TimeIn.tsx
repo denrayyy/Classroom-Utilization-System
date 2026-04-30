@@ -39,18 +39,67 @@ interface MatchedSchedule {
   subjectCode: string;
   instructor: string;
   scheduledStartTime: string;
+  instructorStatus?: {
+    name: string;
+    unavailable?: boolean;
+    unavailableReason?: string;
+    travelStatus?: string;
+    travelDetails?: string;
+    teachingElsewhere?: boolean;
+    activeTeachingSession?: {
+      classroom: string;
+      timeIn: string;
+    } | null;
+  };
+}
+
+interface AvailableClassOption {
+  id: string;
+  displayLabel: string;
+  available: boolean;
+  statusReasons: string[];
+  classroom: {
+    id: string;
+    name: string;
+    location: string;
+  };
+  schedule: {
+    day: string;
+    time: string;
+    section: string;
+    subjectCode: string;
+    instructor: string;
+    scheduledStartTime: string;
+  };
+  instructorStatus: MatchedSchedule["instructorStatus"];
+  classroomStatus: {
+    occupied: boolean;
+    occupiedBy: string;
+    occupiedSince: string | null;
+  };
 }
 
 const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [timeInHour, setTimeInHour] = useState("");
+  const [timeInMinute, setTimeInMinute] = useState("");
+  const [timeInPeriod, setTimeInPeriod] = useState("AM");
+  const [availableClasses, setAvailableClasses] = useState<AvailableClassOption[]>([]);
+  const [selectedClassOptionId, setSelectedClassOptionId] = useState("");
   const [excludeComLabs, setExcludeComLabs] = useState(false);
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [evidence, setEvidence] = useState<File | null>(null);
   const [instructorName, setInstructorName] = useState("");
   const [section, setSection] = useState("");
   const [subjectCode, setSubjectCode] = useState("");
-  const [classType, setClassType] = useState("synchronous");
+  const [classType, setClassType] = useState("in-class");
+  const [reason, setReason] = useState("");
+  const [reasonOptions, setReasonOptions] = useState<string[]>([
+    "Travel",
+    "Sick",
+    "Absent",
+    "Seminar",
+    "Meeting",
+  ]);
   const [scheduledStartTime, setScheduledStartTime] = useState("");
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,7 +107,11 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
   const [success, setSuccess] = useState(false);
   const [timeInData, setTimeInData] = useState<any>(null);
   const [warnings, setWarnings] = useState<any[]>([]);
-  const [matchedSchedule, setMatchedSchedule] = useState<MatchedSchedule | null>(null);
+  const [matchedSchedule, setMatchedSchedule] =
+    useState<MatchedSchedule | null>(null);
+  const [scheduleInstructorStatus, setScheduleInstructorStatus] = useState<
+    MatchedSchedule["instructorStatus"] | null
+  >(null);
 
   // ✅ NEW: Holiday state
   const [holiday, setHoliday] = useState<any>(null);
@@ -73,36 +126,57 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     day: "2-digit",
     year: "numeric",
   });
-  const formattedTime = currentDate.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  const selectedTimeLabel =
+    timeInHour && timeInMinute && timeInPeriod
+      ? `${Number.parseInt(timeInHour, 10)}:${String(
+          Number.parseInt(timeInMinute, 10),
+        ).padStart(2, "0")} ${timeInPeriod}`
+      : "";
 
   useEffect(() => {
-    fetchClassrooms();
-    fetchInstructors();
     checkHoliday();
   }, []);
 
   useEffect(() => {
-    fetchClassrooms();
-  }, [excludeComLabs]);
+    const fetchNoClassReasons = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/settings/no-class-reasons", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (response.ok && Array.isArray(data) && data.length) {
+          const sanitized = data
+            .map((item: any) => String(item || "").trim())
+            .filter(Boolean);
+          if (sanitized.length) {
+            setReasonOptions(sanitized);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch no-class reasons:", error);
+      }
+    };
 
-  // ✅ Check classroom availability when selected
+    fetchNoClassReasons();
+  }, []);
+
   useEffect(() => {
-    if (selectedClassroom) {
-      checkClassroomAvailability(selectedClassroom);
-      fetchCurrentSchedule(selectedClassroom);
-    } else {
-      setOccupancyWarning(null);
+    if (!timeInHour || !timeInMinute || !timeInPeriod) {
+      setAvailableClasses([]);
+      setSelectedClassOptionId("");
       setMatchedSchedule(null);
+      setScheduleInstructorStatus(null);
+      setSelectedClassroom("");
       setInstructorName("");
       setSection("");
       setSubjectCode("");
       setScheduledStartTime("");
+      setOccupancyWarning(null);
+      return;
     }
-  }, [selectedClassroom]);
+    fetchAvailableClasses();
+  }, [timeInHour, timeInMinute, timeInPeriod]);
 
   // ✅ Check today's holiday
   const checkHoliday = async () => {
@@ -122,106 +196,42 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  // ✅ Check classroom availability
-  const checkClassroomAvailability = async (classroomId: string) => {
+  const fetchAvailableClasses = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/timein/availability/${classroomId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (!data.available) {
-          setOccupancyWarning(data);
-        } else {
-          setOccupancyWarning(null);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to check availability:", error);
-    }
-  };
-
-  const fetchCurrentSchedule = async (classroomId: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/timein/schedule-match/${classroomId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load current schedule");
-      }
-
-      if (data.matched && data.schedule) {
-        setMatchedSchedule(data.schedule);
-        setInstructorName(data.schedule.instructor || "");
-        setSection(data.schedule.section || "");
-        setSubjectCode(data.schedule.subjectCode || "");
-        setScheduledStartTime(data.schedule.scheduledStartTime || "");
-      } else {
-        setMatchedSchedule(null);
-        setInstructorName("");
-        setSection("");
-        setSubjectCode("");
-        setScheduledStartTime("");
-      }
-    } catch (error) {
-      console.error("Failed to load current schedule:", error);
-      setMatchedSchedule(null);
-    }
-  };
-
-  const fetchClassrooms = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Authentication required. Please log in again.");
-        return;
-      }
-      const query = excludeComLabs ? "?excludeComputerLabs=true" : "";
-      const response = await fetch(`/api/classrooms${query}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClassrooms(data);
-      }
-    } catch (error) {
-      console.error("Error fetching classrooms:", error);
-      setError("Unable to load classrooms. Please retry.");
-    }
-  };
-
-  const fetchInstructors = async () => {
-    try {
-      const token = localStorage.getItem("token");
+      const timeValue = `${Number.parseInt(timeInHour, 10)}:${String(
+        Number.parseInt(timeInMinute, 10),
+      ).padStart(2, "0")}`;
+      const query = `?time=${encodeURIComponent(timeValue)}&period=${encodeURIComponent(timeInPeriod)}`;
       const response = await fetch(
-        "/api/instructors?archived=false&limit=1000",
+        `/api/timein/available-classes${query}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-      if (response.ok) {
-        const data = await response.json();
-        let instructorArray: Instructor[] = [];
-        if (Array.isArray(data)) {
-          instructorArray = data;
-        } else if (data?.data && Array.isArray(data.data)) {
-          instructorArray = data.data;
-        } else if (data && typeof data === "object") {
-          const possibleArray = Object.values(data).find((val) =>
-            Array.isArray(val),
-          );
-          if (possibleArray) instructorArray = possibleArray as Instructor[];
-        }
-        setInstructors(instructorArray);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load available classes");
       }
+
+      setAvailableClasses(data.classes || []);
+      setSelectedClassOptionId("");
+      setMatchedSchedule(null);
+      setScheduleInstructorStatus(null);
+      setSelectedClassroom("");
+      setInstructorName("");
+      setSection("");
+      setSubjectCode("");
+      setScheduledStartTime("");
+      setOccupancyWarning(null);
     } catch (error) {
-      console.error("Error fetching instructors:", error);
-      setInstructors([]);
+      console.error("Failed to load available classes:", error);
+      setAvailableClasses([]);
+      setSelectedClassOptionId("");
+      setMatchedSchedule(null);
+      setScheduleInstructorStatus(null);
     }
   };
 
@@ -241,18 +251,67 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedClassroom || !instructorName.trim()) {
-      setError(
-        "Please select a classroom and select an instructor",
-      );
+  const handleAvailableClassChange = (value: string) => {
+    setSelectedClassOptionId(value);
+    const selectedOption = availableClasses.find((item) => item.id === value);
+    if (!selectedOption) {
+      setSelectedClassroom("");
+      setMatchedSchedule(null);
+      setScheduleInstructorStatus(null);
+      setInstructorName("");
+      setSection("");
+      setSubjectCode("");
+      setScheduledStartTime("");
+      setOccupancyWarning(null);
       return;
     }
 
-    if (classType === "synchronous" && !matchedSchedule) {
+    setSelectedClassroom(selectedOption.classroom.id);
+    setInstructorName(selectedOption.schedule.instructor || "");
+    setSection(selectedOption.schedule.section || "");
+    setSubjectCode(selectedOption.schedule.subjectCode || "");
+    setScheduledStartTime(selectedOption.schedule.scheduledStartTime || "");
+    setMatchedSchedule({
+      day: selectedOption.schedule.day,
+      time: selectedOption.schedule.time,
+      section: selectedOption.schedule.section,
+      subjectCode: selectedOption.schedule.subjectCode,
+      instructor: selectedOption.schedule.instructor,
+      scheduledStartTime: selectedOption.schedule.scheduledStartTime,
+      instructorStatus: selectedOption.instructorStatus || undefined,
+    });
+    setScheduleInstructorStatus(selectedOption.instructorStatus || null);
+    setOccupancyWarning(
+      selectedOption.classroomStatus?.occupied
+        ? {
+            occupiedBy: selectedOption.classroomStatus.occupiedBy,
+            instructorName: selectedOption.schedule.instructor,
+            since: selectedOption.classroomStatus.occupiedSince,
+          }
+        : null,
+    );
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedClassroom) {
+      setError("Please select a classroom");
+      return;
+    }
+
+    if (classType === "in-class" && !matchedSchedule) {
       setError("No active schedule matches the current time for this room.");
+      return;
+    }
+
+    if (classType === "in-class" && !instructorName.trim()) {
+      setError("Please select a classroom with an active instructor schedule.");
+      return;
+    }
+
+    if (classType === "no-class" && !reason.trim()) {
+      setError("Please provide a reason for No Class.");
       return;
     }
 
@@ -268,17 +327,43 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
       }
 
       const formData = new FormData();
+      const hour = Number.parseInt(timeInHour, 10);
+      const minute = Number.parseInt(timeInMinute, 10);
+
       formData.append("classroom", selectedClassroom);
       if (evidence) formData.append("evidence", evidence);
       formData.append("instructorName", instructorName);
       formData.append("classType", classType);
+      if (
+        Number.isNaN(hour) ||
+        Number.isNaN(minute) ||
+        hour < 1 ||
+        hour > 12 ||
+        minute < 0 ||
+        minute > 59
+      ) {
+        setError("Please enter a valid manual time-in.");
+        setLoading(false);
+        return;
+      }
+      formData.append("timeInHour", String(hour));
+      formData.append("timeInMinute", String(minute).padStart(2, "0"));
+      formData.append("timeInPeriod", timeInPeriod);
+
+      const customTimeInDate = new Date();
+      let hour24 = hour % 12;
+      if (timeInPeriod === "PM") hour24 += 12;
+      customTimeInDate.setHours(hour24, minute, 0, 0);
+      formData.append("customTimeIn", customTimeInDate.toISOString());
 
       // ✅ NEW: Send additional fields
       if (section) formData.append("section", section);
       if (subjectCode) formData.append("subjectCode", subjectCode);
       if (scheduledStartTime)
         formData.append("scheduledStartTime", scheduledStartTime);
-      if (remarks) formData.append("remarks", remarks);
+      if (classType === "no-class" && reason) {
+        formData.append("reason", reason);
+      }
 
       const response = await fetch("/api/timein", {
         method: "POST",
@@ -298,9 +383,13 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         setSection("");
         setSubjectCode("");
         setScheduledStartTime("");
-        setRemarks("");
+        setReason("");
         setMatchedSchedule(null);
+        setScheduleInstructorStatus(null);
         setOccupancyWarning(null);
+        setTimeInHour("");
+        setTimeInMinute("");
+        setTimeInPeriod("AM");
 
         const fileInput = document.getElementById(
           "evidence",
@@ -327,17 +416,12 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
     }
   };
 
-  // ✅ Get instructor status for display
-  const getSelectedInstructorStatus = () => {
-    if (!instructorName) return null;
-    const instructor = instructors.find((i) => i.name === instructorName);
-    return instructor;
-  };
-
-  const selectedInstructor = getSelectedInstructorStatus();
+  const selectedClassOption = availableClasses.find(
+    (item) => item.id === selectedClassOptionId,
+  );
 
   if (success) {
-    let displayTime = formattedTime;
+    let displayTime = selectedTimeLabel || "";
     if (timeInData?.timeIn) {
       const timeInDate = new Date(timeInData.timeIn);
       displayTime = timeInDate.toLocaleTimeString("en-US", {
@@ -428,14 +512,17 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
           </div>
         )}
 
-        {selectedClassroom && !matchedSchedule && !occupancyWarning && (
+        {classType === "in-class" &&
+          timeInHour &&
+          timeInMinute &&
+          timeInPeriod &&
+          availableClasses.length === 0 && (
           <div className="warning-box">
             <Info size={16} color="#ffc107" />
             <div>
               <strong>No active schedule found.</strong>
               <p>
-                The selected room has no class scheduled for the current time,
-                so time-in is not available yet.
+                No classes are scheduled for {selectedTimeLabel || "the selected time"}.
               </p>
             </div>
           </div>
@@ -456,37 +543,59 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
         )}
 
         {/* ✅ Instructor Travel/Leave Status */}
-        {selectedInstructor?.travelStatus &&
-          selectedInstructor.travelStatus !== "available" && (
+        {(scheduleInstructorStatus?.travelStatus &&
+          scheduleInstructorStatus.travelStatus !== "available") ||
+        (selectedClassOption?.instructorStatus?.travelStatus &&
+          selectedClassOption.instructorStatus.travelStatus !== "available") ? (
             <div className="instructor-travel-banner">
               <Plane size={20} color="#ffc107" />
               <div>
                 <strong>
                   Instructor Status:{" "}
-                  {selectedInstructor.travelStatus
+                  {(scheduleInstructorStatus?.travelStatus ||
+                    selectedClassOption?.instructorStatus?.travelStatus ||
+                    "available")
                     .replace("-", " ")
                     .toUpperCase()}
                 </strong>
-                {selectedInstructor.travelDetails && (
-                  <p>{selectedInstructor.travelDetails}</p>
+                {(scheduleInstructorStatus?.travelDetails ||
+                  selectedClassOption?.instructorStatus?.travelDetails) && (
+                  <p>
+                    {scheduleInstructorStatus?.travelDetails ||
+                      selectedClassOption?.instructorStatus?.travelDetails}
+                  </p>
                 )}
               </div>
             </div>
-          )}
+          ) : null}
 
         {/* ✅ Instructor Unavailable Warning */}
-        {selectedInstructor?.unavailable && (
+        {(scheduleInstructorStatus?.unavailable ||
+          selectedClassOption?.instructorStatus?.unavailable) && (
           <div className="warning-box">
             <AlertTriangle size={16} color="#ffc107" />
             <div>
               <strong>Warning:</strong> This instructor is currently
               unavailable.
-              {selectedInstructor.unavailableReason && (
+              {(scheduleInstructorStatus?.unavailableReason ||
+                selectedClassOption?.instructorStatus?.unavailableReason) && (
                 <p>
                   <strong>Reason:</strong>{" "}
-                  {selectedInstructor.unavailableReason}
+                  {scheduleInstructorStatus?.unavailableReason ||
+                    selectedClassOption?.instructorStatus?.unavailableReason}
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {scheduleInstructorStatus?.teachingElsewhere && (
+          <div className="warning-box">
+            <AlertTriangle size={16} color="#dc3545" />
+            <div>
+              <strong>Instructor conflict:</strong>{" "}
+              {scheduleInstructorStatus.name} is currently teaching in{" "}
+              {scheduleInstructorStatus.activeTeachingSession?.classroom || "another classroom"}.
             </div>
           </div>
         )}
@@ -520,19 +629,6 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             </div>
 
             <div className="form-fields">
-              {/* Time & Date (Read Only) */}
-              <div className="field-group">
-                <label>
-                  <Clock size={16} /> Time-In:
-                </label>
-                <input
-                  type="text"
-                  value={formattedTime}
-                  readOnly
-                  className="readonly-field"
-                />
-              </div>
-
               <div className="field-group">
                 <label>
                   <Calendar size={16} /> Date:
@@ -545,32 +641,100 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 />
               </div>
 
-              {/* ✅ Class Type */}
+              {/* ✅ Class Type and Reason */}
               <div className="field-group">
                 <label>Class Type:</label>
                 <select
                   value={classType}
-                  onChange={(e) => setClassType(e.target.value)}
+                  onChange={(e) => {
+                    setClassType(e.target.value);
+                    if (e.target.value !== "no-class") setReason("");
+                  }}
                   className="form-field"
+                  style={{ width: "100%" }}
                 >
-                  <option value="synchronous">Synchronous (In-Person)</option>
-                  <option value="asynchronous">Asynchronous (Online)</option>
+                  <option value="in-class">In-Class</option>
+                  <option value="no-class">No Class</option>
                 </select>
+              </div>
+              {classType === "no-class" && (
+                <div className="field-group">
+                  <label>Reason:</label>
+                  <select
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="form-field"
+                    style={{ width: "100%" }}
+                    required
+                  >
+                    <option value="">Select reason</option>
+                    {reasonOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Time-In Field */}
+              <div className="field-group">
+                <label>Time-In:</label>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    placeholder="HH"
+                    className="form-field"
+                    style={{ width: 70 }}
+                    value={timeInHour}
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setTimeInHour(val ? Math.max(1, Math.min(12, parseInt(val))).toString() : "");
+                    }}
+                    required
+                  />
+                  <span>:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="MM"
+                    className="form-field"
+                    style={{ width: 70 }}
+                    value={timeInMinute}
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setTimeInMinute(val ? Math.max(0, Math.min(59, parseInt(val))).toString() : "");
+                    }}
+                    required
+                  />
+                  <select
+                    className="form-field"
+                    style={{ width: 70 }}
+                    value={timeInPeriod}
+                    onChange={e => setTimeInPeriod(e.target.value)}
+                    required
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
               </div>
 
               {/* Classroom */}
               <div className="field-group">
-                <label>Classroom:</label>
+                <label>Available Classes:</label>
                 <select
-                  value={selectedClassroom}
-                  onChange={(e) => setSelectedClassroom(e.target.value)}
+                  value={selectedClassOptionId}
+                  onChange={(e) => handleAvailableClassChange(e.target.value)}
                   required
                   className="form-field"
                 >
-                  <option value="">Select Classroom</option>
-                  {classrooms.map((classroom) => (
-                    <option key={classroom._id} value={classroom._id}>
-                      {classroom.name}
+                  <option value="">Select class for this time slot</option>
+                  {availableClasses.map((classOption) => (
+                    <option key={classOption.id} value={classOption.id}>
+                      {classOption.displayLabel}{" "}
+                      {classOption.available ? "[Available]" : "[Unavailable]"}
                     </option>
                   ))}
                 </select>
@@ -625,17 +789,7 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
                 />
               </div>
 
-              {/* Remarks */}
-              <div className="field-group">
-                <label>Remarks (Optional):</label>
-                <textarea
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="Add any remarks..."
-                  className="form-field"
-                  rows={3}
-                />
-              </div>
+              {/* Remarks removed, now Reason is next to Class Type */}
             </div>
           </div>
 
@@ -645,15 +799,23 @@ const TimeIn: React.FC<TimeInProps> = ({ user, onBack }) => {
             <button
               type="submit"
               className="btn-timein"
-              disabled={loading || !!occupancyWarning || (!!selectedClassroom && !matchedSchedule)}
+              disabled={
+                loading ||
+                !!occupancyWarning ||
+                (classType === "in-class" &&
+                  !!selectedClassroom &&
+                  !matchedSchedule)
+              }
             >
               {loading
                 ? "Processing..."
                 : occupancyWarning
                   ? "Classroom Occupied"
-                  : selectedClassroom && !matchedSchedule
+                  : classType === "in-class" &&
+                      selectedClassroom &&
+                      !matchedSchedule
                     ? "No Active Schedule"
-                  : "Time-In"}
+                    : "Time-In"}
             </button>
           </div>
         </form>

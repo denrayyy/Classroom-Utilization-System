@@ -5,6 +5,10 @@ const systemSettingsSchema = mongoose.Schema(
     documentCode: { type: String, default: "OVPAA-F-INS-068" },
     revisionNo: { type: Number, default: 0 },
     issueDate: { type: Date, default: () => new Date("2024-10-09") },
+    noClassReasons: {
+      type: [String],
+      default: ["Travel", "Sick", "Absent", "Seminar", "Meeting"],
+    },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true },

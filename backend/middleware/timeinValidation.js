@@ -7,8 +7,7 @@ export const createTimeinValidation = [
     .withMessage("Valid classroom ID is required"),
   
   body("instructorName")
-    .notEmpty()
-    .withMessage("Instructor name is required")
+    .optional()
     .isString()
     .withMessage("Instructor name must be a string"),
   
@@ -24,11 +23,42 @@ export const createTimeinValidation = [
     .isString()
     .withMessage("Subject code must be a string"),
   
-  // ✅ NEW: Class Type (synchronous or asynchronous)
+  // ✅ NEW: Class Type (in-class or no-class)
   body("classType")
     .optional()
-    .isIn(["synchronous", "asynchronous"])
-    .withMessage("Class type must be synchronous or asynchronous"),
+    .isIn(["in-class", "no-class"])
+    .withMessage("Class type must be either in-class or no-class"),
+
+  body("reason")
+    .optional()
+    .isString()
+    .withMessage("Reason must be a string")
+    .custom((value, { req }) => {
+      if (req.body.classType === "no-class" && !String(value || "").trim()) {
+        throw new Error("Reason is required when class type is no-class");
+      }
+      return true;
+    }),
+
+  body("customTimeIn")
+    .optional()
+    .isISO8601()
+    .withMessage("Custom time-in must be a valid ISO 8601 date"),
+
+  body("timeInHour")
+    .optional()
+    .isInt({ min: 1, max: 12 })
+    .withMessage("timeInHour must be between 1 and 12"),
+
+  body("timeInMinute")
+    .optional()
+    .isInt({ min: 0, max: 59 })
+    .withMessage("timeInMinute must be between 0 and 59"),
+
+  body("timeInPeriod")
+    .optional()
+    .isIn(["AM", "PM"])
+    .withMessage("timeInPeriod must be AM or PM"),
   
   // ✅ NEW: Scheduled Start Time (e.g., "7:30")
   body("scheduledStartTime")

@@ -366,6 +366,110 @@
   margin-bottom: 24px;
 }
 
+.timein-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.no-class-reasons-card {
+  border: 1px solid #D3D9D4;
+  border-radius: 16px;
+  background: #FFFFFF;
+  padding: 18px;
+}
+
+.no-class-reasons-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.no-class-reasons-toolbar input {
+  padding: 12px 16px;
+  border: 1px solid #748D92;
+  border-radius: 12px;
+  font-size: 14px;
+  background: #FFFFFF;
+  color: #2E3944;
+}
+
+.no-class-reasons-toolbar input:focus {
+  outline: none;
+  border-color: #124E66;
+  box-shadow: 0 0 0 3px rgba(18, 78, 102, 0.2);
+}
+
+.no-class-reasons-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(18, 78, 102, 0.08);
+  border: 1px solid rgba(18, 78, 102, 0.18);
+  color: #124E66;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.no-class-reasons-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.no-class-reasons-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #D3D9D4;
+  border-radius: 12px;
+  background: #D3D9D4;
+}
+
+.no-class-reasons-text {
+  color: #2E3944;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.no-class-reasons-delete {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(192, 57, 43, 0.4);
+  background: rgba(192, 57, 43, 0.08);
+  color: #C0392B;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-class-reasons-delete:hover:not(:disabled) {
+  background: rgba(192, 57, 43, 0.14);
+}
+
+.no-class-reasons-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.no-class-reasons-empty {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed #748D92;
+  color: #5C7378;
+  font-size: 14px;
+  text-align: center;
+}
+
 .password-section h3 {
   font-size: 16px;
   font-weight: 600;

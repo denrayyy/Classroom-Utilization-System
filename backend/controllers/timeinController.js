@@ -12,6 +12,7 @@ import Instructor from "../models/Instructor.js";
 import Holiday from "../models/Holiday.js";
 import User from "../models/User.js";
 import { createNotification } from "../utils/notifications.js";
+import { deriveRemarks } from "../utils/deriveRemarks.js";
 import {
   requireVersion,
   buildVersionedUpdateDoc,
@@ -157,6 +158,34 @@ function parseScheduleRange(scheduleTime) {
   };
 }
 
+function parseRequestedTimeToDate(timeInput, baseDate = new Date()) {
+  const raw = String(timeInput || "").trim().toUpperCase();
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || "0");
+  const meridiem = match[3];
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes) ||
+    hours < 1 ||
+    hours > 12 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  hours = hours % 12;
+  if (meridiem === "PM") hours += 12;
+
+  const parsedDate = new Date(baseDate);
+  parsedDate.setHours(hours, minutes, 0, 0);
+  return parsedDate;
+}
+
 function getActiveScheduleForTime(schedules = [], currentTime) {
   const currentDay = normalizeDayName(getDayName(currentTime));
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
@@ -259,7 +288,7 @@ const autoTimeoutExpiredSessionsBySchedule = async (currentTime = new Date()) =>
  * 2. Holiday detection
  * 3. Instructor travel status check
  * 4. Classroom occupancy check
- * 5. Asynchronous class support
+ * 5. No-class support
  * 6. Signature capture
  */
 export const create = asyncHandler(async (req, res) => {
@@ -271,19 +300,26 @@ export const create = asyncHandler(async (req, res) => {
     instructorName, 
     section,
     subjectCode,
+    reason,
+    customTimeIn,
     remarks, 
-    classType = "synchronous",
+    classType = "in-class",
     signature,
     scheduledStartTime  // ✅ Scheduled time from schedule (e.g., "7:30")
   } = req.body;
 
-  // ✅ Get ACTUAL current time (not scheduled time)
-  const actualTimeIn = req.worldTime ?? new Date();
+  // ✅ Get ACTUAL current time (or manual custom time)
+  const actualTimeIn = customTimeIn ? new Date(customTimeIn) : (req.worldTime ?? new Date());
+  if (Number.isNaN(actualTimeIn.getTime())) {
+    return res.status(400).json({ message: "Invalid customTimeIn value" });
+  }
+  const normalizedClassType = classType === "no-class" ? "no-class" : "in-class";
   let matchedSchedule = null;
   let finalInstructorName = instructorName?.trim() || "";
   let finalSection = section?.trim() || "";
   let finalSubjectCode = subjectCode?.trim() || "";
   let finalScheduledStartTime = scheduledStartTime?.trim() || "";
+  const finalReason = reason?.trim() || "";
   
   // ✅ Check if today is a holiday
   const holiday = await checkHolidayToday();
@@ -313,17 +349,16 @@ export const create = asyncHandler(async (req, res) => {
     }
   }
 
-  // For asynchronous classes, classroom is optional
-  if (classType === "synchronous") {
-    if (!classroom) {
-      return res.status(400).json({ message: "Classroom is required for synchronous classes" });
-    }
+  if (!classroom) {
+    return res.status(400).json({ message: "Classroom is required" });
+  }
 
-    const classroomExists = await Classroom.findById(classroom).lean();
-    if (!classroomExists) {
-      return res.status(404).json({ message: "Classroom not found" });
-    }
+  const classroomExists = await Classroom.findById(classroom).lean();
+  if (!classroomExists) {
+    return res.status(404).json({ message: "Classroom not found" });
+  }
 
+  if (normalizedClassType === "in-class") {
     matchedSchedule = getActiveScheduleForTime(
       classroomExists.schedules || [],
       actualTimeIn,
@@ -358,28 +393,6 @@ export const create = asyncHandler(async (req, res) => {
       });
     }
 
-    // ✅ Check if classroom is already occupied
-    const occupiedClassroom = await TimeIn.findOne({
-      classroom: classroom,
-      timeOut: { $exists: false }
-    }).populate("student", "firstName lastName");
-
-    if (occupiedClassroom) {
-      return res.status(409).json({
-        message: `Classroom ${classroomExists.name} is currently occupied by ${occupiedClassroom.student?.firstName || 'someone'}.`,
-        classroom: {
-          id: classroomExists._id,
-          name: classroomExists.name,
-          location: classroomExists.location
-        },
-        occupiedBy: {
-          name: `${occupiedClassroom.student?.firstName || ''} ${occupiedClassroom.student?.lastName || ''}`.trim(),
-          timeIn: occupiedClassroom.timeIn,
-          instructorName: occupiedClassroom.instructorName
-        }
-      });
-    }
-
     // ✅ Check for schedule conflicts
     if (finalScheduledStartTime) {
       const conflictingSchedule = classroomExists.schedules?.find(s => {
@@ -392,10 +405,34 @@ export const create = asyncHandler(async (req, res) => {
         console.log(`📅 Scheduled class found: ${conflictingSchedule.section} at ${conflictingSchedule.time}`);
       }
     }
-  } else {
-    if (!classroom) {
-      return res.status(400).json({ message: "Classroom reference is required even for asynchronous classes" });
-    }
+  } else if (!finalReason) {
+    return res.status(400).json({ message: "Reason is required when class type is no-class" });
+  }
+
+  if (normalizedClassType === "no-class" && !finalInstructorName) {
+    finalInstructorName = "No Class";
+  }
+
+  // ✅ Check if classroom is already occupied
+  const occupiedClassroom = await TimeIn.findOne({
+    classroom: classroom,
+    timeOut: { $exists: false }
+  }).populate("student", "firstName lastName");
+
+  if (occupiedClassroom) {
+    return res.status(409).json({
+      message: `Classroom ${classroomExists.name} is currently occupied by ${occupiedClassroom.student?.firstName || 'someone'}.`,
+      classroom: {
+        id: classroomExists._id,
+        name: classroomExists.name,
+        location: classroomExists.location
+      },
+      occupiedBy: {
+        name: `${occupiedClassroom.student?.firstName || ''} ${occupiedClassroom.student?.lastName || ''}`.trim(),
+        timeIn: occupiedClassroom.timeIn,
+        instructorName: occupiedClassroom.instructorName
+      }
+    });
   }
 
   // ✅ Check if student has any active time-in
@@ -437,8 +474,8 @@ export const create = asyncHandler(async (req, res) => {
     }
   }
 
-  // ✅ Check if instructor is already teaching elsewhere (synchronous only)
-  if (classType === "synchronous" && finalInstructorName) {
+  // ✅ Check if instructor is already teaching elsewhere (in-class only)
+  if (normalizedClassType === "in-class" && finalInstructorName) {
     const activeInstructorTimeIn = await TimeIn.findOne({
       instructorName: finalInstructorName,
       timeOut: { $exists: false }
@@ -457,6 +494,12 @@ export const create = asyncHandler(async (req, res) => {
   }
 
   // ✅ Create time-in with all data
+  const derivedRemarks = deriveRemarks({
+    classType: normalizedClassType,
+    reason: finalReason,
+  });
+  const finalRemarks = String(remarks || "").trim() || derivedRemarks;
+
   const timeInRecord = new TimeIn({
     student: req.user._id,
     classroom,
@@ -475,8 +518,10 @@ export const create = asyncHandler(async (req, res) => {
     timeIn: actualTimeIn,              // ✅ ACTUAL check-in time
     scheduledStartTime: finalScheduledStartTime, // ✅ Scheduled time for reference
     isLate: isTimeLate(actualTimeIn, finalScheduledStartTime), // ✅ Late detection
-    remarks: remarks || '',
-    classType,
+    remarks: finalRemarks,
+    classType: normalizedClassType,
+    reason: finalReason,
+    customTimeIn: customTimeIn ? actualTimeIn : null,
     signature: signature ? {
       data: signature,
       capturedAt: actualTimeIn
@@ -578,6 +623,8 @@ export const create = asyncHandler(async (req, res) => {
       date: timeInRecord.date,
       remarks: timeInRecord.remarks,
       classType: timeInRecord.classType,
+      reason: timeInRecord.reason,
+      customTimeIn: timeInRecord.customTimeIn,
       isHoliday: timeInRecord.isHoliday,
       holidayInfo: timeInRecord.holidayInfo,
       instructorStatus: timeInRecord.instructorStatus,
@@ -682,7 +729,14 @@ export const list = asyncHandler(async (req, res) => {
     .populate("verifiedBy", "firstName lastName")
     .sort({ date: -1, timeIn: -1 });
 
-  res.json(timeInRecords);
+  const withDerivedRemarks = timeInRecords.map((record) => {
+    const obj = record.toObject({ virtuals: true });
+    const existing = String(obj.remarks || "").trim();
+    const computed = deriveRemarks({ classType: obj.classType, reason: obj.reason });
+    return { ...obj, remarks: existing || computed };
+  });
+
+  res.json(withDerivedRemarks);
 });
 
 /**
@@ -699,7 +753,10 @@ export const getActiveTimeIns = asyncHandler(async (req, res) => {
     .populate("student", "firstName lastName")
     .sort({ timeIn: -1 });
 
-  const monitoringData = activeTimeIns.map(record => ({
+  const monitoringData = activeTimeIns.map(record => {
+    const existing = String(record.remarks || "").trim();
+    const computed = deriveRemarks({ classType: record.classType, reason: record.reason });
+    return ({
     _id: record._id,
     classroom: record.classroom?.name || 'Unknown',
     location: record.classroom?.location || '',
@@ -711,11 +768,12 @@ export const getActiveTimeIns = asyncHandler(async (req, res) => {
     scheduledStartTime: record.scheduledStartTime,
     isLate: record.isLate,
     classType: record.classType,
-    remarks: record.remarks,
+    remarks: existing || computed,
     isHoliday: record.isHoliday,
     holidayInfo: record.holidayInfo,
     instructorStatus: record.instructorStatus
-  }));
+    });
+  });
 
   res.json(monitoringData);
 });
@@ -933,7 +991,10 @@ export const getById = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Access denied" });
   }
 
-  res.json(timeInRecord);
+  const obj = timeInRecord.toObject({ virtuals: true });
+  const existing = String(obj.remarks || "").trim();
+  const computed = deriveRemarks({ classType: obj.classType, reason: obj.reason });
+  res.json({ ...obj, remarks: existing || computed });
 });
 
 export const verify = async (req, res) => {
@@ -1022,43 +1083,138 @@ export const resetOldTimeIns = asyncHandler(async (req, res) => {
   }
 });
 
-export const getCurrentScheduleForClassroom = asyncHandler(async (req, res) => {
-  const currentTime = req.worldTime ?? new Date();
-  const classroom = await Classroom.findById(req.params.classroomId)
+export const getAvailableClasses = asyncHandler(async (req, res) => {
+  const now = req.worldTime ?? new Date();
+  const requestedTime = String(req.query.time || "").trim();
+  const requestedPeriod = String(req.query.period || "").trim().toUpperCase();
+  const requestedTimeInput = requestedPeriod
+    ? `${requestedTime} ${requestedPeriod}`.trim()
+    : requestedTime;
+
+  if (!requestedTimeInput) {
+    return res.status(400).json({
+      message: "Time is required. Use query params like ?time=7:30&period=AM",
+    });
+  }
+
+  const targetTime = parseRequestedTimeToDate(requestedTimeInput, now);
+  if (!targetTime) {
+    return res.status(400).json({
+      message: "Invalid time format. Use time=7:30&period=AM",
+    });
+  }
+
+  const currentDay = normalizeDayName(getDayName(targetTime));
+  const allClassrooms = await Classroom.find({})
     .select("name location schedules")
     .lean();
 
-  if (!classroom) {
-    return res.status(404).json({ message: "Classroom not found" });
+  const matchedEntries = [];
+
+  for (const classroom of allClassrooms) {
+    const matchedSchedule = getActiveScheduleForTime(
+      classroom.schedules || [],
+      targetTime,
+    );
+
+    if (!matchedSchedule) continue;
+
+    const instructorName = matchedSchedule.instructor?.trim() || "";
+    const instructor = instructorName
+      ? await Instructor.findOne({
+          name: { $regex: new RegExp(`^${instructorName}$`, "i") },
+        })
+          .select("name unavailable unavailableReason travelStatus travelDetails")
+          .lean()
+      : null;
+
+    const teachingElsewhere = instructorName
+      ? await TimeIn.findOne({
+          instructorName,
+          classroom: { $ne: classroom._id },
+          timeOut: { $exists: false },
+        })
+          .populate("classroom", "name")
+          .select("classroom timeIn")
+          .lean()
+      : null;
+
+    const occupiedClassroom = await TimeIn.findOne({
+      classroom: classroom._id,
+      timeOut: { $exists: false },
+    })
+      .populate("student", "firstName lastName")
+      .select("student timeIn instructorName")
+      .lean();
+
+    const scheduleRange = parseScheduleRange(matchedSchedule.time);
+    const instructorStatus = {
+      name: instructor?.name || instructorName,
+      unavailable: instructor?.unavailable || false,
+      unavailableReason: instructor?.unavailableReason || "",
+      travelStatus: instructor?.travelStatus || "available",
+      travelDetails: instructor?.travelDetails || "",
+      teachingElsewhere: !!teachingElsewhere,
+      activeTeachingSession: teachingElsewhere
+        ? {
+            classroom: teachingElsewhere.classroom?.name || "Unknown",
+            timeIn: teachingElsewhere.timeIn,
+          }
+        : null,
+    };
+
+    const classroomStatus = {
+      occupied: !!occupiedClassroom,
+      occupiedBy: occupiedClassroom
+        ? `${occupiedClassroom.student?.firstName || ""} ${occupiedClassroom.student?.lastName || ""}`.trim()
+        : "",
+      occupiedSince: occupiedClassroom?.timeIn || null,
+    };
+
+    const isAvailable =
+      !!instructorName &&
+      !instructorStatus.unavailable &&
+      instructorStatus.travelStatus !== "on-leave" &&
+      !instructorStatus.teachingElsewhere &&
+      !classroomStatus.occupied;
+
+    const statusReasons = [];
+    if (!instructorName) statusReasons.push("No instructor assigned");
+    if (instructorStatus.unavailable) statusReasons.push("Instructor unavailable");
+    if (instructorStatus.travelStatus === "on-leave") statusReasons.push("Instructor on leave");
+    if (instructorStatus.travelStatus === "on-travel") statusReasons.push("Instructor on travel");
+    if (instructorStatus.teachingElsewhere) statusReasons.push("Instructor teaching elsewhere");
+    if (classroomStatus.occupied) statusReasons.push("Classroom occupied");
+
+    matchedEntries.push({
+      id: `${classroom._id}-${matchedSchedule.day}-${matchedSchedule.time}-${matchedSchedule.section || ""}`,
+      displayLabel: `${instructorName || "TBA"} - ${classroom.name} (${matchedSchedule.section || "N/A"} - ${matchedSchedule.subjectCode || "N/A"})`,
+      available: isAvailable,
+      statusReasons,
+      classroom: {
+        id: classroom._id,
+        name: classroom.name,
+        location: classroom.location,
+      },
+      schedule: {
+        day: matchedSchedule.day,
+        time: matchedSchedule.time,
+        section: matchedSchedule.section || "",
+        subjectCode: matchedSchedule.subjectCode || "",
+        instructor: instructorName,
+        scheduledStartTime: scheduleRange?.start || "",
+      },
+      instructorStatus,
+      classroomStatus,
+    });
   }
 
-  const matchedSchedule = getActiveScheduleForTime(
-    classroom.schedules || [],
-    currentTime,
-  );
+  matchedEntries.sort((a, b) => Number(b.available) - Number(a.available));
 
   res.json({
-    classroom: {
-      id: classroom._id,
-      name: classroom.name,
-      location: classroom.location,
-    },
-    currentDay: getDayName(currentTime),
-    currentTime: currentTime.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }),
-    matched: !!matchedSchedule,
-    schedule: matchedSchedule
-      ? {
-          day: matchedSchedule.day,
-          time: matchedSchedule.time,
-          section: matchedSchedule.section || "",
-          subjectCode: matchedSchedule.subjectCode || "",
-          instructor: matchedSchedule.instructor || "",
-          scheduledStartTime: parseScheduleRange(matchedSchedule.time)?.start || "",
-        }
-      : null,
+    currentDay,
+    requestedTime: requestedTimeInput,
+    total: matchedEntries.length,
+    classes: matchedEntries,
   });
 });

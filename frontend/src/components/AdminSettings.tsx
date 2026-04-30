@@ -11,6 +11,7 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
+  Settings as SettingsIcon,
 } from "lucide-react";
 
 interface AdminSettingsProps {
@@ -57,7 +58,9 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
   onBack,
   onUpdate,
 }) => {
-  const [activeTab, setActiveTab] = useState<"profile" | "password" | "activity" | "reports">("profile");
+  const [activeTab, setActiveTab] = useState<
+    "profile" | "password" | "activity" | "reports" | "timein"
+  >("profile");
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [email, setEmail] = useState(user.email);
@@ -93,6 +96,10 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
       issueDate: "2024-10-09",
     });
 
+  const [noClassReasons, setNoClassReasons] = useState<string[]>([]);
+  const [noClassReasonInput, setNoClassReasonInput] = useState("");
+  const [noClassReasonsLoading, setNoClassReasonsLoading] = useState(false);
+
   useEffect(() => {
     const backendUrl = "http://localhost:5000";
     setFirstName(user.firstName);
@@ -118,6 +125,10 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
     if (user.role === "admin") {
       fetchDocumentControlSettings();
     }
+  }, []);
+
+  useEffect(() => {
+    fetchNoClassReasons();
   }, []);
 
   const fetchActivityLogs = async () => {
@@ -251,6 +262,82 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
       setError(
         error.response?.data?.message ||
           "Failed to update document control settings.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchNoClassReasons = async () => {
+    try {
+      setNoClassReasonsLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await axios.get("/api/settings/no-class-reasons", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const list = Array.isArray(response.data) ? response.data : [];
+      setNoClassReasons(list.filter((item) => String(item || "").trim()));
+    } catch (error) {
+      console.error("Failed to fetch no-class reasons:", error);
+      setNoClassReasons(["Travel", "Sick", "Absent", "Seminar", "Meeting"]);
+    } finally {
+      setNoClassReasonsLoading(false);
+    }
+  };
+
+  const handleAddNoClassReason = async () => {
+    if (user.role !== "admin") return;
+    const reason = String(noClassReasonInput || "").trim();
+    if (!reason) return;
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "/api/settings/no-class-reasons",
+        { reason },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      setNoClassReasons(Array.isArray(response.data) ? response.data : []);
+      setNoClassReasonInput("");
+      setSuccess("No-class reason added successfully!");
+      setTimeout(() => setSuccess(""), 2500);
+    } catch (error: any) {
+      setError(
+        error.response?.data?.message || "Failed to add no-class reason.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveNoClassReason = async (index: number) => {
+    if (user.role !== "admin") return;
+    const reason = noClassReasons[index];
+    const confirmed = window.confirm(
+      `Remove reason "${reason}"? This will update the Time-In dropdown for everyone.`,
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.delete(
+        `/api/settings/no-class-reasons/${index}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setNoClassReasons(Array.isArray(response.data) ? response.data : []);
+      setSuccess("No-class reason removed successfully!");
+      setTimeout(() => setSuccess(""), 2500);
+    } catch (error: any) {
+      setError(
+        error.response?.data?.message || "Failed to remove no-class reason.",
       );
     } finally {
       setLoading(false);
@@ -432,6 +519,13 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
           >
             <Save size={18} className="tab-icon" />
             Report Settings
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "timein" ? "active" : ""}`}
+            onClick={() => setActiveTab("timein")}
+          >
+            <SettingsIcon size={18} className="tab-icon" />
+            Time-In Settings
           </button>
         </div>
 
@@ -966,6 +1060,69 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({
                 </div>
               </form>
             )}
+          </div>
+        )}
+
+        {activeTab === "timein" && (
+          <div className="timein-settings-section">
+            <div className="password-section">
+              <h3>No-Class Reasons</h3>
+              <p className="section-description">
+                Manage the selectable reasons when a teacher records a No Class time-in.
+              </p>
+
+              <div className="no-class-reasons-card">
+                <div className="no-class-reasons-toolbar">
+                  <input
+                    type="text"
+                    value={noClassReasonInput}
+                    onChange={(e) => setNoClassReasonInput(e.target.value)}
+                    placeholder="Add new reason (e.g., Suspension)"
+                    disabled={loading || user.role !== "admin"}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAddNoClassReason}
+                    disabled={loading || user.role !== "admin" || !noClassReasonInput.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {user.role !== "admin" && (
+                  <div className="no-class-reasons-note">
+                    Only admins can modify reasons.
+                  </div>
+                )}
+
+                <div className="no-class-reasons-list">
+                  {noClassReasonsLoading ? (
+                    <div className="no-class-reasons-empty">Loading reasons...</div>
+                  ) : noClassReasons.length ? (
+                    noClassReasons.map((r, idx) => (
+                      <div key={`${r}-${idx}`} className="no-class-reasons-item">
+                        <span className="no-class-reasons-text">{r}</span>
+                        <button
+                          type="button"
+                          className="no-class-reasons-delete"
+                          onClick={() => handleRemoveNoClassReason(idx)}
+                          disabled={loading || user.role !== "admin"}
+                          aria-label={`Delete ${r}`}
+                          title="Delete"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-class-reasons-empty">
+                      No reasons configured.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

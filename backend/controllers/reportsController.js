@@ -35,6 +35,7 @@ import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
 import TimeIn from "../models/TimeIn.js";
 import SystemSettings from "../models/SystemSettings.js";
+import { deriveRemarks } from "../utils/deriveRemarks.js";
 import {
   requireVersion,
   buildVersionedUpdateDoc,
@@ -122,6 +123,11 @@ export const getTimeInAll = asyncHandler(async (req, res) => {
   const recordsWithScheduleData = timeInTransactions.map((record) => {
     const matchedSchedule = getScheduleForRecord(record);
     const scheduleRange = matchedSchedule ? parseScheduleRange(matchedSchedule.time) : null;
+    const existingRemarks = String(record.remarks || "").trim();
+    const computedRemarks = deriveRemarks({
+      classType: record.classType,
+      reason: record.reason,
+    });
     return {
       ...record,
       section: matchedSchedule?.section || record.section || "",
@@ -129,6 +135,7 @@ export const getTimeInAll = asyncHandler(async (req, res) => {
       instructorName: matchedSchedule?.instructor || record.instructorName || "",
       scheduledStartTime: record.scheduledStartTime || scheduleRange?.start || "",
       scheduledEndTime: scheduleRange?.end || "",
+      remarks: existingRemarks || computedRemarks,
     };
   });
   res.json({ data: recordsWithScheduleData, pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) } });
@@ -154,6 +161,18 @@ export const exportTimeInDocx = asyncHandler(async (req, res) => {
   if (!transactions || !Array.isArray(transactions)) {
     return res.status(400).json({ message: "No transaction data provided" });
   }
+
+  const derivedTransactions = transactions.map((record) => {
+    const existingRemarks = String(record?.remarks || "").trim();
+    const computedRemarks = deriveRemarks({
+      classType: record?.classType,
+      reason: record?.reason,
+    });
+    return {
+      ...record,
+      remarks: existingRemarks || computedRemarks,
+    };
+  });
 
   const classrooms = await Classroom.find({ name: { $regex: /comlab/i }, isArchived: false }).sort({ name: 1 });
   const rooms = classrooms.map((c) => c.name);
@@ -203,7 +222,7 @@ export const exportTimeInDocx = asyncHandler(async (req, res) => {
   // ✅ FIXED: buildDayGrid now clamps rowSpan to prevent overflow past timeBlocks length
   const buildDayGrid = (day) => {
     const grid = rooms.reduce((acc, room) => ({ ...acc, [room]: timeBlocks.map(() => ({ record: null, rowSpan: 1, skip: false })) }), {});
-    transactions.forEach((record) => {
+    derivedTransactions.forEach((record) => {
       try {
         const recordDay = new Date(record.date || record.timeIn).toLocaleDateString("en-US", { weekday: "long" });
         if (recordDay !== day) return;
@@ -450,7 +469,7 @@ export const exportTimeInDocx = asyncHandler(async (req, res) => {
           new TextRun({ text: "College/Department: ", bold: true, size: 20, font: FONT_BOOK_ANTIQUA }),
           new TextRun({ text: "COLLEGE OF TECHNOLOGIES- INFORMATION TECHNOLOGY", size: 20, font: FONT_BOOK_ANTIQUA }),
           new TextRun({ text: "   Inclusive Dates: ", bold: true, size: 20, font: FONT_BOOK_ANTIQUA }),
-          new TextRun({ text: formatInclusiveDates(transactions), size: 20, font: FONT_BOOK_ANTIQUA }),
+          new TextRun({ text: formatInclusiveDates(derivedTransactions), size: 20, font: FONT_BOOK_ANTIQUA }),
         ]}),
         new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }),
         new Paragraph({ spacing: { before: 300 }, children: [] }),

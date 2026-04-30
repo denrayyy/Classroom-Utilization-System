@@ -49,10 +49,20 @@ const timeInSchema = mongoose.Schema({
     default: ''
   },
   classType: {
-    type: String,
-    enum: ["synchronous", "asynchronous"],
-    default: "synchronous"
-  },
+  type: String,
+  enum: ["in-class", "no-class"],
+  default: "in-class"
+},
+
+reason: {
+  type: String,
+  default: ''
+},
+
+customTimeIn: {
+  type: Date,
+  default: null
+},
   
   // ========== TIME TRACKING ==========
   timeIn: {
