@@ -4,7 +4,6 @@ import { attachWorldTimeOptional } from "../middleware/worldTime.js";
 // Route imports
 import authRoutes from "./auth.js";
 import classroomRoutes from "./classrooms.js";
-import reservationRoutes from "./reservations.js";
 import scheduleRoutes from "./schedules.js";
 import usageRoutes from "./usage.js";
 import reportRoutes from "./reports.js";
@@ -12,7 +11,6 @@ import timeInRoutes from "./timein.js";
 import userRoutes from "./users.js";
 import instructorRoutes from "./instructors.js";
 import holidayRoutes from "./holidays.js";
-import apiRoutes from "./api.js";
 import activityLogsRoutes from "./activityLogs.js";
 import systemSettingsRoutes from "./systemSettings.js";
 import notificationRoutes from "./notifications.js";
@@ -31,13 +29,17 @@ router.get("/", (_req, res) => {
     endpoints: {
       auth: "/api/auth",
       classrooms: "/api/classrooms",
-      reservations: "/api/reservations",
       schedules: "/api/schedules",
       usage: "/api/usage",
       reports: "/api/reports",
       timein: "/api/timein",
       users: "/api/users",
       instructors: "/api/instructors",
+      holidays: "/api/holidays",
+      "activity-logs": "/api/activity-logs",
+      "system-settings": "/api/system-settings",
+      settings: "/api/settings",
+      notifications: "/api/notifications",
     },
   });
 });
@@ -45,7 +47,6 @@ router.get("/", (_req, res) => {
 // Mount route modules
 router.use("/auth", authRoutes);
 router.use("/classrooms", classroomRoutes);
-router.use("/reservations", reservationRoutes);
 router.use("/schedules", scheduleRoutes);
 router.use("/usage", usageRoutes);
 router.use("/reports", reportRoutes);
@@ -57,6 +58,5 @@ router.use("/activity-logs", activityLogsRoutes);
 router.use("/system-settings", systemSettingsRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/notifications", notificationRoutes);
-router.use("/", apiRoutes);
 
 export default router;

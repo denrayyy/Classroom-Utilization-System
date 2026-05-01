@@ -1,7 +1,5 @@
-import SystemSetting from "../models/SystemSetting.js";
 import SystemSettings from "../models/SystemSettings.js";
 
-const REPORT_HEADER_KEY = "report_header";
 const DEFAULT_REPORT_HEADER = {
   semester: "2nd Semester",
   academicYearStart: "2025",
@@ -30,10 +28,11 @@ const sanitizeReportHeader = (value = {}) => {
 };
 
 export const getStoredReportHeader = async () => {
-  const setting = await SystemSetting.findOne({ key: REPORT_HEADER_KEY }).lean();
-  return sanitizeReportHeader(setting?.value);
+  const settings = await SystemSettings.getSettings();
+  return sanitizeReportHeader(settings.reportHeader || {});
 };
 
+// ========== REPORT HEADER ==========
 export const getReportHeaderSettings = async (_req, res) => {
   const reportHeader = await getStoredReportHeader();
   res.json(reportHeader);
@@ -41,23 +40,15 @@ export const getReportHeaderSettings = async (_req, res) => {
 
 export const updateReportHeaderSettings = async (req, res) => {
   const reportHeader = sanitizeReportHeader(req.body || {});
+  const settings = await SystemSettings.getSettings();
 
-  await SystemSetting.findOneAndUpdate(
-    { key: REPORT_HEADER_KEY },
-    {
-      key: REPORT_HEADER_KEY,
-      value: {
-        semester: reportHeader.semester,
-        academicYearStart: reportHeader.academicYearStart,
-        academicYearEnd: reportHeader.academicYearEnd,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    },
-  );
+  settings.reportHeader = {
+    semester: reportHeader.semester,
+    academicYearStart: reportHeader.academicYearStart,
+    academicYearEnd: reportHeader.academicYearEnd,
+  };
+  settings.updatedBy = req.user._id;
+  await settings.save(); // ✅ version increments properly
 
   res.json({
     message: "Report settings updated successfully.",
@@ -65,6 +56,7 @@ export const updateReportHeaderSettings = async (req, res) => {
   });
 };
 
+// ========== GENERAL SETTINGS ==========
 export const getSettings = async (_req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
@@ -84,13 +76,14 @@ export const updateSettings = async (req, res) => {
     if (issueDate) settings.issueDate = new Date(issueDate);
     settings.updatedBy = req.user._id;
 
-    await settings.save();
+    await settings.save(); // ✅ version increments properly
     res.json({ message: "Settings updated", settings });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+// ========== NO-CLASS REASONS ==========
 export const getNoClassReasons = async (_req, res) => {
   try {
     const settings = await SystemSettings.getSettings();
@@ -124,7 +117,7 @@ export const addNoClassReason = async (req, res) => {
 
     settings.noClassReasons = [...existing, reason];
     settings.updatedBy = req.user._id;
-    await settings.save();
+    await settings.save(); // ✅ version increments properly
 
     res.status(201).json(settings.noClassReasons);
   } catch (error) {
@@ -151,7 +144,7 @@ export const removeNoClassReason = async (req, res) => {
     const next = existing.filter((_, i) => i !== index);
     settings.noClassReasons = next.length ? next : DEFAULT_NO_CLASS_REASONS;
     settings.updatedBy = req.user._id;
-    await settings.save();
+    await settings.save(); // ✅ version increments properly
 
     res.json(settings.noClassReasons);
   } catch (error) {

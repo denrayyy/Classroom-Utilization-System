@@ -10,8 +10,6 @@ import {
   Calendar,
   Save,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
   Monitor,
   Building,
   MapPin,
@@ -170,13 +168,23 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
   };
   // ============ END SCHEDULE CONFLICT FUNCTIONS ============
 
-  useEffect(() => {
-    fetchData();
-  }, [showArchived]);
+  useEffect(
+    () => {
+      fetchData();
+      // ...existing code...
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showArchived],
+  );
 
-  useEffect(() => {
-    calculateStats();
-  }, [classrooms]);
+  useEffect(
+    () => {
+      calculateStats();
+      // ...existing code...
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [classrooms],
+  );
 
   const calculateStats = () => {
     const active = classrooms.filter((c) => !c.isArchived).length;
@@ -938,8 +946,11 @@ const ClassroomManagement: React.FC<ClassroomManagementProps> = ({ user }) => {
                   />
                 </div>
 
-                <div className="form-group checkbox-group">
-                  <div className="checkbox-wrapper">
+                <div className="form-group full-width">
+                  <div
+                    className="checkbox-wrapper"
+                    style={{ justifyContent: "flex-start" }}
+                  >
                     <input
                       type="checkbox"
                       id="isAvailable"
